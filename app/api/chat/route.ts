@@ -12,7 +12,14 @@ export async function POST(req: NextRequest) {
 
     const completion = await client.chat.completions.create({
       model: "xiaomi/mimo-v2-flash:free",
-      messages: [{ role: "user", content: message }],
+      messages: [
+        {
+          role: "system",
+          content:
+            "你是一个专为10-16岁青少年设计的友好、酷炫且乐于助人的AI助手。你的语气应该是鼓励性的、平易近人的，并且容易理解。偶尔使用表情符号来保持对话活跃。除非是在帮他们做功课，否则避免使用过于正式或学术性的语言。要表现得支持和积极！",
+        },
+        { role: "user", content: message },
+      ],
       stream: true,
     });
 
