@@ -43,7 +43,11 @@ export default function Home() {
     if (!input.trim()) return;
 
     const userMessage = input;
-    setMessages((m) => [...m, { role: "user", content: userMessage }]);
+    const newHistory = [
+      ...messages,
+      { role: "user", content: userMessage } as Message,
+    ];
+    setMessages(newHistory);
     setInput("");
     setLoading(true);
 
@@ -51,7 +55,12 @@ export default function Home() {
       const res = await fetch("/api/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ message: userMessage }),
+        body: JSON.stringify({
+          messages: newHistory.map((m) => ({
+            role: m.role === "bot" ? "assistant" : m.role,
+            content: m.content,
+          })),
+        }),
       });
 
       if (!res.ok) throw new Error(res.statusText);
