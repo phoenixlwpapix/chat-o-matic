@@ -1,65 +1,220 @@
-import Image from "next/image";
+"use client";
+
+import { useState, useRef, useEffect } from "react";
+import { Send, Bot, User as UserIcon, Sparkles, Zap } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+  CardFooter,
+} from "@/components/ui/card";
+import { cn } from "@/lib/utils";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
+
+interface Message {
+  role: "user" | "bot";
+  content: string;
+}
 
 export default function Home() {
+  const [input, setInput] = useState("");
+  const [messages, setMessages] = useState<Message[]>([]);
+  const [loading, setLoading] = useState(false);
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  const scrollToBottom = () => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  };
+
+  useEffect(() => {
+    scrollToBottom();
+  }, [messages]);
+
+  async function sendMessage() {
+    if (!input.trim()) return;
+
+    const userMessage = input;
+    setMessages((m) => [...m, { role: "user", content: userMessage }]);
+    setInput("");
+    setLoading(true);
+
+    try {
+      const res = await fetch("/api/chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ message: userMessage }),
+      });
+
+      if (!res.ok) throw new Error(res.statusText);
+      if (!res.body) throw new Error("No response body");
+
+      // Add an empty bot message to start streaming into
+      setMessages((m) => [...m, { role: "bot", content: "" }]);
+
+      const reader = res.body.getReader();
+      const decoder = new TextDecoder();
+      let done = false;
+
+      while (!done) {
+        const { value, done: doneReading } = await reader.read();
+        done = doneReading;
+        const chunkValue = decoder.decode(value, { stream: true });
+
+        setMessages((m) => {
+          const lastMessage = m[m.length - 1];
+          if (lastMessage.role === "bot") {
+            return [
+              ...m.slice(0, -1),
+              { ...lastMessage, content: lastMessage.content + chunkValue },
+            ];
+          }
+          return m;
+        });
+      }
+    } catch (error) {
+      console.error("Error sending message:", error);
+      setMessages((m) => [
+        ...m,
+        { role: "bot", content: "哎呀！出错了。*砰！*" },
+      ]);
+    } finally {
+      setLoading(false);
+    }
+  }
+
   return (
-    <div className="flex min-h-screen items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex min-h-screen w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the page.tsx file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
+    <main className="min-h-screen flex items-center justify-center p-4 md:p-8">
+      <Card className="w-full max-w-2xl h-[80vh] flex flex-col border-4 shadow-[8px_8px_0px_0px_rgba(0,0,0,1)]">
+        <CardHeader className="border-b-2 border-black bg-yellow-300 rounded-t-lg py-6">
+          <div className="flex items-center gap-4">
+            <div className="bg-black p-2 rounded-xl shadow-[4px_4px_0px_0px_rgba(255,255,255,1)] -rotate-3">
+              <Zap className="w-8 h-8 text-yellow-300 fill-yellow-300" />
+            </div>
+            <CardTitle className="flex flex-col">
+              <span className="text-4xl md:text-5xl font-black tracking-tighter leading-none drop-shadow-[2px_2px_0px_rgba(255,255,255,1)]">
+                聊聊机
+              </span>
+              <span className="text-xs font-black uppercase tracking-[0.3em] text-black/60 mt-1">
+                Chat-O-Matic
+              </span>
+            </CardTitle>
+          </div>
+          <p className="font-bold text-sm mt-2 bg-black text-white inline-block px-2 py-0.5 self-start transform skew-x-[-10deg]">
+            你负责好奇，我负责回答
           </p>
-        </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
+        </CardHeader>
+
+        <CardContent className="flex-1 overflow-y-auto p-4 space-y-4 bg-white">
+          {messages.length === 0 && (
+            <div className="h-full flex flex-col items-center justify-center text-center space-y-6">
+              <div className="relative">
+                <Sparkles className="w-20 h-20 text-yellow-400 fill-yellow-400 animate-bounce" />
+                <div className="absolute -top-2 -right-2 bg-red-500 text-white text-[10px] font-bold px-2 py-1 rounded-full border-2 border-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]">
+                  HOT
+                </div>
+              </div>
+              <div className="space-y-2">
+                <p className="text-3xl font-black uppercase tracking-tighter">
+                  准备就绪！
+                </p>
+                <p className="text-sm font-bold bg-yellow-200 border-2 border-black px-4 py-1 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
+                  在下方输入内容，开启冒险之旅。
+                </p>
+              </div>
+            </div>
+          )}
+
+          {messages.map((m, i) => (
+            <div
+              key={i}
+              className={cn(
+                "flex w-full",
+                m.role === "user" ? "justify-end" : "justify-start"
+              )}
+            >
+              <div
+                className={cn(
+                  "flex max-w-[80%] items-start gap-2",
+                  m.role === "user" ? "flex-row-reverse" : "flex-row"
+                )}
+              >
+                <div
+                  className={cn(
+                    "w-8 h-8 rounded-full border-2 border-black flex items-center justify-center shrink-0 shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]",
+                    m.role === "user" ? "bg-blue-400" : "bg-red-400"
+                  )}
+                >
+                  {m.role === "user" ? (
+                    <UserIcon className="w-5 h-5 text-white" />
+                  ) : (
+                    <Bot className="w-5 h-5 text-white" />
+                  )}
+                </div>
+                <div
+                  className={cn(
+                    "p-3 rounded-lg border-2 border-black font-medium text-sm shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]",
+                    m.role === "user"
+                      ? "bg-blue-100 text-blue-900 rounded-tr-none"
+                      : "bg-white text-black rounded-tl-none"
+                  )}
+                >
+                  {m.role === "user" ? (
+                    m.content
+                  ) : (
+                    <div className="prose prose-sm max-w-none">
+                      <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                        {m.content}
+                      </ReactMarkdown>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          ))}
+          {loading && messages[messages.length - 1]?.role !== "bot" && (
+            <div className="flex justify-start w-full">
+              <div className="flex items-center gap-2">
+                <div className="w-8 h-8 rounded-full border-2 border-black bg-red-400 flex items-center justify-center shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]">
+                  <Bot className="w-5 h-5 text-white animate-pulse" />
+                </div>
+                <div className="px-4 py-2 rounded-lg border-2 border-black bg-gray-100 rounded-tl-none shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
+                  <span className="font-bold animate-pulse">思考中...</span>
+                </div>
+              </div>
+            </div>
+          )}
+          <div ref={messagesEndRef} />
+        </CardContent>
+
+        <CardFooter className="border-t-2 border-black p-4 bg-gray-50 rounded-b-lg">
+          <form
+            className="flex w-full gap-2"
+            onSubmit={(e) => {
+              e.preventDefault();
+              sendMessage();
+            }}
           >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
+            <Input
+              className="flex-1 bg-white text-lg"
+              value={input}
+              onChange={(e) => setInput(e.target.value)}
+              placeholder="说点俏皮话..."
             />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
-        </div>
-      </main>
-    </div>
+            <Button
+              type="submit"
+              size="icon"
+              className="w-12 h-10 bg-green-400 hover:bg-green-500 text-black"
+              disabled={loading}
+            >
+              <Send className="w-5 h-5" />
+            </Button>
+          </form>
+        </CardFooter>
+      </Card>
+    </main>
   );
 }

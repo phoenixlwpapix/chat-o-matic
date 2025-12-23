@@ -1,36 +1,63 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Chat-O-Matic (聊聊机) 🚀
 
-## Getting Started
+Chat-O-Matic is a high-energy, neo-brutalism styled chatbot built with Next.js 16 and powered by OpenRouter.
 
-First, run the development server:
+![Chat-O-Matic Preview](public/window.svg) <!-- Placeholder for actual screenshot if available -->
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
-```
+## ✨ Features
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+- **Neo-Brutalism UI**: Bold borders, vibrant colors, and heavy shadows for a unique look.
+- **Real-time Streaming**: Watch the AI think and respond in real-time.
+- **Markdown Support**: Full support for markdown formatting, including tables and task lists.
+- **OpenRouter Integration**: Powered by the latest models via OpenRouter (default: `xiaomi/mimo-v2-flash:free`).
+- **Responsive Design**: Works great on both desktop and mobile.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## 🛠️ Tech Stack
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+- **Framework**: [Next.js 16](https://nextjs.org/)
+- **Styling**: [Tailwind CSS 4](https://tailwindcss.com/)
+- **UI Components**: [Radix UI](https://www.radix-ui.com/) & [Lucide React](https://lucide.dev/)
+- **AI SDK**: [OpenAI SDK](https://github.com/openai/openai-node) (via OpenRouter)
+- **Markdown**: [react-markdown](https://github.com/remarkjs/react-markdown) & [remark-gfm](https://github.com/remarkjs/remark-gfm)
 
-## Learn More
+## 🚀 Getting Started
 
-To learn more about Next.js, take a look at the following resources:
+### Prerequisites
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+- Node.js 18+
+- pnpm (recommended)
+- An OpenRouter API Key
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+### Installation
 
-## Deploy on Vercel
+1. Clone the repository:
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+   ```bash
+   git clone https://github.com/phoenixlwpapix/chat-o-matic.git
+   cd chat-o-matic
+   ```
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+2. Install dependencies:
+
+   ```bash
+   pnpm install
+   ```
+
+3. Set up environment variables:
+   Create a `.env.local` file in the root directory and add your OpenRouter API key:
+
+   ```env
+   OPENROUTER_API_KEY=your_api_key_here
+   ```
+
+4. Run the development server:
+
+   ```bash
+   pnpm dev
+   ```
+
+5. Open [http://localhost:3000](http://localhost:3000) in your browser.
+
+## 📝 License
+
+MIT
