@@ -128,7 +128,7 @@ export default function Home() {
             </Button>
           </div>
           <p className="font-bold text-sm mt-2 bg-black text-white inline-block px-2 py-0.5 self-start transform skew-x-[-10deg]">
-            你负责好奇，我负责回答
+            你负责异想天开，我负责陪你奇思妙想
           </p>
         </CardHeader>
 
@@ -136,7 +136,7 @@ export default function Home() {
           {messages.length === 0 && (
             <div className="h-full flex flex-col items-center justify-center text-center space-y-6">
               <div className="relative">
-                <Sparkles className="w-20 h-20 text-yellow-400 fill-yellow-400 animate-[spin_5s_linear_infinite]" />
+                <Sparkles className="w-20 h-20 text-yellow-400 fill-yellow-400 animate-[spin_10s_linear_infinite]" />
                 <div className="absolute -top-2 -right-2 bg-red-500 text-white text-[10px] font-bold px-2 py-1 rounded-full border-2 border-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]">
                   HOT
                 </div>
@@ -228,7 +228,7 @@ export default function Home() {
               className="flex-1 bg-white text-lg"
               value={input}
               onChange={(e) => setInput(e.target.value)}
-              placeholder="问啥都行，我可聪明啦！"
+              placeholder="跟我聊聊吧，我可聪明啦！"
             />
             <Button
               type="submit"
