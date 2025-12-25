@@ -101,16 +101,16 @@ export default function Home() {
   }
 
   return (
-    <main className="min-h-screen flex items-center justify-center p-4 md:p-8">
-      <Card className="w-full max-w-2xl h-[80vh] flex flex-col border-4 shadow-[8px_8px_0px_0px_rgba(0,0,0,1)]">
-        <CardHeader className="border-b-2 border-black bg-yellow-300 rounded-t-lg py-6">
+    <main className="min-h-screen flex items-center justify-center p-2 md:p-8">
+      <Card className="w-full max-w-2xl h-[95vh] md:h-[80vh] flex flex-col border-4 shadow-[8px_8px_0px_0px_rgba(0,0,0,1)]">
+        <CardHeader className="border-b-2 border-black bg-yellow-300 rounded-t-lg py-4 md:py-6">
           <div className="flex items-center justify-between">
-            <div className="flex items-center gap-4">
-              <div className="bg-black p-2 rounded-xl shadow-[4px_4px_0px_0px_rgba(255,255,255,1)] -rotate-3">
-                <Zap className="w-8 h-8 text-yellow-300 fill-yellow-300" />
+            <div className="flex items-center gap-3 md:gap-4">
+              <div className="bg-black p-1.5 md:p-2 rounded-xl shadow-[4px_4px_0px_0px_rgba(255,255,255,1)] -rotate-3">
+                <Zap className="w-6 h-6 md:w-8 md:h-8 text-yellow-300 fill-yellow-300" />
               </div>
               <CardTitle className="flex flex-col">
-                <span className="text-4xl md:text-5xl font-black tracking-tighter leading-none drop-shadow-[2px_2px_0px_rgba(255,255,255,1)]">
+                <span className="text-3xl md:text-5xl font-black tracking-tighter leading-none drop-shadow-[2px_2px_0px_rgba(255,255,255,1)]">
                   聊聊机
                 </span>
                 <span className="text-xs font-black uppercase tracking-[0.3em] text-black/60 mt-1">
@@ -128,7 +128,7 @@ export default function Home() {
             </Button>
           </div>
           <p className="font-bold text-sm mt-2 bg-black text-white inline-block px-2 py-0.5 self-start transform skew-x-[-10deg]">
-            你负责异想天开，我负责陪你奇思妙想
+            你负责异想天开，我负责奇思妙想
           </p>
         </CardHeader>
 
@@ -162,7 +162,7 @@ export default function Home() {
             >
               <div
                 className={cn(
-                  "flex max-w-[80%] items-start gap-2",
+                  "flex max-w-[92%] md:max-w-[80%] items-start gap-2",
                   m.role === "user" ? "flex-row-reverse" : "flex-row"
                 )}
               >
