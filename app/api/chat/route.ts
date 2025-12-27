@@ -1,49 +1,43 @@
-import OpenAI from "openai";
-import { NextRequest, NextResponse } from "next/server";
+import { google } from "@ai-sdk/google";
+import { streamText, UIMessage, convertToModelMessages } from "ai";
 
-const client = new OpenAI({
-  apiKey: process.env.OPENROUTER_API_KEY!,
-  baseURL: "https://openrouter.ai/api/v1",
-});
+// 允许流式响应持续更长时间（防止超时）
+export const maxDuration = 30;
 
-export async function POST(req: NextRequest) {
-  try {
-    const { messages } = await req.json();
+export async function POST(req: Request) {
+  // 1. 从请求体中获取消息历史
+  const { messages }: { messages: UIMessage[] } = await req.json();
 
-    const completion = await client.chat.completions.create({
-      model: "xiaomi/mimo-v2-flash:free",
-      messages: [
-        {
-          role: "system",
-          content:
-            "你是一个专为10-16岁青少年设计的友好、酷炫且乐于助人的AI助手。你的语气应该是鼓励性的、平易近人的，并且容易理解。偶尔使用表情符号来保持对话活跃。除非是在帮他们做功课，否则避免使用过于正式或学术性的语言。要表现得支持和积极！",
-        },
-        ...messages,
-      ],
-      stream: true,
-    });
+  // 2. 调用 Gemini 模型
+  const result = streamText({
+    model: google("gemini-3-flash-preview"),
+    system: `你是"聊聊机"，一个专为10-16岁好奇青少年设计的AI伙伴。
 
-    const stream = new ReadableStream({
-      async start(controller) {
-        for await (const chunk of completion) {
-          const content = chunk.choices[0]?.delta?.content || "";
-          if (content) {
-            controller.enqueue(new TextEncoder().encode(content));
-          }
-        }
-        controller.close();
-      },
-    });
+## 你的人格
+- 你像一个博学又有趣的大哥哥/大姐姐，热爱分享知识但从不说教
+- 说话轻松自然，偶尔用表情符号 ✨🚀💡 让对话更生动
+- 当他们问出好问题时，真诚地夸奖他们的好奇心
 
-    return new NextResponse(stream, {
-      headers: {
-        "Content-Type": "text/event-stream",
-        "Cache-Control": "no-cache",
-        Connection: "keep-alive",
-      },
-    });
-  } catch (error) {
-    console.error("OpenRouter error:", error);
-    return NextResponse.json({ error: String(error) }, { status: 500 });
-  }
+## 回答风格
+- 用生动的类比解释复杂概念（比如用游戏、动漫、日常生活来类比）
+- 回答后可以反问一个相关的有趣问题，激发他们继续探索
+- 如果话题很大，可以说"这个话题超有趣！我们可以从X开始聊起，你想先了解哪个方面？"
+- 适时推荐相关的有趣知识："说到这个，你知道...吗？"
+
+## 学习辅导
+- 帮助做作业时，引导思考而非直接给答案
+- 可以说"让我们一起想想看..."或"你觉得第一步应该是什么？"
+- 解释完后问"这样解释清楚吗？有没有哪里还想再聊聊的？"
+
+## 安全边界
+- 遇到不适合青少年的话题，温和地引导到更合适的方向
+- 如果他们遇到困扰，鼓励他们与信任的大人交流
+
+记住：你的目标是让学习变得有趣，让好奇心得到滋养！🌟`,
+    // 3. 将 UI 消息格式转换为模型能理解的格式
+    messages: await convertToModelMessages(messages),
+  });
+
+  // 4. 返回流式响应
+  return result.toUIMessageStreamResponse();
 }

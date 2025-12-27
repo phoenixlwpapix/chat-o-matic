@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
+import { useRef, useEffect, useState } from "react";
+import { useChat } from "@ai-sdk/react";
 import { Send, Bot, User as UserIcon, Sparkles, Zap, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -15,16 +16,14 @@ import { cn } from "@/lib/utils";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 
-interface Message {
-  role: "user" | "bot";
-  content: string;
-}
-
 export default function Home() {
-  const [input, setInput] = useState("");
-  const [messages, setMessages] = useState<Message[]>([]);
-  const [loading, setLoading] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const [inputValue, setInputValue] = useState("");
+
+  // AI SDK 6 useChat - 默认连接到 /api/chat
+  const { messages, sendMessage, status, setMessages } = useChat();
+
+  const isLoading = status === "streaming" || status === "submitted";
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -32,73 +31,27 @@ export default function Home() {
 
   const resetConversation = () => {
     setMessages([]);
-    setInput("");
+    setInputValue("");
   };
 
   useEffect(() => {
     scrollToBottom();
   }, [messages]);
 
-  async function sendMessage() {
-    if (!input.trim()) return;
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!inputValue.trim()) return;
+    sendMessage({ text: inputValue });
+    setInputValue("");
+  };
 
-    const userMessage = input;
-    const newHistory = [
-      ...messages,
-      { role: "user", content: userMessage } as Message,
-    ];
-    setMessages(newHistory);
-    setInput("");
-    setLoading(true);
-
-    try {
-      const res = await fetch("/api/chat", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          messages: newHistory.map((m) => ({
-            role: m.role === "bot" ? "assistant" : m.role,
-            content: m.content,
-          })),
-        }),
-      });
-
-      if (!res.ok) throw new Error(res.statusText);
-      if (!res.body) throw new Error("No response body");
-
-      // Add an empty bot message to start streaming into
-      setMessages((m) => [...m, { role: "bot", content: "" }]);
-
-      const reader = res.body.getReader();
-      const decoder = new TextDecoder();
-      let done = false;
-
-      while (!done) {
-        const { value, done: doneReading } = await reader.read();
-        done = doneReading;
-        const chunkValue = decoder.decode(value, { stream: true });
-
-        setMessages((m) => {
-          const lastMessage = m[m.length - 1];
-          if (lastMessage.role === "bot") {
-            return [
-              ...m.slice(0, -1),
-              { ...lastMessage, content: lastMessage.content + chunkValue },
-            ];
-          }
-          return m;
-        });
-      }
-    } catch (error) {
-      console.error("Error sending message:", error);
-      setMessages((m) => [
-        ...m,
-        { role: "bot", content: "哎呀！出错了。*砰！*" },
-      ]);
-    } finally {
-      setLoading(false);
-    }
-  }
+  // 从消息的 parts 中提取文本内容
+  const getMessageContent = (message: typeof messages[0]): string => {
+    return message.parts
+      .filter((part): part is { type: "text"; text: string } => part.type === "text")
+      .map((part) => part.text)
+      .join("");
+  };
 
   return (
     <main className="min-h-screen flex items-center justify-center p-2 md:p-8">
@@ -152,54 +105,57 @@ export default function Home() {
             </div>
           )}
 
-          {messages.map((m, i) => (
-            <div
-              key={i}
-              className={cn(
-                "flex w-full",
-                m.role === "user" ? "justify-end" : "justify-start"
-              )}
-            >
+          {messages.map((m) => {
+            const content = getMessageContent(m);
+            return (
               <div
+                key={m.id}
                 className={cn(
-                  "flex max-w-[92%] md:max-w-[80%] items-start gap-2",
-                  m.role === "user" ? "flex-row-reverse" : "flex-row"
+                  "flex w-full",
+                  m.role === "user" ? "justify-end" : "justify-start"
                 )}
               >
                 <div
                   className={cn(
-                    "w-8 h-8 rounded-full border-2 border-black flex items-center justify-center shrink-0 shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]",
-                    m.role === "user" ? "bg-blue-400" : "bg-red-400"
+                    "flex max-w-[92%] md:max-w-[80%] items-start gap-2",
+                    m.role === "user" ? "flex-row-reverse" : "flex-row"
                   )}
                 >
-                  {m.role === "user" ? (
-                    <UserIcon className="w-5 h-5 text-white" />
-                  ) : (
-                    <Bot className="w-5 h-5 text-white" />
-                  )}
-                </div>
-                <div
-                  className={cn(
-                    "p-3 rounded-lg border-2 border-black font-medium text-base shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]",
-                    m.role === "user"
-                      ? "bg-blue-100 text-blue-900 rounded-tr-none"
-                      : "bg-white text-black rounded-tl-none"
-                  )}
-                >
-                  {m.role === "user" ? (
-                    m.content
-                  ) : (
-                    <div className="prose prose-base max-w-none">
-                      <ReactMarkdown remarkPlugins={[remarkGfm]}>
-                        {m.content}
-                      </ReactMarkdown>
-                    </div>
-                  )}
+                  <div
+                    className={cn(
+                      "w-8 h-8 rounded-full border-2 border-black flex items-center justify-center shrink-0 shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]",
+                      m.role === "user" ? "bg-blue-400" : "bg-red-400"
+                    )}
+                  >
+                    {m.role === "user" ? (
+                      <UserIcon className="w-5 h-5 text-white" />
+                    ) : (
+                      <Bot className="w-5 h-5 text-white" />
+                    )}
+                  </div>
+                  <div
+                    className={cn(
+                      "p-3 rounded-lg border-2 border-black font-medium text-base shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]",
+                      m.role === "user"
+                        ? "bg-blue-100 text-blue-900 rounded-tr-none"
+                        : "bg-white text-black rounded-tl-none"
+                    )}
+                  >
+                    {m.role === "user" ? (
+                      content
+                    ) : (
+                      <div className="prose prose-base max-w-none">
+                        <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                          {content}
+                        </ReactMarkdown>
+                      </div>
+                    )}
+                  </div>
                 </div>
               </div>
-            </div>
-          ))}
-          {loading && messages[messages.length - 1]?.role !== "bot" && (
+            );
+          })}
+          {isLoading && messages[messages.length - 1]?.role !== "assistant" && (
             <div className="flex justify-start w-full">
               <div className="flex items-center gap-2">
                 <div className="w-8 h-8 rounded-full border-2 border-black bg-red-400 flex items-center justify-center shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]">
@@ -219,22 +175,19 @@ export default function Home() {
         <CardFooter className="border-t-2 border-black p-4 bg-gray-50 rounded-b-lg">
           <form
             className="flex w-full gap-2"
-            onSubmit={(e) => {
-              e.preventDefault();
-              sendMessage();
-            }}
+            onSubmit={handleSubmit}
           >
             <Input
               className="flex-1 bg-white text-lg"
-              value={input}
-              onChange={(e) => setInput(e.target.value)}
+              value={inputValue}
+              onChange={(e) => setInputValue(e.target.value)}
               placeholder="跟我聊聊吧，我可聪明啦！"
             />
             <Button
               type="submit"
               size="icon"
               className="w-12 h-10 bg-green-400 hover:bg-green-500 text-black"
-              disabled={loading}
+              disabled={isLoading}
             >
               <Send className="w-5 h-5" />
             </Button>
