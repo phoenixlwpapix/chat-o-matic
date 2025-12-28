@@ -15,6 +15,8 @@ import {
   Gamepad2,
   Copy,
   Check,
+  ImagePlus,
+  X,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -28,6 +30,9 @@ import {
 import { cn } from "@/lib/utils";
 import ReactMarkdown, { Components } from "react-markdown";
 import remarkGfm from "remark-gfm";
+import remarkMath from "remark-math";
+import rehypeKatex from "rehype-katex";
+import "katex/dist/katex.min.css";
 import { Prism as SyntaxHighlighter } from "react-syntax-highlighter";
 import { oneDark } from "react-syntax-highlighter/dist/esm/styles/prism";
 
@@ -61,7 +66,10 @@ const QUICK_PROMPTS = [
 
 export default function Home() {
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const [inputValue, setInputValue] = useState("");
+  // 图片上传状态：存储 base64 数据 URL
+  const [pendingImages, setPendingImages] = useState<string[]>([]);
 
   // AI SDK 6 useChat - 默认连接到 /api/chat
   const { messages, sendMessage, status, setMessages } = useChat();
@@ -80,6 +88,74 @@ export default function Home() {
     } catch (err) {
       console.error("复制失败:", err);
     }
+  }, []);
+
+  // 压缩图片（确保不超过 1MB，最大边 1024px）
+  const compressImage = useCallback(
+    (file: File): Promise<string> =>
+      new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = (e) => {
+          const img = new Image();
+          img.onload = () => {
+            const canvas = document.createElement("canvas");
+            const MAX_SIZE = 1024;
+            let { width, height } = img;
+            if (width > MAX_SIZE || height > MAX_SIZE) {
+              if (width > height) {
+                height = (height / width) * MAX_SIZE;
+                width = MAX_SIZE;
+              } else {
+                width = (width / height) * MAX_SIZE;
+                height = MAX_SIZE;
+              }
+            }
+            canvas.width = width;
+            canvas.height = height;
+            const ctx = canvas.getContext("2d")!;
+            ctx.drawImage(img, 0, 0, width, height);
+            // 使用 JPEG 格式压缩，质量 0.8
+            const dataUrl = canvas.toDataURL("image/jpeg", 0.8);
+            resolve(dataUrl);
+          };
+          img.onerror = () => reject(new Error("图片加载失败"));
+          img.src = e.target?.result as string;
+        };
+        reader.onerror = () => reject(new Error("文件读取失败"));
+        reader.readAsDataURL(file);
+      }),
+    []
+  );
+
+  // 处理图片上传
+  const handleImageUpload = useCallback(
+    async (e: React.ChangeEvent<HTMLInputElement>) => {
+      const files = Array.from(e.target.files || []);
+      if (files.length === 0) return;
+
+      // 最多同时上传 4 张图片
+      const filesToProcess = files.slice(0, 4 - pendingImages.length);
+
+      try {
+        const compressed = await Promise.all(
+          filesToProcess.map((file) => compressImage(file))
+        );
+        setPendingImages((prev) => [...prev, ...compressed].slice(0, 4));
+      } catch (err) {
+        console.error("图片处理失败:", err);
+      }
+
+      // 重置 input 以便再次选择同一文件
+      if (fileInputRef.current) {
+        fileInputRef.current.value = "";
+      }
+    },
+    [pendingImages.length, compressImage]
+  );
+
+  // 移除待发送的图片
+  const removePendingImage = useCallback((index: number) => {
+    setPendingImages((prev) => prev.filter((_, i) => i !== index));
   }, []);
 
   // 从消息 parts 中提取纯文本（用于复制）
@@ -153,6 +229,7 @@ export default function Home() {
   const resetConversation = () => {
     setMessages([]);
     setInputValue("");
+    setPendingImages([]);
   };
 
   useEffect(() => {
@@ -161,9 +238,24 @@ export default function Home() {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!inputValue.trim()) return;
-    sendMessage({ text: inputValue });
+    // 允许只发图片或只发文字
+    if (!inputValue.trim() && pendingImages.length === 0) return;
+
+    // 构建消息附件（图片）
+    const files = pendingImages.map((dataUrl) => ({
+      // AI SDK 6 期望的 FileUIPart 格式
+      type: "file" as const,
+      mediaType: "image/jpeg" as const,
+      url: dataUrl,
+    }));
+
+    sendMessage({
+      text: inputValue || "请看这张图片，帮我解决问题",
+      files,
+    });
+
     setInputValue("");
+    setPendingImages([]);
   };
 
   return (
@@ -202,7 +294,7 @@ export default function Home() {
           {messages.length === 0 && (
             <div className="h-full flex flex-col items-center justify-center text-center space-y-6 px-2">
               <div className="relative">
-                <Sparkles className="w-10 h-10 md:w-12 md:h-12 text-yellow-400 fill-yellow-400 animate-[spin_10s_linear_infinite]" />
+                <Sparkles className="w-12 h-12 text-yellow-400 fill-yellow-400 animate-[spin_10s_linear_infinite]" />
                 <div className="absolute -top-2 -right-2 bg-red-500 text-white text-[10px] font-bold px-2 py-1 rounded-full border-2 border-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]">
                   HOT
                 </div>
@@ -292,13 +384,27 @@ export default function Home() {
                           ) : (
                             <div key={key} className="prose prose-base max-w-none">
                               <ReactMarkdown
-                                remarkPlugins={[remarkGfm]}
+                                remarkPlugins={[remarkGfm, remarkMath]}
+                                rehypePlugins={[rehypeKatex]}
                                 components={{ code: CodeBlock }}
                               >
                                 {part.text}
                               </ReactMarkdown>
                             </div>
                           );
+                        case "file":
+                          // 渲染用户上传的图片
+                          if (part.mediaType?.startsWith("image/")) {
+                            return (
+                              <img
+                                key={key}
+                                src={part.url}
+                                alt="上传的图片"
+                                className="max-w-full rounded-lg border-2 border-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] mt-2"
+                              />
+                            );
+                          }
+                          return null;
                         // 预留扩展：未来支持 tool-call 等类型
                         default:
                           return null;
@@ -345,25 +451,76 @@ export default function Home() {
         </CardContent>
 
         <CardFooter className="border-t-2 border-black p-4 bg-gray-50 rounded-b-lg">
-          <form
-            className="flex w-full gap-2"
-            onSubmit={handleSubmit}
-          >
-            <Input
-              className="flex-1 bg-white text-lg"
-              value={inputValue}
-              onChange={(e) => setInputValue(e.target.value)}
-              placeholder="跟我聊聊吧，我可聪明啦！"
-            />
-            <Button
-              type="submit"
-              size="icon"
-              className="w-12 h-10 bg-green-400 hover:bg-green-500 text-black"
-              disabled={isLoading}
+          {/* 隐藏的文件输入 */}
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="image/*"
+            multiple
+            className="hidden"
+            onChange={handleImageUpload}
+          />
+
+          <div className="flex flex-col w-full gap-2">
+            {/* 图片预览区域 */}
+            {pendingImages.length > 0 && (
+              <div className="flex gap-2 flex-wrap">
+                {pendingImages.map((src, index) => (
+                  <div key={index} className="relative group">
+                    <img
+                      src={src}
+                      alt={`待发送图片 ${index + 1}`}
+                      className="w-16 h-16 object-cover rounded-lg border-2 border-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => removePendingImage(index)}
+                      className="absolute -top-2 -right-2 w-5 h-5 bg-red-500 rounded-full border-2 border-black flex items-center justify-center shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] hover:bg-red-600 transition-colors"
+                    >
+                      <X className="w-3 h-3 text-white" />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {/* 输入表单 */}
+            <form
+              className="flex w-full gap-2"
+              onSubmit={handleSubmit}
             >
-              <Send className="w-5 h-5" />
-            </Button>
-          </form>
+              {/* 图片上传按钮 */}
+              <Button
+                type="button"
+                size="icon"
+                onClick={() => fileInputRef.current?.click()}
+                className="w-12 h-10 bg-purple-400 hover:bg-purple-500 text-black"
+                disabled={isLoading || pendingImages.length >= 4}
+                title="上传图片（最多4张）"
+              >
+                <ImagePlus className="w-5 h-5" />
+              </Button>
+
+              <Input
+                className="flex-1 bg-white text-lg"
+                value={inputValue}
+                onChange={(e) => setInputValue(e.target.value)}
+                placeholder={
+                  pendingImages.length > 0
+                    ? "添加说明，或直接发送图片..."
+                    : "跟我聊聊吧，我可聪明啦！"
+                }
+              />
+              <Button
+                type="submit"
+                size="icon"
+                className="w-12 h-10 bg-green-400 hover:bg-green-500 text-black"
+                disabled={isLoading}
+              >
+                <Send className="w-5 h-5" />
+              </Button>
+            </form>
+          </div>
         </CardFooter>
       </Card>
     </main>
