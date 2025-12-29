@@ -166,6 +166,30 @@ export default function Home() {
       .join("");
   };
 
+  // 标准化 Markdown：将 **"文字"** 转换为 "**文字**"
+  const normalizeMarkdown = (text: string): string => {
+    const QUOTES = [
+      ['\u201C', '\u201D'], // “ ”
+      ['\u2018', '\u2019'], // ‘ ’
+      ['\u300C', '\u300D'], // 「 」
+      ['\u300E', '\u300F'], // 『 』
+      ['"', '"'],
+      ["'", "'"],
+    ];
+
+    let result = text;
+
+    for (const [open, close] of QUOTES) {
+      const pattern = new RegExp(
+        `\\*\\*${open}([^\\*]+?)${close}\\*\\*`,
+        'g'
+      );
+      result = result.replace(pattern, `${open}**$1**${close}`);
+    }
+
+    return result;
+  };
+
   // 自定义代码块渲染组件（支持语法高亮和复制）
   const CodeBlock: Components["code"] = ({ className, children, ...props }) => {
     const match = /language-(\w+)/.exec(className || "");
@@ -388,7 +412,7 @@ export default function Home() {
                                 rehypePlugins={[rehypeKatex]}
                                 components={{ code: CodeBlock }}
                               >
-                                {part.text}
+                                {normalizeMarkdown(part.text)}
                               </ReactMarkdown>
                             </div>
                           );
