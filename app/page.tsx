@@ -41,25 +41,25 @@ const QUICK_PROMPTS = [
   {
     icon: Rocket,
     label: "宇宙探索",
-    prompt: "给我讲讲黑洞是怎么形成的？如果掉进去会发生什么？",
+    prompt: "告诉我一个超级酷的宇宙小知识！",
     color: "bg-purple-400",
   },
   {
     icon: Lightbulb,
-    label: "创意写作",
-    prompt: "帮我想一个关于时间旅行的短故事开头，要有悬念！",
+    label: "创意灵感",
+    prompt: "给我一个脑洞大开的故事开头！",
     color: "bg-orange-400",
   },
   {
     icon: BookOpen,
-    label: "作业帮手",
-    prompt: "我想理解一下勾股定理，能用生活中的例子解释吗？",
+    label: "知识大百科",
+    prompt: "用最简单的方式讲懂一个科学知识。",
     color: "bg-green-400",
   },
   {
     icon: Gamepad2,
     label: "趣味冷知识",
-    prompt: "告诉我一个超级冷门但很有趣的科学冷知识！",
+    prompt: "告诉我一个有趣又冷门的生活小知识！",
     color: "bg-pink-400",
   },
 ];
