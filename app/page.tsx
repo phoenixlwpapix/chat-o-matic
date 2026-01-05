@@ -159,9 +159,11 @@ export default function Home() {
   }, []);
 
   // 从消息 parts 中提取纯文本（用于复制）
-  const getMessageText = (parts: typeof messages[0]["parts"]): string => {
+  const getMessageText = (parts: (typeof messages)[0]["parts"]): string => {
     return parts
-      .filter((part): part is { type: "text"; text: string } => part.type === "text")
+      .filter(
+        (part): part is { type: "text"; text: string } => part.type === "text"
+      )
       .map((part) => part.text)
       .join("");
   };
@@ -169,10 +171,10 @@ export default function Home() {
   // 标准化 Markdown：将 **"文字"** 转换为 "**文字**"
   const normalizeMarkdown = (text: string): string => {
     const QUOTES = [
-      ['\u201C', '\u201D'], // “ ”
-      ['\u2018', '\u2019'], // ‘ ’
-      ['\u300C', '\u300D'], // 「 」
-      ['\u300E', '\u300F'], // 『 』
+      ["\u201C", "\u201D"], // “ ”
+      ["\u2018", "\u2019"], // ‘ ’
+      ["\u300C", "\u300D"], // 「 」
+      ["\u300E", "\u300F"], // 『 』
       ['"', '"'],
       ["'", "'"],
     ];
@@ -180,10 +182,7 @@ export default function Home() {
     let result = text;
 
     for (const [open, close] of QUOTES) {
-      const pattern = new RegExp(
-        `\\*\\*${open}([^\\*]+?)${close}\\*\\*`,
-        'g'
-      );
+      const pattern = new RegExp(`\\*\\*${open}([^\\*]+?)${close}\\*\\*`, "g");
       result = result.replace(pattern, `${open}**$1**${close}`);
     }
 
@@ -310,7 +309,7 @@ export default function Home() {
             </Button>
           </div>
           <p className="font-bold text-sm mt-2 bg-black text-white inline-block px-2 py-0.5 self-start transform skew-x-[-10deg]">
-            你负责异想天开，我负责奇思妙想
+            你负责好奇，我负责想象
           </p>
         </CardHeader>
 
@@ -406,7 +405,10 @@ export default function Home() {
                           return message.role === "user" ? (
                             <span key={key}>{part.text}</span>
                           ) : (
-                            <div key={key} className="prose prose-base max-w-none">
+                            <div
+                              key={key}
+                              className="prose prose-base max-w-none"
+                            >
                               <ReactMarkdown
                                 remarkPlugins={[remarkGfm, remarkMath]}
                                 rehypePlugins={[rehypeKatex]}
@@ -438,7 +440,9 @@ export default function Home() {
                   {/* AI 消息复制按钮 */}
                   {message.role === "assistant" && (
                     <button
-                      onClick={() => handleCopy(getMessageText(message.parts), message.id)}
+                      onClick={() =>
+                        handleCopy(getMessageText(message.parts), message.id)
+                      }
                       className={cn(
                         "absolute -bottom-2 right-2 p-1.5 rounded-lg border-2 border-black bg-white",
                         "shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] hover:bg-gray-100",
@@ -509,10 +513,7 @@ export default function Home() {
             )}
 
             {/* 输入表单 */}
-            <form
-              className="flex w-full gap-2"
-              onSubmit={handleSubmit}
-            >
+            <form className="flex w-full gap-2" onSubmit={handleSubmit}>
               {/* 图片上传按钮 */}
               <Button
                 type="button"
