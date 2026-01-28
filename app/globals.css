@@ -20,3 +20,36 @@ body {
   color: var(--foreground);
   font-family: var(--font-sans), Arial, Helvetica, sans-serif;
 }
+
+@keyframes float {
+  0%, 100% {
+    transform: translateY(0px);
+  }
+  50% {
+    transform: translateY(-20px);
+  }
+}
+
+.float-1 {
+  animation: float 3s ease-in-out infinite;
+}
+
+.float-2 {
+  animation: float 4s ease-in-out infinite 0.5s;
+}
+
+.float-3 {
+  animation: float 3.5s ease-in-out infinite 1s;
+}
+
+.float-4 {
+  animation: float 3.2s ease-in-out infinite 0.3s;
+}
+
+.float-5 {
+  animation: float 3.8s ease-in-out infinite 0.8s;
+}
+
+.float-6 {
+  animation: float 3.6s ease-in-out infinite 1.2s;
+}

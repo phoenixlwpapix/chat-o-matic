@@ -17,6 +17,14 @@ import {
   Check,
   ImagePlus,
   X,
+  Star,
+  Heart,
+  Cloud,
+  Music,
+  Smile,
+  Coffee,
+  ThumbsUp,
+  ThumbsDown,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -79,6 +87,10 @@ export default function Home() {
   // 复制状态管理
   const [copiedId, setCopiedId] = useState<string | null>(null);
 
+  // 反馈状态管理
+  const [messageFeedback, setMessageFeedback] = useState<Map<string, 'helpful' | 'unclear'>>(new Map());
+  const [simplifyRequested, setSimplifyRequested] = useState<Set<string>>(new Set());
+
   // 复制消息内容
   const handleCopy = useCallback(async (text: string, id: string) => {
     try {
@@ -89,6 +101,23 @@ export default function Home() {
       console.error("复制失败:", err);
     }
   }, []);
+
+  // 处理反馈点击
+  const handleFeedback = useCallback((messageId: string, feedback: 'helpful' | 'unclear') => {
+    setMessageFeedback(prev => {
+      const newMap = new Map(prev);
+      newMap.set(messageId, feedback);
+      return newMap;
+    });
+
+    // 如果是"没太懂"且未请求过简化，自动发送简化请求
+    if (feedback === 'unclear' && !simplifyRequested.has(messageId)) {
+      setSimplifyRequested(prev => new Set(prev).add(messageId));
+      sendMessage({
+        text: "请用更简单的方式,用我能听懂的例子再解释一遍刚才的回答"
+      });
+    }
+  }, [simplifyRequested, sendMessage]);
 
   // 压缩图片（确保不超过 1MB，最大边 1024px）
   const compressImage = useCallback(
@@ -240,6 +269,62 @@ export default function Home() {
     );
   };
 
+  // 反馈按钮组件
+  const FeedbackButtons = ({
+    messageId,
+    currentFeedback,
+    onFeedbackClick,
+    isDisabled,
+  }: {
+    messageId: string;
+    currentFeedback: 'helpful' | 'unclear' | null;
+    onFeedbackClick: (messageId: string, feedback: 'helpful' | 'unclear') => void;
+    isDisabled: boolean;
+  }) => {
+    return (
+      <div className="flex items-center gap-2">
+        <button
+          onClick={() => onFeedbackClick(messageId, 'helpful')}
+          disabled={isDisabled}
+          className={cn(
+            "px-3 py-1.5 rounded-lg border-2 text-sm font-medium transition-all",
+            "shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]",
+            "hover:-translate-y-0.5 active:translate-x-0.5 active:translate-y-0.5",
+            "active:shadow-[1px_1px_0px_0px_rgba(0,0,0,1)]",
+            "disabled:opacity-50 disabled:cursor-not-allowed",
+            currentFeedback === 'helpful'
+              ? "bg-green-400 border-black text-white"
+              : "bg-white border-gray-300 text-gray-700 hover:bg-gray-50"
+          )}
+        >
+          <span className="flex items-center gap-1.5">
+            <ThumbsUp className="w-4 h-4" />
+            <span>有帮助</span>
+          </span>
+        </button>
+        <button
+          onClick={() => onFeedbackClick(messageId, 'unclear')}
+          disabled={isDisabled}
+          className={cn(
+            "px-3 py-1.5 rounded-lg border-2 text-sm font-medium transition-all",
+            "shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]",
+            "hover:-translate-y-0.5 active:translate-x-0.5 active:translate-y-0.5",
+            "active:shadow-[1px_1px_0px_0px_rgba(0,0,0,1)]",
+            "disabled:opacity-50 disabled:cursor-not-allowed",
+            currentFeedback === 'unclear'
+              ? "bg-orange-400 border-black text-white"
+              : "bg-white border-gray-300 text-gray-700 hover:bg-gray-50"
+          )}
+        >
+          <span className="flex items-center gap-1.5">
+            <ThumbsDown className="w-4 h-4" />
+            <span>没太懂</span>
+          </span>
+        </button>
+      </div>
+    );
+  };
+
   // 处理快捷提示词点击
   const handleQuickPrompt = (prompt: string) => {
     sendMessage({ text: prompt });
@@ -282,8 +367,42 @@ export default function Home() {
   };
 
   return (
-    <main className="min-h-screen flex items-center justify-center p-2 md:p-8">
-      <Card className="w-full max-w-2xl h-[95vh] md:h-[80vh] flex flex-col border-4 shadow-[8px_8px_0px_0px_rgba(0,0,0,1)]">
+    <main className="min-h-screen flex items-center justify-center p-2 md:p-8 relative">
+      {/* 左侧装饰图标 - 仅大屏幕显示 */}
+      <div className="hidden md:block absolute left-8 top-1/4 float-1">
+        <div className="bg-pink-400 p-3 rounded-2xl border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] rotate-12">
+          <Star className="w-8 h-8 text-white fill-white" />
+        </div>
+      </div>
+      <div className="hidden md:block absolute left-16 top-1/2 float-2">
+        <div className="bg-purple-400 p-2.5 rounded-xl border-2 border-black shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] -rotate-6">
+          <Heart className="w-7 h-7 text-white fill-white" />
+        </div>
+      </div>
+      <div className="hidden md:block absolute left-12 bottom-1/4 float-3">
+        <div className="bg-blue-400 p-3 rounded-2xl border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] rotate-[-15deg]">
+          <Cloud className="w-8 h-8 text-white" />
+        </div>
+      </div>
+
+      {/* 右侧装饰图标 - 仅大屏幕显示 */}
+      <div className="hidden md:block absolute right-8 top-1/3 float-4">
+        <div className="bg-orange-400 p-3 rounded-2xl border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] -rotate-12">
+          <Music className="w-8 h-8 text-white" />
+        </div>
+      </div>
+      <div className="hidden md:block absolute right-16 top-1/2 float-5">
+        <div className="bg-green-400 p-2.5 rounded-xl border-2 border-black shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] rotate-6">
+          <Smile className="w-7 h-7 text-white" />
+        </div>
+      </div>
+      <div className="hidden md:block absolute right-12 bottom-1/3 float-6">
+        <div className="bg-yellow-400 p-3 rounded-2xl border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] rotate-12">
+          <Coffee className="w-8 h-8 text-white" />
+        </div>
+      </div>
+
+      <Card className="w-full max-w-2xl md:max-w-4xl h-[95vh] md:h-[85vh] flex flex-col border-4 shadow-[8px_8px_0px_0px_rgba(0,0,0,1)]">
         <CardHeader className="border-b-2 border-black bg-yellow-300 rounded-t-lg py-4 md:py-6">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3 md:gap-4">
@@ -317,8 +436,8 @@ export default function Home() {
           {messages.length === 0 && (
             <div className="h-full flex flex-col items-center justify-center text-center space-y-6 px-2">
               <div className="relative">
-                <Sparkles className="w-12 h-12 text-yellow-400 fill-yellow-400 animate-[spin_10s_linear_infinite]" />
-                <div className="absolute -top-2 -right-2 bg-red-500 text-white text-[10px] font-bold px-2 py-1 rounded-full border-2 border-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]">
+                <Sparkles className="w-16 h-16 md:w-24 md:h-24 text-yellow-400 fill-yellow-400 animate-[spin_10s_linear_infinite]" />
+                <div className="absolute -top-2 -right-2 md:-top-3 md:-right-3 bg-red-500 text-white text-[10px] md:text-xs font-bold px-2 py-1 rounded-full border-2 border-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]">
                   HOT
                 </div>
               </div>
@@ -332,7 +451,7 @@ export default function Home() {
               </div>
 
               {/* 快捷提示词卡片网格 */}
-              <div className="grid grid-cols-2 gap-3 w-full max-w-md mt-2">
+              <div className="flex flex-wrap justify-center gap-4 w-full max-w-2xl mt-2">
                 {QUICK_PROMPTS.map((item) => {
                   const Icon = item.icon;
                   return (
@@ -341,18 +460,18 @@ export default function Home() {
                       onClick={() => handleQuickPrompt(item.prompt)}
                       disabled={isLoading}
                       className={cn(
-                        "flex flex-col items-center gap-2 p-3 md:p-4 rounded-xl border-2 border-black",
-                        "shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]",
-                        "transition-all hover:-translate-y-0.5 hover:shadow-[6px_6px_0px_0px_rgba(0,0,0,1)]",
+                        "flex flex-col items-center gap-1.5 p-2 rounded-lg border-2 border-black",
+                        "shadow-[3px_3px_0px_0px_rgba(0,0,0,1)]",
+                        "transition-all hover:-translate-y-0.5 hover:shadow-[5px_5px_0px_0px_rgba(0,0,0,1)]",
                         "active:translate-x-0.5 active:translate-y-0.5 active:shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]",
                         "disabled:opacity-50 disabled:cursor-not-allowed",
                         item.color
                       )}
                     >
-                      <div className="bg-white p-2 rounded-lg border-2 border-black">
-                        <Icon className="w-5 h-5 md:w-6 md:h-6 text-black" />
+                      <div className="bg-white p-1.5 rounded-md border-2 border-black">
+                        <Icon className="w-4 h-4 text-black" />
                       </div>
-                      <span className="text-xs md:text-sm font-bold text-black">
+                      <span className="text-xs font-bold text-black whitespace-nowrap">
                         {item.label}
                       </span>
                     </button>
@@ -437,25 +556,39 @@ export default function Home() {
                       }
                     })}
                   </div>
-                  {/* AI 消息复制按钮 */}
+                  {/* AI 消息操作按钮区域 */}
                   {message.role === "assistant" && (
-                    <button
-                      onClick={() =>
-                        handleCopy(getMessageText(message.parts), message.id)
-                      }
-                      className={cn(
-                        "absolute -bottom-2 right-2 p-1.5 rounded-lg border-2 border-black bg-white",
-                        "shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] hover:bg-gray-100",
-                        "opacity-0 group-hover:opacity-100 transition-opacity"
-                      )}
-                      title="复制回复"
-                    >
-                      {copiedId === message.id ? (
-                        <Check className="w-4 h-4 text-green-600" />
-                      ) : (
-                        <Copy className="w-4 h-4 text-gray-600" />
-                      )}
-                    </button>
+                    <div className={cn(
+                      "flex items-center justify-between gap-2 mt-2 transition-opacity",
+                      "md:opacity-0 md:group-hover:opacity-100"
+                    )}>
+                      {/* 反馈按钮（左侧） */}
+                      <FeedbackButtons
+                        messageId={message.id}
+                        currentFeedback={messageFeedback.get(message.id) || null}
+                        onFeedbackClick={handleFeedback}
+                        isDisabled={isLoading}
+                      />
+                      {/* 复制按钮（右侧） */}
+                      <button
+                        onClick={() =>
+                          handleCopy(getMessageText(message.parts), message.id)
+                        }
+                        className={cn(
+                          "p-1.5 rounded-lg border-2 border-black bg-white",
+                          "shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] hover:bg-gray-100",
+                          "transition-all hover:-translate-y-0.5",
+                          "active:translate-x-0.5 active:translate-y-0.5 active:shadow-[1px_1px_0px_0px_rgba(0,0,0,1)]"
+                        )}
+                        title="复制回复"
+                      >
+                        {copiedId === message.id ? (
+                          <Check className="w-4 h-4 text-green-600" />
+                        ) : (
+                          <Copy className="w-4 h-4 text-gray-600" />
+                        )}
+                      </button>
+                    </div>
                   )}
                 </div>
               </div>
