@@ -1,8 +1,8 @@
 import { google } from "@ai-sdk/google";
 import { streamText, UIMessage, convertToModelMessages } from "ai";
 
-export const runtime = "edge";
-export const preferredRegion = "hkg1";
+// 允许流式响应持续更长时间（防止超时）
+export const maxDuration = 30;
 
 export async function POST(req: Request) {
   // 1. 从请求体中获取消息历史
