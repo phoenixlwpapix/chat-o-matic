@@ -1,0 +1,12 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(dir:*)",
+      "Bash(pnpm build:*)",
+      "Bash(git add:*)",
+      "Bash(git commit -m \"$\\(cat <<''EOF''\nperf: optimize China access speed with Edge Runtime and HK region\n\n- Add vercel.json to route API function to Hong Kong \\(hkg1\\) region\n- Enable Edge Runtime for faster cold starts and lower streaming latency\n- Remove maxDuration \\(not supported in Edge Runtime\\)\n\nCo-Authored-By: Claude Opus 4.5 <noreply@anthropic.com>\nEOF\n\\)\")",
+      "Bash(git push:*)",
+      "Bash(git commit -m \"$\\(cat <<''EOF''\nfix: use preferredRegion instead of vercel.json for HK region\n\nvercel.json functions config doesn''t support regions property.\nUse Next.js route segment config preferredRegion instead.\n\nCo-Authored-By: Claude Opus 4.5 <noreply@anthropic.com>\nEOF\n\\)\")"
+    ]
+  }
+}
