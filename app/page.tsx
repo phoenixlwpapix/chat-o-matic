@@ -25,6 +25,8 @@ import {
   Coffee,
   ThumbsUp,
   ThumbsDown,
+  Globe,
+  Search,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -550,11 +552,58 @@ export default function Home() {
                             );
                           }
                           return null;
-                        // 预留扩展：未来支持 tool-call 等类型
                         default:
                           return null;
                       }
                     })}
+
+                    {/* 搜索来源 */}
+                    {(() => {
+                      const sources = message.parts.filter(
+                        (part) => part.type === "source-url"
+                      );
+                      if (sources.length === 0) return null;
+                      return (
+                        <div className="mt-3 pt-3 border-t-2 border-dashed border-gray-300">
+                          <div className="flex items-center gap-1.5 mb-2">
+                            <Globe className="w-3.5 h-3.5 text-gray-500" />
+                            <span className="text-xs font-bold text-gray-500 uppercase tracking-wide">
+                              搜索来源
+                            </span>
+                          </div>
+                          <div className="flex flex-wrap gap-1.5">
+                            {sources.map((part, sourceIndex) => {
+                              if (part.type !== "source-url") return null;
+                              const hostname = (() => {
+                                try {
+                                  return new URL(part.url).hostname.replace(
+                                    /^www\./,
+                                    ""
+                                  );
+                                } catch {
+                                  return part.url;
+                                }
+                              })();
+                              return (
+                                <a
+                                  key={`${message.id}-source-${sourceIndex}`}
+                                  href={part.url}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="inline-flex items-center gap-1 px-2 py-1 text-xs font-medium bg-blue-50 text-blue-700 rounded-md border border-blue-200 hover:bg-blue-100 hover:border-blue-300 transition-colors"
+                                  title={part.title ?? part.url}
+                                >
+                                  <Globe className="w-3 h-3 shrink-0" />
+                                  <span className="truncate max-w-[150px]">
+                                    {part.title ?? hostname}
+                                  </span>
+                                </a>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      );
+                    })()}
                   </div>
                   {/* AI 消息操作按钮区域 */}
                   {message.role === "assistant" && (
@@ -594,20 +643,42 @@ export default function Home() {
               </div>
             </div>
           ))}
-          {isLoading && messages[messages.length - 1]?.role !== "assistant" && (
-            <div className="flex justify-start w-full">
-              <div className="flex items-center gap-2">
-                <div className="w-8 h-8 rounded-full border-2 border-black bg-red-400 flex items-center justify-center shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]">
-                  <Bot className="w-5 h-5 text-white animate-pulse" />
-                </div>
-                <div className="px-4 py-2 rounded-lg border-2 border-black bg-gray-100 rounded-tl-none shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
-                  <span className="text-base font-bold animate-pulse">
-                    思考中...
-                  </span>
+          {isLoading && (() => {
+            const lastMsg = messages[messages.length - 1];
+            const isSearching = lastMsg?.role === "assistant" &&
+              lastMsg.parts.some(
+                (p) => p.type.startsWith("tool-") && "state" in p && p.state !== "done" && p.state !== "output-available"
+              );
+            const hasNoText = !lastMsg || lastMsg.role !== "assistant" ||
+              !lastMsg.parts.some((p) => p.type === "text" && p.text.length > 0);
+
+            if (!isSearching && !hasNoText) return null;
+
+            return (
+              <div className="flex justify-start w-full">
+                <div className="flex items-center gap-2">
+                  <div className={cn(
+                    "w-8 h-8 rounded-full border-2 border-black flex items-center justify-center shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]",
+                    isSearching ? "bg-blue-400" : "bg-red-400"
+                  )}>
+                    {isSearching ? (
+                      <Search className="w-5 h-5 text-white animate-pulse" />
+                    ) : (
+                      <Bot className="w-5 h-5 text-white animate-pulse" />
+                    )}
+                  </div>
+                  <div className={cn(
+                    "px-4 py-2 rounded-lg border-2 border-black rounded-tl-none shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]",
+                    isSearching ? "bg-blue-50" : "bg-gray-100"
+                  )}>
+                    <span className="text-base font-bold animate-pulse">
+                      {isSearching ? "联网搜索中..." : "思考中..."}
+                    </span>
+                  </div>
                 </div>
               </div>
-            </div>
-          )}
+            );
+          })()}
           <div ref={messagesEndRef} />
         </CardContent>
 

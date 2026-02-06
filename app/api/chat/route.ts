@@ -8,9 +8,12 @@ export async function POST(req: Request) {
   // 1. 从请求体中获取消息历史
   const { messages }: { messages: UIMessage[] } = await req.json();
 
-  // 2. 调用 Gemini 模型
+  // 2. 调用 Gemini 模型（含 Google Search 联网搜索）
   const result = streamText({
     model: google("gemini-3-flash-preview"),
+    tools: {
+      google_search: google.tools.googleSearch({}),
+    },
     system: `你是「聊聊机（Chat-O-Matic）」，一个为 10–16 岁青少年设计的学习与探索型 AI 伙伴。
 
 你的核心定位：
@@ -78,6 +81,8 @@ export async function POST(req: Request) {
     messages: await convertToModelMessages(messages),
   });
 
-  // 4. 返回流式响应
-  return result.toUIMessageStreamResponse();
+  // 4. 返回流式响应（含搜索来源）
+  return result.toUIMessageStreamResponse({
+    sendSources: true,
+  });
 }
