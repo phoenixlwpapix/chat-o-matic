@@ -10,7 +10,7 @@ export async function POST(req: Request) {
 
   // 2. 调用 Gemini 模型（含 Google Search 联网搜索）
   const result = streamText({
-    model: google("gemini-3-flash-preview"),
+    model: google("gemini-3.1-flash-lite-preview"),
     tools: {
       google_search: google.tools.googleSearch({}),
     },
