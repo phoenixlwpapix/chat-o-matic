@@ -53,3 +53,36 @@ body {
 .float-6 {
   animation: float 3.6s ease-in-out infinite 1.2s;
 }
+
+/* ── Custom Scrollbar (neo-brutalism) ── */
+
+/* Firefox */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: #fde047 #f3f4f6;
+}
+
+/* WebKit (Chrome, Edge, Safari) */
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+::-webkit-scrollbar-track {
+  background: #f3f4f6;
+  border-left: 2px solid #000;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #fde047;
+  border: 2px solid #000;
+  border-radius: 0;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #facc15;
+}
+
+::-webkit-scrollbar-corner {
+  background: #f3f4f6;
+}

@@ -14,15 +14,12 @@ import {
   Lightbulb,
   Gamepad2,
   Copy,
+  RefreshCw,
   Check,
   ImagePlus,
   X,
-  Star,
-  Heart,
-  Cloud,
-  Music,
-  Smile,
-  Coffee,
+  Mic,
+  MicOff,
   ThumbsUp,
   ThumbsDown,
   Globe,
@@ -74,6 +71,35 @@ const QUICK_PROMPTS = [
   },
 ];
 
+// SpeechRecognition 类型声明
+interface SpeechRecognitionEvent extends Event {
+  results: SpeechRecognitionResultList;
+  resultIndex: number;
+}
+
+interface SpeechRecognitionErrorEvent extends Event {
+  error: string;
+}
+
+interface SpeechRecognitionInstance extends EventTarget {
+  continuous: boolean;
+  interimResults: boolean;
+  lang: string;
+  start: () => void;
+  stop: () => void;
+  abort: () => void;
+  onresult: ((event: SpeechRecognitionEvent) => void) | null;
+  onerror: ((event: SpeechRecognitionErrorEvent) => void) | null;
+  onend: (() => void) | null;
+}
+
+declare global {
+  interface Window {
+    SpeechRecognition: new () => SpeechRecognitionInstance;
+    webkitSpeechRecognition: new () => SpeechRecognitionInstance;
+  }
+}
+
 export default function Home() {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -92,6 +118,74 @@ export default function Home() {
   // 反馈状态管理
   const [messageFeedback, setMessageFeedback] = useState<Map<string, 'helpful' | 'unclear'>>(new Map());
   const [simplifyRequested, setSimplifyRequested] = useState<Set<string>>(new Set());
+
+  // 语音输入状态
+  const [isListening, setIsListening] = useState(false);
+  const recognitionRef = useRef<SpeechRecognitionInstance | null>(null);
+  // 记录语音识别开始前已有的文本，用于追加
+  const preVoiceTextRef = useRef("");
+
+  const isSpeechSupported = typeof window !== "undefined" &&
+    ("SpeechRecognition" in window || "webkitSpeechRecognition" in window);
+
+  const toggleVoiceInput = useCallback(() => {
+    if (isListening) {
+      // 停止识别
+      recognitionRef.current?.stop();
+      setIsListening(false);
+      return;
+    }
+
+    if (!isSpeechSupported) return;
+
+    const SpeechRecognition =
+      window.SpeechRecognition || window.webkitSpeechRecognition;
+    const recognition = new SpeechRecognition();
+    recognition.continuous = true;
+    recognition.interimResults = true;
+    recognition.lang = "zh-CN";
+
+    // 保存当前已有文本
+    preVoiceTextRef.current = inputValue;
+
+    recognition.onresult = (event: SpeechRecognitionEvent) => {
+      let finalTranscript = "";
+      let interimTranscript = "";
+
+      for (let i = event.resultIndex; i < event.results.length; i++) {
+        const transcript = event.results[i][0].transcript;
+        if (event.results[i].isFinal) {
+          finalTranscript += transcript;
+        } else {
+          interimTranscript += transcript;
+        }
+      }
+
+      const combined = finalTranscript || interimTranscript;
+      const prefix = preVoiceTextRef.current;
+      setInputValue(prefix ? `${prefix} ${combined}` : combined);
+
+      // 如果有最终识别结果，更新 prefix 以支持持续追加
+      if (finalTranscript) {
+        preVoiceTextRef.current = prefix
+          ? `${prefix} ${finalTranscript}`
+          : finalTranscript;
+      }
+    };
+
+    recognition.onerror = (event: SpeechRecognitionErrorEvent) => {
+      console.error("语音识别错误:", event.error);
+      setIsListening(false);
+    };
+
+    recognition.onend = () => {
+      setIsListening(false);
+    };
+
+    recognitionRef.current = recognition;
+    recognition.start();
+    setIsListening(true);
+  }, [isListening, isSpeechSupported, inputValue]);
 
   // 复制消息内容
   const handleCopy = useCallback(async (text: string, id: string) => {
@@ -342,6 +436,29 @@ export default function Home() {
     setPendingImages([]);
   };
 
+  // 重新生成最后一条 AI 回复
+  const handleRegenerate = useCallback(() => {
+    // 找到最后一条 assistant 消息的索引
+    const lastAssistantIndex = messages.findLastIndex(m => m.role === "assistant");
+    if (lastAssistantIndex === -1) return;
+
+    // 找到该 assistant 消息之前最近的 user 消息及其索引
+    const precedingMessages = messages.slice(0, lastAssistantIndex);
+    const lastUserIndex = precedingMessages.findLastIndex(m => m.role === "user");
+    if (lastUserIndex === -1) return;
+
+    const lastUserMessage = precedingMessages[lastUserIndex];
+
+    // 提取用户消息文本
+    const userText = getMessageText(lastUserMessage.parts);
+
+    // 移除最后一条 user 消息和 assistant 消息（sendMessage 会重新添加 user 消息）
+    setMessages(messages.slice(0, lastUserIndex));
+
+    // 重新发送
+    sendMessage({ text: userText || "请再回答一次" });
+  }, [messages, setMessages, sendMessage]);
+
   useEffect(() => {
     scrollToBottom();
   }, [messages]);
@@ -370,39 +487,6 @@ export default function Home() {
 
   return (
     <main className="min-h-screen flex items-center justify-center p-2 md:p-8 relative">
-      {/* 左侧装饰图标 - 仅大屏幕显示 */}
-      <div className="hidden md:block absolute left-8 top-1/4 float-1">
-        <div className="bg-pink-400 p-3 rounded-2xl border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] rotate-12">
-          <Star className="w-8 h-8 text-white fill-white" />
-        </div>
-      </div>
-      <div className="hidden md:block absolute left-16 top-1/2 float-2">
-        <div className="bg-purple-400 p-2.5 rounded-xl border-2 border-black shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] -rotate-6">
-          <Heart className="w-7 h-7 text-white fill-white" />
-        </div>
-      </div>
-      <div className="hidden md:block absolute left-12 bottom-1/4 float-3">
-        <div className="bg-blue-400 p-3 rounded-2xl border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] rotate-[-15deg]">
-          <Cloud className="w-8 h-8 text-white" />
-        </div>
-      </div>
-
-      {/* 右侧装饰图标 - 仅大屏幕显示 */}
-      <div className="hidden md:block absolute right-8 top-1/3 float-4">
-        <div className="bg-orange-400 p-3 rounded-2xl border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] -rotate-12">
-          <Music className="w-8 h-8 text-white" />
-        </div>
-      </div>
-      <div className="hidden md:block absolute right-16 top-1/2 float-5">
-        <div className="bg-green-400 p-2.5 rounded-xl border-2 border-black shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] rotate-6">
-          <Smile className="w-7 h-7 text-white" />
-        </div>
-      </div>
-      <div className="hidden md:block absolute right-12 bottom-1/3 float-6">
-        <div className="bg-yellow-400 p-3 rounded-2xl border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] rotate-12">
-          <Coffee className="w-8 h-8 text-white" />
-        </div>
-      </div>
 
       <Card className="w-full max-w-2xl md:max-w-4xl h-[95vh] md:h-[85vh] flex flex-col border-4 shadow-[8px_8px_0px_0px_rgba(0,0,0,1)]">
         <CardHeader className="border-b-2 border-black bg-yellow-300 rounded-t-lg py-4 md:py-6">
@@ -453,7 +537,7 @@ export default function Home() {
               </div>
 
               {/* 快捷提示词卡片网格 */}
-              <div className="flex flex-wrap justify-center gap-4 w-full max-w-2xl mt-2">
+              <div className="grid grid-cols-2 gap-3 w-full max-w-sm mt-2">
                 {QUICK_PROMPTS.map((item) => {
                   const Icon = item.icon;
                   return (
@@ -462,7 +546,7 @@ export default function Home() {
                       onClick={() => handleQuickPrompt(item.prompt)}
                       disabled={isLoading}
                       className={cn(
-                        "flex flex-col items-center gap-1.5 p-2 rounded-lg border-2 border-black",
+                        "flex flex-col items-center gap-2 p-3 rounded-xl border-2 border-black",
                         "shadow-[3px_3px_0px_0px_rgba(0,0,0,1)]",
                         "transition-all hover:-translate-y-0.5 hover:shadow-[5px_5px_0px_0px_rgba(0,0,0,1)]",
                         "active:translate-x-0.5 active:translate-y-0.5 active:shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]",
@@ -470,10 +554,10 @@ export default function Home() {
                         item.color
                       )}
                     >
-                      <div className="bg-white p-1.5 rounded-md border-2 border-black">
-                        <Icon className="w-4 h-4 text-black" />
+                      <div className="bg-white p-2 rounded-lg border-2 border-black">
+                        <Icon className="w-5 h-5 text-black" />
                       </div>
-                      <span className="text-xs font-bold text-black whitespace-nowrap">
+                      <span className="text-sm font-bold text-black whitespace-nowrap">
                         {item.label}
                       </span>
                     </button>
@@ -618,25 +702,45 @@ export default function Home() {
                         onFeedbackClick={handleFeedback}
                         isDisabled={isLoading}
                       />
-                      {/* 复制按钮（右侧） */}
-                      <button
-                        onClick={() =>
-                          handleCopy(getMessageText(message.parts), message.id)
-                        }
-                        className={cn(
-                          "p-1.5 rounded-lg border-2 border-black bg-white",
-                          "shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] hover:bg-gray-100",
-                          "transition-all hover:-translate-y-0.5",
-                          "active:translate-x-0.5 active:translate-y-0.5 active:shadow-[1px_1px_0px_0px_rgba(0,0,0,1)]"
+                      {/* 重新生成 & 复制按钮（右侧） */}
+                      <div className="flex items-center gap-1.5">
+                        {/* 重新生成按钮（仅最后一条 AI 消息显示） */}
+                        {message.id === [...messages].reverse().find(m => m.role === "assistant")?.id && (
+                          <button
+                            onClick={handleRegenerate}
+                            disabled={isLoading}
+                            className={cn(
+                              "p-1.5 rounded-lg border-2 border-black bg-white",
+                              "shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] hover:bg-gray-100",
+                              "transition-all hover:-translate-y-0.5",
+                              "active:translate-x-0.5 active:translate-y-0.5 active:shadow-[1px_1px_0px_0px_rgba(0,0,0,1)]",
+                              "disabled:opacity-50 disabled:cursor-not-allowed"
+                            )}
+                            title="重新生成"
+                          >
+                            <RefreshCw className={cn("w-4 h-4 text-gray-600", isLoading && "animate-spin")} />
+                          </button>
                         )}
-                        title="复制回复"
-                      >
-                        {copiedId === message.id ? (
-                          <Check className="w-4 h-4 text-green-600" />
-                        ) : (
-                          <Copy className="w-4 h-4 text-gray-600" />
-                        )}
-                      </button>
+                        {/* 复制按钮 */}
+                        <button
+                          onClick={() =>
+                            handleCopy(getMessageText(message.parts), message.id)
+                          }
+                          className={cn(
+                            "p-1.5 rounded-lg border-2 border-black bg-white",
+                            "shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] hover:bg-gray-100",
+                            "transition-all hover:-translate-y-0.5",
+                            "active:translate-x-0.5 active:translate-y-0.5 active:shadow-[1px_1px_0px_0px_rgba(0,0,0,1)]"
+                          )}
+                          title="复制回复"
+                        >
+                          {copiedId === message.id ? (
+                            <Check className="w-4 h-4 text-green-600" />
+                          ) : (
+                            <Copy className="w-4 h-4 text-gray-600" />
+                          )}
+                        </button>
+                      </div>
                     </div>
                   )}
                 </div>
@@ -729,6 +833,29 @@ export default function Home() {
               >
                 <ImagePlus className="w-5 h-5" />
               </Button>
+
+              {/* 语音输入按钮 */}
+              {isSpeechSupported && (
+                <Button
+                  type="button"
+                  size="icon"
+                  onClick={toggleVoiceInput}
+                  className={cn(
+                    "w-12 h-10 text-black transition-all",
+                    isListening
+                      ? "bg-red-400 hover:bg-red-500 animate-pulse"
+                      : "bg-cyan-400 hover:bg-cyan-500"
+                  )}
+                  disabled={isLoading}
+                  title={isListening ? "停止语音输入" : "语音输入"}
+                >
+                  {isListening ? (
+                    <MicOff className="w-5 h-5" />
+                  ) : (
+                    <Mic className="w-5 h-5" />
+                  )}
+                </Button>
+              )}
 
               <Input
                 className="flex-1 bg-white text-lg"
