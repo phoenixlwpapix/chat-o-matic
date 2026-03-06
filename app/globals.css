@@ -1,11 +1,254 @@
 @import "tailwindcss";
 @plugin "@tailwindcss/typography";
 
-:root {
-  --background: #ffffff;
+/* ── Theme: Sunflower (default) ── */
+:root,
+[data-theme="sunflower"] {
+  /* Page */
+  --page-bg: #f0f0f0;
+  --page-dot: #000000;
+  /* Header */
+  --header-bg: #fde047;
+  --header-text: #000000;
+  --header-subtitle: rgba(0, 0, 0, 0.6);
+  --header-tag-bg: #000000;
+  --header-tag-text: #ffffff;
+  /* Border & Shadow */
+  --border-color: #000000;
+  --shadow-color: 0, 0, 0;
+  /* Card */
+  --card-bg: #ffffff;
+  --card-content-bg: #ffffff;
+  --card-footer-bg: #f9fafb;
+  /* User bubble */
+  --user-avatar-bg: #60a5fa;
+  --user-bubble-bg: #dbeafe;
+  --user-bubble-text: #1e3a5f;
+  /* AI bubble */
+  --ai-avatar-bg: #f87171;
+  --ai-bubble-bg: #ffffff;
+  --ai-bubble-text: #000000;
+  /* Input */
+  --input-bg: #ffffff;
+  --input-border: #000000;
+  --input-text: #000000;
+  --input-placeholder: #9ca3af;
+  --input-focus-ring: #000000;
+  /* Scrollbar */
+  --scrollbar-track: #f3f4f6;
+  --scrollbar-thumb: #fde047;
+  --scrollbar-thumb-hover: #facc15;
+  /* Loading */
+  --loading-bg: #f3f4f6;
+  --loading-search-bg: #eff6ff;
+  --loading-search-avatar: #60a5fa;
+  /* Quick prompt colors */
+  --qp-1: #c084fc;
+  --qp-2: #fb923c;
+  --qp-3: #4ade80;
+  --qp-4: #f472b6;
+  /* Hot badge */
+  --hot-badge-bg: #ef4444;
+  --hot-badge-text: #ffffff;
+  /* Sparkle */
+  --sparkle-color: #facc15;
+  /* Inline code */
+  --inline-code-bg: #e5e7eb;
+  --inline-code-text: #db2777;
+  --inline-code-border: #d1d5db;
+  /* Feedback active */
+  --fb-helpful-bg: #4ade80;
+  --fb-unclear-bg: #fb923c;
+  --fb-inactive-bg: #ffffff;
+  --fb-inactive-text: #374151;
+  --fb-inactive-border: #d1d5db;
+  /* Source link */
+  --source-bg: #eff6ff;
+  --source-text: #1d4ed8;
+  --source-border: #bfdbfe;
+  --source-hover-bg: #dbeafe;
+  --source-hover-border: #93c5fd;
+  /* Btn colors */
+  --btn-image-bg: #c084fc;
+  --btn-image-hover: #a855f7;
+  --btn-voice-bg: #22d3ee;
+  --btn-voice-hover: #06b6d4;
+  --btn-send-bg: #4ade80;
+  --btn-send-hover: #22c55e;
+  --btn-new-bg: #ffffff;
+  --btn-new-hover: #fce7f3;
+  --btn-new-text: #000000;
+  /* Logo icon */
+  --logo-bg: #000000;
+  --logo-icon: #fde047;
+  --logo-shadow: rgba(255, 255, 255, 1);
+  /* HOT badge text */
   --foreground: #171717;
+  --background: #ffffff;
+  /* Prompt card text is always black for sunflower */
+  --prompt-card-text: #000000;
+  --prompt-card-icon-bg: #ffffff;
+  --btn-action-text: #000000;
 }
 
+/* ── Theme: Ocean (Cyan variation) ── */
+[data-theme="ocean"] {
+  --page-bg: #232946;
+  --page-dot: #2e3560;
+  --header-bg: #22d3ee;
+  --header-text: #232946;
+  --header-subtitle: rgba(35, 41, 70, 0.65);
+  --header-tag-bg: #121629;
+  --header-tag-text: #b8c1ec;
+  --border-color: #121629;
+  --shadow-color: 18, 22, 41;
+  --card-bg: #232946;
+  --card-content-bg: #2e3560;
+  --card-footer-bg: #1a1f3a;
+  --user-avatar-bg: #22d3ee;
+  --user-bubble-bg: #d4d8f0;
+  --user-bubble-text: #121629;
+  --ai-avatar-bg: #b8c1ec;
+  --ai-bubble-bg: #323868;
+  --ai-bubble-text: #fffffe;
+  --input-bg: #323868;
+  --input-border: #121629;
+  --input-text: #fffffe;
+  --input-placeholder: #8a8fad;
+  --input-focus-ring: #22d3ee;
+  --scrollbar-track: #232946;
+  --scrollbar-thumb: #22d3ee;
+  --scrollbar-thumb-hover: #06b6d4;
+  --loading-bg: #323868;
+  --loading-search-bg: #3c4480;
+  --loading-search-avatar: #22d3ee;
+  --qp-1: #22d3ee;
+  --qp-2: #b8c1ec;
+  --qp-3: #06b6d4;
+  --qp-4: #d4d8f0;
+  --hot-badge-bg: #06b6d4;
+  --hot-badge-text: #121629;
+  --sparkle-color: #22d3ee;
+  --inline-code-bg: #323868;
+  --inline-code-text: #22d3ee;
+  --inline-code-border: #4a5090;
+  --fb-helpful-bg: #22d3ee;
+  --fb-unclear-bg: #06b6d4;
+  --fb-inactive-bg: #323868;
+  --fb-inactive-text: #b8c1ec;
+  --fb-inactive-border: #4a5090;
+  --source-bg: #323868;
+  --source-text: #22d3ee;
+  --source-border: #4a5090;
+  --source-hover-bg: #3c4480;
+  --source-hover-border: #22d3ee;
+  --btn-image-bg: #b8c1ec;
+  --btn-image-hover: #9aa3d4;
+  --btn-voice-bg: #22d3ee;
+  --btn-voice-hover: #06b6d4;
+  --btn-send-bg: #22d3ee;
+  --btn-send-hover: #06b6d4;
+  --btn-new-bg: #323868;
+  --btn-new-hover: #3c4480;
+  --btn-new-text: #22d3ee;
+  --logo-bg: #121629;
+  --logo-icon: #22d3ee;
+  --logo-shadow: rgba(34, 211, 238, 0.4);
+  --foreground: #fffffe;
+  --background: #232946;
+  --prompt-card-text: #232946;
+  --prompt-card-icon-bg: #fffffe;
+  --btn-action-text: #232946;
+}
+
+/* Force prose to inherit text color in Ocean dark theme */
+[data-theme="ocean"] .prose {
+  --tw-prose-body: var(--ai-bubble-text);
+  --tw-prose-headings: var(--ai-bubble-text);
+  --tw-prose-bold: var(--ai-bubble-text);
+  --tw-prose-links: var(--source-text);
+  --tw-prose-counters: var(--ai-bubble-text);
+  --tw-prose-bullets: var(--ai-bubble-text);
+  --tw-prose-quotes: var(--ai-bubble-text);
+  --tw-prose-quote-borders: var(--border-color);
+  --tw-prose-th-borders: var(--border-color);
+  --tw-prose-td-borders: var(--fb-inactive-border);
+  --tw-prose-code: #22d3ee;
+  --tw-prose-pre-bg: #1a1f3a;
+  --tw-prose-pre-code: #b8c1ec;
+}
+
+/* ── Theme: Peach (inspired by Happy Hues #7) ── */
+[data-theme="peach"] {
+  --page-bg: #fec7d7;
+  --page-dot: #f5b0c3;
+  --header-bg: #fffffe;
+  --header-text: #0e172c;
+  --header-subtitle: rgba(14, 23, 44, 0.7);
+  --header-tag-bg: #a786df;
+  --header-tag-text: #fffffe;
+  --border-color: #0e172c;
+  --shadow-color: 14, 23, 44;
+  --card-bg: #f9f8fc;
+  --card-content-bg: #f9f8fc;
+  --card-footer-bg: #d9d4e7;
+  --user-avatar-bg: #a786df;
+  --user-bubble-bg: #d9d4e7;
+  --user-bubble-text: #0e172c;
+  --ai-avatar-bg: #0e172c;
+  --ai-bubble-bg: #fffffe;
+  --ai-bubble-text: #0e172c;
+  --input-bg: #fffffe;
+  --input-border: #0e172c;
+  --input-text: #0e172c;
+  --input-placeholder: #8a8fad;
+  --input-focus-ring: #a786df;
+  --scrollbar-track: #d9d4e7;
+  --scrollbar-thumb: #a786df;
+  --scrollbar-thumb-hover: #8b6cc4;
+  --loading-bg: #d9d4e7;
+  --loading-search-bg: #fec7d7;
+  --loading-search-avatar: #a786df;
+  --qp-1: #fec7d7;
+  --qp-2: #d9d4e7;
+  --qp-3: #a786df;
+  --qp-4: #f9f8fc;
+  --hot-badge-bg: #a786df;
+  --hot-badge-text: #fffffe;
+  --sparkle-color: #a786df;
+  --inline-code-bg: #d9d4e7;
+  --inline-code-text: #0e172c;
+  --inline-code-border: #c4bdd8;
+  --fb-helpful-bg: #a786df;
+  --fb-unclear-bg: #fec7d7;
+  --fb-inactive-bg: #f9f8fc;
+  --fb-inactive-text: #0e172c;
+  --fb-inactive-border: #d9d4e7;
+  --source-bg: #d9d4e7;
+  --source-text: #0e172c;
+  --source-border: #c4bdd8;
+  --source-hover-bg: #c4bdd8;
+  --source-hover-border: #a786df;
+  --btn-image-bg: #a786df;
+  --btn-image-hover: #8b6cc4;
+  --btn-voice-bg: #a786df;
+  --btn-voice-hover: #8b6cc4;
+  --btn-send-bg: #a786df;
+  --btn-send-hover: #8b6cc4;
+  --btn-new-bg: #f9f8fc;
+  --btn-new-hover: #d9d4e7;
+  --btn-new-text: #0e172c;
+  --logo-bg: #a786df;
+  --logo-icon: #fffffe;
+  --logo-shadow: rgba(167, 134, 223, 0.4);
+  --foreground: #0e172c;
+  --background: #fec7d7;
+  --prompt-card-text: #0e172c;
+  --prompt-card-icon-bg: #fffffe;
+  --btn-action-text: #fffffe;
+}
+
+/* ── Tailwind theme bridge ── */
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
@@ -13,18 +256,23 @@
   --font-mono: var(--font-geist-mono);
 }
 
+/* ── Body ── */
 body {
-  background-color: #f0f0f0;
-  background-image: radial-gradient(#000000 1px, transparent 1px);
+  background-color: var(--page-bg);
+  background-image: radial-gradient(var(--page-dot) 1px, transparent 1px);
   background-size: 20px 20px;
   color: var(--foreground);
   font-family: var(--font-sans), Arial, Helvetica, sans-serif;
 }
 
+/* ── Animations ── */
 @keyframes float {
-  0%, 100% {
+
+  0%,
+  100% {
     transform: translateY(0px);
   }
+
   50% {
     transform: translateY(-20px);
   }
@@ -59,30 +307,30 @@ body {
 /* Firefox */
 * {
   scrollbar-width: thin;
-  scrollbar-color: #fde047 #f3f4f6;
+  scrollbar-color: var(--scrollbar-thumb) var(--scrollbar-track);
 }
 
-/* WebKit (Chrome, Edge, Safari) */
+/* WebKit */
 ::-webkit-scrollbar {
   width: 10px;
   height: 10px;
 }
 
 ::-webkit-scrollbar-track {
-  background: #f3f4f6;
-  border-left: 2px solid #000;
+  background: var(--scrollbar-track);
+  border-left: 2px solid var(--border-color);
 }
 
 ::-webkit-scrollbar-thumb {
-  background: #fde047;
-  border: 2px solid #000;
+  background: var(--scrollbar-thumb);
+  border: 2px solid var(--border-color);
   border-radius: 0;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: #facc15;
+  background: var(--scrollbar-thumb-hover);
 }
 
 ::-webkit-scrollbar-corner {
-  background: #f3f4f6;
+  background: var(--scrollbar-track);
 }

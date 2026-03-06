@@ -35,6 +35,8 @@ import {
   CardFooter,
 } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
+import { useTheme } from "@/lib/use-theme";
+import { ThemeSwitcher } from "@/components/theme-switcher";
 import ReactMarkdown, { Components } from "react-markdown";
 import remarkGfm from "remark-gfm";
 import remarkMath from "remark-math";
@@ -49,25 +51,25 @@ const QUICK_PROMPTS = [
     icon: Rocket,
     label: "宇宙探索",
     prompt: "告诉我一个超级酷的宇宙小知识！",
-    color: "bg-purple-400",
+    colorVar: "--qp-1",
   },
   {
     icon: Lightbulb,
     label: "创意灵感",
     prompt: "给我一个脑洞大开的故事开头！",
-    color: "bg-orange-400",
+    colorVar: "--qp-2",
   },
   {
     icon: BookOpen,
     label: "知识大百科",
     prompt: "用最简单的方式讲懂一个科学知识。",
-    color: "bg-green-400",
+    colorVar: "--qp-3",
   },
   {
     icon: Gamepad2,
     label: "趣味冷知识",
     prompt: "告诉我一个有趣又冷门的生活小知识！",
-    color: "bg-pink-400",
+    colorVar: "--qp-4",
   },
 ];
 
@@ -101,6 +103,7 @@ declare global {
 }
 
 export default function Home() {
+  const { theme, setTheme, mounted } = useTheme();
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [inputValue, setInputValue] = useState("");
@@ -125,8 +128,13 @@ export default function Home() {
   // 记录语音识别开始前已有的文本，用于追加
   const preVoiceTextRef = useRef("");
 
-  const isSpeechSupported = typeof window !== "undefined" &&
-    ("SpeechRecognition" in window || "webkitSpeechRecognition" in window);
+  const [isSpeechSupported, setIsSpeechSupported] = useState(false);
+
+  useEffect(() => {
+    setIsSpeechSupported(
+      "SpeechRecognition" in window || "webkitSpeechRecognition" in window
+    );
+  }, []);
 
   const toggleVoiceInput = useCallback(() => {
     if (isListening) {
@@ -174,6 +182,7 @@ export default function Home() {
     };
 
     recognition.onerror = (event: SpeechRecognitionErrorEvent) => {
+      if (event.error === "aborted") return; // abort() 触发，属于正常行为
       console.error("语音识别错误:", event.error);
       setIsListening(false);
     };
@@ -325,7 +334,12 @@ export default function Home() {
     if (isInline) {
       return (
         <code
-          className="bg-gray-200 text-pink-600 px-1.5 py-0.5 rounded text-sm font-mono border border-gray-300"
+          className="px-1.5 py-0.5 rounded text-sm font-mono border"
+          style={{
+            backgroundColor: "var(--inline-code-bg)",
+            color: "var(--inline-code-text)",
+            borderColor: "var(--inline-code-border)",
+          }}
           {...props}
         >
           {children}
@@ -357,7 +371,11 @@ export default function Home() {
           style={oneDark}
           language={language || "text"}
           PreTag="div"
-          className="!rounded-lg !border-2 !border-black !shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] !pt-8 !text-sm"
+          className="!rounded-lg !border-2 !pt-8 !text-sm"
+          customStyle={{
+            borderColor: "var(--border-color)",
+            boxShadow: "4px 4px 0px 0px rgba(var(--shadow-color), 1)",
+          }}
         >
           {codeString}
         </SyntaxHighlighter>
@@ -384,14 +402,15 @@ export default function Home() {
           disabled={isDisabled}
           className={cn(
             "px-3 py-1.5 rounded-lg border-2 text-sm font-medium transition-all",
-            "shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]",
             "hover:-translate-y-0.5 active:translate-x-0.5 active:translate-y-0.5",
-            "active:shadow-[1px_1px_0px_0px_rgba(0,0,0,1)]",
-            "disabled:opacity-50 disabled:cursor-not-allowed",
-            currentFeedback === 'helpful'
-              ? "bg-green-400 border-black text-white"
-              : "bg-white border-gray-300 text-gray-700 hover:bg-gray-50"
+            "disabled:opacity-50 disabled:cursor-not-allowed"
           )}
+          style={{
+            backgroundColor: currentFeedback === 'helpful' ? 'var(--fb-helpful-bg)' : 'var(--fb-inactive-bg)',
+            borderColor: currentFeedback === 'helpful' ? 'var(--border-color)' : 'var(--fb-inactive-border)',
+            color: currentFeedback === 'helpful' ? '#fff' : 'var(--fb-inactive-text)',
+            boxShadow: `2px 2px 0px 0px rgba(var(--shadow-color), 1)`,
+          }}
         >
           <span className="flex items-center gap-1.5">
             <ThumbsUp className="w-4 h-4" />
@@ -403,14 +422,15 @@ export default function Home() {
           disabled={isDisabled}
           className={cn(
             "px-3 py-1.5 rounded-lg border-2 text-sm font-medium transition-all",
-            "shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]",
             "hover:-translate-y-0.5 active:translate-x-0.5 active:translate-y-0.5",
-            "active:shadow-[1px_1px_0px_0px_rgba(0,0,0,1)]",
-            "disabled:opacity-50 disabled:cursor-not-allowed",
-            currentFeedback === 'unclear'
-              ? "bg-orange-400 border-black text-white"
-              : "bg-white border-gray-300 text-gray-700 hover:bg-gray-50"
+            "disabled:opacity-50 disabled:cursor-not-allowed"
           )}
+          style={{
+            backgroundColor: currentFeedback === 'unclear' ? 'var(--fb-unclear-bg)' : 'var(--fb-inactive-bg)',
+            borderColor: currentFeedback === 'unclear' ? 'var(--border-color)' : 'var(--fb-inactive-border)',
+            color: currentFeedback === 'unclear' ? '#fff' : 'var(--fb-inactive-text)',
+            boxShadow: `2px 2px 0px 0px rgba(var(--shadow-color), 1)`,
+          }}
         >
           <span className="flex items-center gap-1.5">
             <ThumbsDown className="w-4 h-4" />
@@ -481,6 +501,14 @@ export default function Home() {
       files,
     });
 
+    // 发送前先关闭语音识别，abort() 不会再触发 onresult
+    if (recognitionRef.current) {
+      recognitionRef.current.abort();
+      recognitionRef.current = null;
+    }
+    setIsListening(false);
+    preVoiceTextRef.current = "";
+
     setInputValue("");
     setPendingImages([]);
   };
@@ -488,42 +516,90 @@ export default function Home() {
   return (
     <main className="min-h-screen flex items-center justify-center p-2 md:p-8 relative">
 
-      <Card className="w-full max-w-2xl md:max-w-4xl h-[95vh] md:h-[85vh] flex flex-col border-4 shadow-[8px_8px_0px_0px_rgba(0,0,0,1)]">
-        <CardHeader className="border-b-2 border-black bg-yellow-300 rounded-t-lg py-4 md:py-6">
+      <Card
+        className="w-full max-w-2xl md:max-w-4xl h-[95vh] md:h-[85vh] flex flex-col border-4"
+        style={{ boxShadow: "8px 8px 0px 0px rgba(var(--shadow-color), 1)" }}
+      >
+        <CardHeader
+          className="border-b-2 rounded-t-lg py-4 md:py-6"
+          style={{
+            borderColor: "var(--border-color)",
+            background: "var(--header-bg)",
+            color: "var(--header-text)",
+          }}
+        >
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3 md:gap-4">
-              <div className="bg-black p-1.5 md:p-2 rounded-xl shadow-[4px_4px_0px_0px_rgba(255,255,255,1)] -rotate-3">
-                <Zap className="w-6 h-6 md:w-8 md:h-8 text-yellow-300 fill-yellow-300" />
+              <div
+                className="p-1.5 md:p-2 rounded-xl -rotate-3"
+                style={{
+                  backgroundColor: "var(--logo-bg)",
+                  boxShadow: `4px 4px 0px 0px var(--logo-shadow)`,
+                }}
+              >
+                <Zap className="w-6 h-6 md:w-8 md:h-8" style={{ color: "var(--logo-icon)", fill: "var(--logo-icon)" }} />
               </div>
               <CardTitle className="flex flex-col">
-                <span className="text-3xl md:text-5xl font-black tracking-tighter leading-none drop-shadow-[2px_2px_0px_rgba(255,255,255,1)]">
+                <span
+                  className="text-3xl md:text-5xl font-black tracking-tighter leading-none"
+                  style={{ color: "var(--header-text)" }}
+                >
                   聊聊机
                 </span>
-                <span className="text-xs font-black uppercase tracking-[0.3em] text-black/60 mt-1">
+                <span
+                  className="text-xs font-black uppercase tracking-[0.3em] mt-1"
+                  style={{ color: "var(--header-subtitle)" }}
+                >
                   Chat-O-Matic
                 </span>
               </CardTitle>
             </div>
-            <Button
-              onClick={resetConversation}
-              size="icon"
-              className="bg-white hover:bg-pink-200 text-black border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] transition-all active:translate-x-0.5 active:translate-y-0.5 active:shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]"
-              title="开启新对话"
-            >
-              <Plus className="w-6 h-6" />
-            </Button>
+            <div className="flex items-center gap-2">
+              <ThemeSwitcher theme={theme} setTheme={setTheme} />
+              <Button
+                onClick={resetConversation}
+                size="icon"
+                className="transition-all active:translate-x-0.5 active:translate-y-0.5"
+                style={{
+                  backgroundColor: "var(--btn-new-bg)",
+                  color: "var(--btn-new-text)",
+                  borderColor: "var(--border-color)",
+                  boxShadow: "4px 4px 0px 0px rgba(var(--shadow-color), 1)",
+                }}
+                title="开启新对话"
+              >
+                <Plus className="w-6 h-6" />
+              </Button>
+            </div>
           </div>
-          <p className="font-bold text-sm mt-2 bg-black text-white inline-block px-2 py-0.5 self-start transform skew-x-[-10deg]">
+          <p
+            className="font-bold text-sm mt-2 inline-block px-2 py-0.5 self-start transform skew-x-[-10deg]"
+            style={{
+              backgroundColor: "var(--header-tag-bg)",
+              color: "var(--header-tag-text)",
+            }}
+          >
             你负责好奇，我负责想象
           </p>
         </CardHeader>
 
-        <CardContent className="flex-1 overflow-y-auto p-4 space-y-4 bg-white">
+        <CardContent className="flex-1 overflow-y-auto p-4 space-y-4" style={{ backgroundColor: "var(--card-content-bg)" }}>
           {messages.length === 0 && (
             <div className="h-full flex flex-col items-center justify-center text-center space-y-6 px-2">
               <div className="relative">
-                <Sparkles className="w-16 h-16 md:w-24 md:h-24 text-yellow-400 fill-yellow-400 animate-[spin_10s_linear_infinite]" />
-                <div className="absolute -top-2 -right-2 md:-top-3 md:-right-3 bg-red-500 text-white text-[10px] md:text-xs font-bold px-2 py-1 rounded-full border-2 border-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]">
+                <Sparkles
+                  className="w-16 h-16 md:w-24 md:h-24 animate-[spin_10s_linear_infinite]"
+                  style={{ color: "var(--sparkle-color)", fill: "var(--sparkle-color)" }}
+                />
+                <div
+                  className="absolute -top-2 -right-2 md:-top-3 md:-right-3 text-[10px] md:text-xs font-bold px-2 py-1 rounded-full border-2"
+                  style={{
+                    backgroundColor: "var(--hot-badge-bg)",
+                    color: "var(--hot-badge-text)",
+                    borderColor: "var(--border-color)",
+                    boxShadow: "2px 2px 0px 0px rgba(var(--shadow-color), 1)",
+                  }}
+                >
                   HOT
                 </div>
               </div>
@@ -531,7 +607,15 @@ export default function Home() {
                 <p className="text-2xl md:text-3xl font-black uppercase tracking-tighter">
                   准备就绪！
                 </p>
-                <p className="text-sm md:text-base font-bold bg-yellow-200 border-2 border-black px-3 py-1 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
+                <p
+                  className="text-sm md:text-base font-bold border-2 px-3 py-1"
+                  style={{
+                    backgroundColor: "var(--header-bg)",
+                    borderColor: "var(--border-color)",
+                    boxShadow: "4px 4px 0px 0px rgba(var(--shadow-color), 1)",
+                    color: "var(--header-text)",
+                  }}
+                >
                   点击下方卡片，或自己输入问题
                 </p>
               </div>
@@ -546,18 +630,28 @@ export default function Home() {
                       onClick={() => handleQuickPrompt(item.prompt)}
                       disabled={isLoading}
                       className={cn(
-                        "flex flex-col items-center gap-2 p-3 rounded-xl border-2 border-black",
-                        "shadow-[3px_3px_0px_0px_rgba(0,0,0,1)]",
-                        "transition-all hover:-translate-y-0.5 hover:shadow-[5px_5px_0px_0px_rgba(0,0,0,1)]",
-                        "active:translate-x-0.5 active:translate-y-0.5 active:shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]",
-                        "disabled:opacity-50 disabled:cursor-not-allowed",
-                        item.color
+                        "flex flex-col items-center gap-2 p-3 rounded-xl border-2",
+                        "transition-all hover:-translate-y-0.5",
+                        "active:translate-x-0.5 active:translate-y-0.5",
+                        "disabled:opacity-50 disabled:cursor-not-allowed"
                       )}
+                      style={{
+                        backgroundColor: `var(${item.colorVar})`,
+                        borderColor: "var(--border-color)",
+                        boxShadow: "3px 3px 0px 0px rgba(var(--shadow-color), 1)",
+                        color: "var(--prompt-card-text)",
+                      }}
                     >
-                      <div className="bg-white p-2 rounded-lg border-2 border-black">
-                        <Icon className="w-5 h-5 text-black" />
+                      <div
+                        className="p-2 rounded-lg border-2"
+                        style={{
+                          backgroundColor: "var(--prompt-card-icon-bg)",
+                          borderColor: "var(--border-color)",
+                        }}
+                      >
+                        <Icon className="w-5 h-5" style={{ color: "var(--prompt-card-text)" }} />
                       </div>
-                      <span className="text-sm font-bold text-black whitespace-nowrap">
+                      <span className="text-sm font-bold whitespace-nowrap">
                         {item.label}
                       </span>
                     </button>
@@ -582,10 +676,12 @@ export default function Home() {
                 )}
               >
                 <div
-                  className={cn(
-                    "w-8 h-8 rounded-full border-2 border-black flex items-center justify-center shrink-0 shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]",
-                    message.role === "user" ? "bg-blue-400" : "bg-red-400"
-                  )}
+                  className="w-8 h-8 rounded-full border-2 flex items-center justify-center shrink-0"
+                  style={{
+                    borderColor: "var(--border-color)",
+                    backgroundColor: message.role === "user" ? "var(--user-avatar-bg)" : "var(--ai-avatar-bg)",
+                    boxShadow: "2px 2px 0px 0px rgba(var(--shadow-color), 1)",
+                  }}
                 >
                   {message.role === "user" ? (
                     <UserIcon className="w-5 h-5 text-white" />
@@ -596,11 +692,15 @@ export default function Home() {
                 <div className="relative group">
                   <div
                     className={cn(
-                      "p-3 rounded-lg border-2 border-black font-medium text-base shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]",
-                      message.role === "user"
-                        ? "bg-blue-100 text-blue-900 rounded-tr-none"
-                        : "bg-white text-black rounded-tl-none"
+                      "p-3 rounded-lg border-2 font-medium text-base",
+                      message.role === "user" ? "rounded-tr-none" : "rounded-tl-none"
                     )}
+                    style={{
+                      borderColor: "var(--border-color)",
+                      backgroundColor: message.role === "user" ? "var(--user-bubble-bg)" : "var(--ai-bubble-bg)",
+                      color: message.role === "user" ? "var(--user-bubble-text)" : "var(--ai-bubble-text)",
+                      boxShadow: "4px 4px 0px 0px rgba(var(--shadow-color), 1)",
+                    }}
                   >
                     {/* AI SDK v6 官方推荐: 使用 switch/case 遍历 message.parts */}
                     {message.parts.map((part, partIndex) => {
@@ -631,7 +731,11 @@ export default function Home() {
                                 key={key}
                                 src={part.url}
                                 alt="上传的图片"
-                                className="max-w-full rounded-lg border-2 border-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] mt-2"
+                                className="max-w-full rounded-lg border-2 mt-2"
+                                style={{
+                                  borderColor: "var(--border-color)",
+                                  boxShadow: "2px 2px 0px 0px rgba(var(--shadow-color), 1)",
+                                }}
                               />
                             );
                           }
@@ -648,10 +752,16 @@ export default function Home() {
                       );
                       if (sources.length === 0) return null;
                       return (
-                        <div className="mt-3 pt-3 border-t-2 border-dashed border-gray-300">
+                        <div
+                          className="mt-3 pt-3 border-t-2 border-dashed"
+                          style={{ borderColor: "var(--fb-inactive-border)" }}
+                        >
                           <div className="flex items-center gap-1.5 mb-2">
-                            <Globe className="w-3.5 h-3.5 text-gray-500" />
-                            <span className="text-xs font-bold text-gray-500 uppercase tracking-wide">
+                            <Globe className="w-3.5 h-3.5" style={{ color: "var(--fb-inactive-text)" }} />
+                            <span
+                              className="text-xs font-bold uppercase tracking-wide"
+                              style={{ color: "var(--fb-inactive-text)" }}
+                            >
                               搜索来源
                             </span>
                           </div>
@@ -674,7 +784,12 @@ export default function Home() {
                                   href={part.url}
                                   target="_blank"
                                   rel="noopener noreferrer"
-                                  className="inline-flex items-center gap-1 px-2 py-1 text-xs font-medium bg-blue-50 text-blue-700 rounded-md border border-blue-200 hover:bg-blue-100 hover:border-blue-300 transition-colors"
+                                  className="inline-flex items-center gap-1 px-2 py-1 text-xs font-medium rounded-md border transition-colors"
+                                  style={{
+                                    backgroundColor: "var(--source-bg)",
+                                    color: "var(--source-text)",
+                                    borderColor: "var(--source-border)",
+                                  }}
                                   title={part.title ?? part.url}
                                 >
                                   <Globe className="w-3 h-3 shrink-0" />
@@ -710,15 +825,19 @@ export default function Home() {
                             onClick={handleRegenerate}
                             disabled={isLoading}
                             className={cn(
-                              "p-1.5 rounded-lg border-2 border-black bg-white",
-                              "shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] hover:bg-gray-100",
+                              "p-1.5 rounded-lg border-2",
                               "transition-all hover:-translate-y-0.5",
-                              "active:translate-x-0.5 active:translate-y-0.5 active:shadow-[1px_1px_0px_0px_rgba(0,0,0,1)]",
+                              "active:translate-x-0.5 active:translate-y-0.5",
                               "disabled:opacity-50 disabled:cursor-not-allowed"
                             )}
+                            style={{
+                              borderColor: "var(--border-color)",
+                              backgroundColor: "var(--fb-inactive-bg)",
+                              boxShadow: "2px 2px 0px 0px rgba(var(--shadow-color), 1)",
+                            }}
                             title="重新生成"
                           >
-                            <RefreshCw className={cn("w-4 h-4 text-gray-600", isLoading && "animate-spin")} />
+                            <RefreshCw className={cn("w-4 h-4", isLoading && "animate-spin")} style={{ color: "var(--fb-inactive-text)" }} />
                           </button>
                         )}
                         {/* 复制按钮 */}
@@ -727,17 +846,21 @@ export default function Home() {
                             handleCopy(getMessageText(message.parts), message.id)
                           }
                           className={cn(
-                            "p-1.5 rounded-lg border-2 border-black bg-white",
-                            "shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] hover:bg-gray-100",
+                            "p-1.5 rounded-lg border-2",
                             "transition-all hover:-translate-y-0.5",
-                            "active:translate-x-0.5 active:translate-y-0.5 active:shadow-[1px_1px_0px_0px_rgba(0,0,0,1)]"
+                            "active:translate-x-0.5 active:translate-y-0.5"
                           )}
+                          style={{
+                            borderColor: "var(--border-color)",
+                            backgroundColor: "var(--fb-inactive-bg)",
+                            boxShadow: "2px 2px 0px 0px rgba(var(--shadow-color), 1)",
+                          }}
                           title="复制回复"
                         >
                           {copiedId === message.id ? (
-                            <Check className="w-4 h-4 text-green-600" />
+                            <Check className="w-4 h-4" style={{ color: "var(--fb-helpful-bg)" }} />
                           ) : (
-                            <Copy className="w-4 h-4 text-gray-600" />
+                            <Copy className="w-4 h-4" style={{ color: "var(--fb-inactive-text)" }} />
                           )}
                         </button>
                       </div>
@@ -761,20 +884,28 @@ export default function Home() {
             return (
               <div className="flex justify-start w-full">
                 <div className="flex items-center gap-2">
-                  <div className={cn(
-                    "w-8 h-8 rounded-full border-2 border-black flex items-center justify-center shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]",
-                    isSearching ? "bg-blue-400" : "bg-red-400"
-                  )}>
+                  <div
+                    className="w-8 h-8 rounded-full border-2 flex items-center justify-center"
+                    style={{
+                      borderColor: "var(--border-color)",
+                      backgroundColor: isSearching ? "var(--loading-search-avatar)" : "var(--ai-avatar-bg)",
+                      boxShadow: "2px 2px 0px 0px rgba(var(--shadow-color), 1)",
+                    }}
+                  >
                     {isSearching ? (
                       <Search className="w-5 h-5 text-white animate-pulse" />
                     ) : (
                       <Bot className="w-5 h-5 text-white animate-pulse" />
                     )}
                   </div>
-                  <div className={cn(
-                    "px-4 py-2 rounded-lg border-2 border-black rounded-tl-none shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]",
-                    isSearching ? "bg-blue-50" : "bg-gray-100"
-                  )}>
+                  <div
+                    className="px-4 py-2 rounded-lg border-2 rounded-tl-none"
+                    style={{
+                      borderColor: "var(--border-color)",
+                      backgroundColor: isSearching ? "var(--loading-search-bg)" : "var(--loading-bg)",
+                      boxShadow: "4px 4px 0px 0px rgba(var(--shadow-color), 1)",
+                    }}
+                  >
                     <span className="text-base font-bold animate-pulse">
                       {isSearching ? "联网搜索中..." : "思考中..."}
                     </span>
@@ -786,7 +917,13 @@ export default function Home() {
           <div ref={messagesEndRef} />
         </CardContent>
 
-        <CardFooter className="border-t-2 border-black p-4 bg-gray-50 rounded-b-lg">
+        <CardFooter
+          className="border-t-2 p-4 rounded-b-lg"
+          style={{
+            borderColor: "var(--border-color)",
+            backgroundColor: "var(--card-footer-bg)",
+          }}
+        >
           {/* 隐藏的文件输入 */}
           <input
             ref={fileInputRef}
@@ -806,12 +943,21 @@ export default function Home() {
                     <img
                       src={src}
                       alt={`待发送图片 ${index + 1}`}
-                      className="w-16 h-16 object-cover rounded-lg border-2 border-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]"
+                      className="w-16 h-16 object-cover rounded-lg border-2"
+                      style={{
+                        borderColor: "var(--border-color)",
+                        boxShadow: "2px 2px 0px 0px rgba(var(--shadow-color), 1)",
+                      }}
                     />
                     <button
                       type="button"
                       onClick={() => removePendingImage(index)}
-                      className="absolute -top-2 -right-2 w-5 h-5 bg-red-500 rounded-full border-2 border-black flex items-center justify-center shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] hover:bg-red-600 transition-colors"
+                      className="absolute -top-2 -right-2 w-5 h-5 rounded-full border-2 flex items-center justify-center hover:opacity-80 transition-colors"
+                      style={{
+                        backgroundColor: "var(--hot-badge-bg)",
+                        borderColor: "var(--border-color)",
+                        boxShadow: "2px 2px 0px 0px rgba(var(--shadow-color), 1)",
+                      }}
                     >
                       <X className="w-3 h-3 text-white" />
                     </button>
@@ -827,12 +973,27 @@ export default function Home() {
                 type="button"
                 size="icon"
                 onClick={() => fileInputRef.current?.click()}
-                className="w-12 h-10 bg-purple-400 hover:bg-purple-500 text-black"
+                className="w-12 h-10"
+                style={{
+                  backgroundColor: "var(--btn-image-bg)",
+                  color: "var(--btn-action-text)",
+                }}
                 disabled={isLoading || pendingImages.length >= 4}
                 title="上传图片（最多4张）"
               >
                 <ImagePlus className="w-5 h-5" />
               </Button>
+
+              <Input
+                className="flex-1 text-lg"
+                value={inputValue}
+                onChange={(e) => setInputValue(e.target.value)}
+                placeholder={
+                  pendingImages.length > 0
+                    ? "添加说明，或直接发送图片..."
+                    : "跟我聊聊吧，我可聪明啦！"
+                }
+              />
 
               {/* 语音输入按钮 */}
               {isSpeechSupported && (
@@ -841,11 +1002,13 @@ export default function Home() {
                   size="icon"
                   onClick={toggleVoiceInput}
                   className={cn(
-                    "w-12 h-10 text-black transition-all",
-                    isListening
-                      ? "bg-red-400 hover:bg-red-500 animate-pulse"
-                      : "bg-cyan-400 hover:bg-cyan-500"
+                    "w-12 h-10 transition-all",
+                    isListening && "animate-pulse"
                   )}
+                  style={{
+                    backgroundColor: isListening ? "var(--hot-badge-bg)" : "var(--btn-voice-bg)",
+                    color: "var(--btn-action-text)",
+                  }}
                   disabled={isLoading}
                   title={isListening ? "停止语音输入" : "语音输入"}
                 >
@@ -857,20 +1020,14 @@ export default function Home() {
                 </Button>
               )}
 
-              <Input
-                className="flex-1 bg-white text-lg"
-                value={inputValue}
-                onChange={(e) => setInputValue(e.target.value)}
-                placeholder={
-                  pendingImages.length > 0
-                    ? "添加说明，或直接发送图片..."
-                    : "跟我聊聊吧，我可聪明啦！"
-                }
-              />
               <Button
                 type="submit"
                 size="icon"
-                className="w-12 h-10 bg-green-400 hover:bg-green-500 text-black"
+                className="w-12 h-10"
+                style={{
+                  backgroundColor: "var(--btn-send-bg)",
+                  color: "var(--btn-action-text)",
+                }}
                 disabled={isLoading}
               >
                 <Send className="w-5 h-5" />
