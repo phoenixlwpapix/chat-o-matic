@@ -2,6 +2,7 @@
 
 import { useRef, useEffect, useState, useCallback } from "react";
 import { useChat } from "@ai-sdk/react";
+import { MAX_INPUT_LENGTH } from "@/lib/constants";
 import {
   Send,
   Bot,
@@ -24,9 +25,10 @@ import {
   ThumbsDown,
   Globe,
   Search,
+  AlertTriangle,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+
 import {
   Card,
   CardContent,
@@ -37,6 +39,8 @@ import {
 import { cn } from "@/lib/utils";
 import { useTheme } from "@/lib/use-theme";
 import { ThemeSwitcher } from "@/components/theme-switcher";
+import { ChatHistory } from "@/components/chat-history";
+import { useChatHistory, toStoredMessages } from "@/lib/use-chat-history";
 import ReactMarkdown, { Components } from "react-markdown";
 import remarkGfm from "remark-gfm";
 import remarkMath from "remark-math";
@@ -106,14 +110,75 @@ export default function Home() {
   const { theme, setTheme, mounted } = useTheme();
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
   const [inputValue, setInputValue] = useState("");
   // 图片上传状态：存储 base64 数据 URL
   const [pendingImages, setPendingImages] = useState<string[]>([]);
+  // API 错误提示
+  const [apiError, setApiError] = useState<string | null>(null);
 
   // AI SDK 6 useChat - 默认连接到 /api/chat
-  const { messages, sendMessage, status, setMessages } = useChat();
+  const { messages, sendMessage, status, setMessages } = useChat({
+    onError: (error) => {
+      // useChat 的 error 对象中 message 可能包含 JSON body
+      try {
+        const body = JSON.parse(error.message);
+        setApiError(body.error ?? "出了点小问题，请稍后再试");
+      } catch {
+        setApiError("出了点小问题，请稍后再试");
+      }
+      setTimeout(() => setApiError(null), 5000);
+    },
+  });
 
   const isLoading = status === "streaming" || status === "submitted";
+
+  // ── History ──
+  const history = useChatHistory();
+  const sessionIdRef = useRef<string>(crypto.randomUUID());
+
+  // Keep the hook's currentSessionId in sync
+  useEffect(() => {
+    history.setCurrentSessionId(sessionIdRef.current);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Auto-save whenever messages change (only when not streaming)
+  const prevLenRef = useRef(0);
+  useEffect(() => {
+    if (isLoading) return;
+    if (messages.length === 0) return;
+    // Only save when message count actually changed
+    if (messages.length === prevLenRef.current) return;
+    prevLenRef.current = messages.length;
+    history.saveSession(sessionIdRef.current, toStoredMessages(messages));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [messages, isLoading]);
+
+  // 带字符限制的输入更新
+  const handleInputChange = useCallback((value: string) => {
+    setInputValue(value.slice(0, MAX_INPUT_LENGTH));
+  }, []);
+
+  // 自动调整 textarea 高度
+  useEffect(() => {
+    const el = textareaRef.current;
+    if (!el) return;
+    el.style.height = "auto";
+    el.style.height = `${Math.min(el.scrollHeight, 160)}px`;
+  }, [inputValue]);
+
+  // Enter 发送，Shift+Enter 换行
+  const handleKeyDown = useCallback(
+    (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+      if (e.key === "Enter" && !e.shiftKey && !e.nativeEvent.isComposing) {
+        e.preventDefault();
+        const form = e.currentTarget.closest("form");
+        form?.requestSubmit();
+      }
+    },
+    []
+  );
 
   // 复制状态管理
   const [copiedId, setCopiedId] = useState<string | null>(null);
@@ -171,7 +236,8 @@ export default function Home() {
 
       const combined = finalTranscript || interimTranscript;
       const prefix = preVoiceTextRef.current;
-      setInputValue(prefix ? `${prefix} ${combined}` : combined);
+      const voiceText = prefix ? `${prefix} ${combined}` : combined;
+      setInputValue(voiceText.slice(0, MAX_INPUT_LENGTH));
 
       // 如果有最终识别结果，更新 prefix 以支持持续追加
       if (finalTranscript) {
@@ -219,7 +285,7 @@ export default function Home() {
     if (feedback === 'unclear' && !simplifyRequested.has(messageId)) {
       setSimplifyRequested(prev => new Set(prev).add(messageId));
       sendMessage({
-        text: "请用更简单的方式,用我能听懂的例子再解释一遍刚才的回答"
+        text: "请用更简单的方式，用我能听懂的例子再解释一遍刚才的回答"
       });
     }
   }, [simplifyRequested, sendMessage]);
@@ -291,6 +357,35 @@ export default function Home() {
   const removePendingImage = useCallback((index: number) => {
     setPendingImages((prev) => prev.filter((_, i) => i !== index));
   }, []);
+
+  // 处理粘贴剪切板中的图片
+  const handlePaste = useCallback(
+    async (e: React.ClipboardEvent) => {
+      const items = Array.from(e.clipboardData.items);
+      const imageFiles = items
+        .filter((item) => item.type.startsWith("image/"))
+        .map((item) => item.getAsFile())
+        .filter((file): file is File => file !== null);
+
+      if (imageFiles.length === 0) return;
+
+      // 阻止默认粘贴行为（避免在输入框插入乱码）
+      e.preventDefault();
+
+      const filesToProcess = imageFiles.slice(0, 4 - pendingImages.length);
+      if (filesToProcess.length === 0) return;
+
+      try {
+        const compressed = await Promise.all(
+          filesToProcess.map((file) => compressImage(file))
+        );
+        setPendingImages((prev) => [...prev, ...compressed].slice(0, 4));
+      } catch (err) {
+        console.error("粘贴图片处理失败:", err);
+      }
+    },
+    [pendingImages.length, compressImage]
+  );
 
   // 从消息 parts 中提取纯文本（用于复制）
   const getMessageText = (parts: (typeof messages)[0]["parts"]): string => {
@@ -451,10 +546,39 @@ export default function Home() {
   };
 
   const resetConversation = () => {
+    // Save current non-empty conversation before resetting
+    if (messages.length > 0) {
+      history.saveSession(sessionIdRef.current, toStoredMessages(messages));
+    }
+    // Generate new session id
+    const newId = crypto.randomUUID();
+    sessionIdRef.current = newId;
+    history.setCurrentSessionId(newId);
+    prevLenRef.current = 0;
     setMessages([]);
     setInputValue("");
     setPendingImages([]);
   };
+
+  // Restore a conversation from history
+  const handleRestoreSession = useCallback(
+    (id: string) => {
+      // Save current first
+      if (messages.length > 0) {
+        history.saveSession(sessionIdRef.current, toStoredMessages(messages));
+      }
+      const restored = history.loadSession(id);
+      if (!restored) return;
+      sessionIdRef.current = id;
+      history.setCurrentSessionId(id);
+      prevLenRef.current = restored.length;
+      setMessages(restored);
+      setInputValue("");
+      setPendingImages([]);
+    },
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [messages, setMessages],
+  );
 
   // 重新生成最后一条 AI 回复
   const handleRegenerate = useCallback(() => {
@@ -556,6 +680,12 @@ export default function Home() {
             </div>
             <div className="flex items-center gap-2">
               <ThemeSwitcher theme={theme} setTheme={setTheme} />
+              <ChatHistory
+                sessions={history.sessions}
+                currentSessionId={history.currentSessionId}
+                onSelect={handleRestoreSession}
+                onDelete={history.deleteSession}
+              />
               <Button
                 onClick={resetConversation}
                 size="icon"
@@ -984,10 +1114,25 @@ export default function Home() {
                 <ImagePlus className="w-5 h-5" />
               </Button>
 
-              <Input
-                className="flex-1 text-lg"
+              <textarea
+                ref={textareaRef}
+                className="flex-1 text-lg resize-none rounded-lg border-2 px-3 py-2 font-medium ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 transition-all focus:translate-x-[2px] focus:translate-y-[2px] focus:shadow-none"
+                style={{
+                  borderColor: "var(--input-border)",
+                  backgroundColor: "var(--input-bg)",
+                  color: "var(--input-text)",
+                  boxShadow: "4px 4px 0px 0px rgba(var(--shadow-color), 1)",
+                  // @ts-expect-error -- CSS custom property for focus ring
+                  "--tw-ring-color": "var(--input-focus-ring)",
+                  minHeight: "40px",
+                  maxHeight: "160px",
+                }}
+                rows={1}
                 value={inputValue}
-                onChange={(e) => setInputValue(e.target.value)}
+                onChange={(e) => handleInputChange(e.target.value)}
+                onPaste={handlePaste}
+                onKeyDown={handleKeyDown}
+                maxLength={MAX_INPUT_LENGTH}
                 placeholder={
                   pendingImages.length > 0
                     ? "添加说明，或直接发送图片..."
@@ -1033,6 +1178,31 @@ export default function Home() {
                 <Send className="w-5 h-5" />
               </Button>
             </form>
+
+            {/* 字符计数器 + 错误提示 */}
+            <div className="flex items-center justify-between px-1">
+              {apiError ? (
+                <span className="flex items-center gap-1 text-xs font-bold" style={{ color: "var(--hot-badge-bg)" }}>
+                  <AlertTriangle className="w-3.5 h-3.5" />
+                  {apiError}
+                </span>
+              ) : (
+                <span />
+              )}
+              <span
+                className="text-xs font-mono font-bold tabular-nums transition-colors"
+                style={{
+                  color:
+                    inputValue.length >= MAX_INPUT_LENGTH
+                      ? "var(--hot-badge-bg)"
+                      : inputValue.length >= MAX_INPUT_LENGTH * 0.8
+                        ? "var(--fb-unclear-bg)"
+                        : "var(--fb-inactive-text)",
+                }}
+              >
+                {inputValue.length}/{MAX_INPUT_LENGTH}
+              </span>
+            </div>
           </div>
         </CardFooter>
       </Card>
