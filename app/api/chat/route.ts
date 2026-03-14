@@ -22,7 +22,7 @@ export async function POST(req: Request) {
       {
         status: 429,
         headers: { "Retry-After": String(retryAfterSec) },
-      }
+      },
     );
   }
 
@@ -30,7 +30,9 @@ export async function POST(req: Request) {
   const { messages }: { messages: UIMessage[] } = await req.json();
 
   // 1.5 验证最后一条用户消息长度
-  const lastUserMessage = [...messages].reverse().find((m) => m.role === "user");
+  const lastUserMessage = [...messages]
+    .reverse()
+    .find((m) => m.role === "user");
   if (lastUserMessage) {
     const textLength = lastUserMessage.parts
       .filter((p): p is { type: "text"; text: string } => p.type === "text")
@@ -39,7 +41,7 @@ export async function POST(req: Request) {
     if (textLength > MAX_INPUT_LENGTH) {
       return Response.json(
         { error: `消息太长了！最多 ${MAX_INPUT_LENGTH} 个字符 ✂️` },
-        { status: 400 }
+        { status: 400 },
       );
     }
   }
@@ -70,7 +72,7 @@ export async function POST(req: Request) {
 
 每次回答尽量遵循以下结构：
 1️⃣ 一句清晰的核心结论  
-2️⃣ 用生活化的例子或类比解释（游戏、学校、日常生活等）  
+2️⃣ 用生活化的例子或类比解释（学校、日常生活、游戏等）  
 3️⃣ 给出一个简单的延伸问题，引导他们继续思考  
 
 规则：

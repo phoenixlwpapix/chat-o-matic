@@ -177,15 +177,19 @@ export default function Home() {
         form?.requestSubmit();
       }
     },
-    []
+    [],
   );
 
   // 复制状态管理
   const [copiedId, setCopiedId] = useState<string | null>(null);
 
   // 反馈状态管理
-  const [messageFeedback, setMessageFeedback] = useState<Map<string, 'helpful' | 'unclear'>>(new Map());
-  const [simplifyRequested, setSimplifyRequested] = useState<Set<string>>(new Set());
+  const [messageFeedback, setMessageFeedback] = useState<
+    Map<string, "helpful" | "unclear">
+  >(new Map());
+  const [simplifyRequested, setSimplifyRequested] = useState<Set<string>>(
+    new Set(),
+  );
 
   // 语音输入状态
   const [isListening, setIsListening] = useState(false);
@@ -197,7 +201,7 @@ export default function Home() {
 
   useEffect(() => {
     setIsSpeechSupported(
-      "SpeechRecognition" in window || "webkitSpeechRecognition" in window
+      "SpeechRecognition" in window || "webkitSpeechRecognition" in window,
     );
   }, []);
 
@@ -274,21 +278,24 @@ export default function Home() {
   }, []);
 
   // 处理反馈点击
-  const handleFeedback = useCallback((messageId: string, feedback: 'helpful' | 'unclear') => {
-    setMessageFeedback(prev => {
-      const newMap = new Map(prev);
-      newMap.set(messageId, feedback);
-      return newMap;
-    });
-
-    // 如果是"没太懂"且未请求过简化，自动发送简化请求
-    if (feedback === 'unclear' && !simplifyRequested.has(messageId)) {
-      setSimplifyRequested(prev => new Set(prev).add(messageId));
-      sendMessage({
-        text: "请用更简单的方式，用我能听懂的例子再解释一遍刚才的回答"
+  const handleFeedback = useCallback(
+    (messageId: string, feedback: "helpful" | "unclear") => {
+      setMessageFeedback((prev) => {
+        const newMap = new Map(prev);
+        newMap.set(messageId, feedback);
+        return newMap;
       });
-    }
-  }, [simplifyRequested, sendMessage]);
+
+      // 如果是"没太懂"且未请求过简化，自动发送简化请求
+      if (feedback === "unclear" && !simplifyRequested.has(messageId)) {
+        setSimplifyRequested((prev) => new Set(prev).add(messageId));
+        sendMessage({
+          text: "请用更简单的方式，用我能听懂的例子再解释一遍刚才的回答",
+        });
+      }
+    },
+    [simplifyRequested, sendMessage],
+  );
 
   // 压缩图片（确保不超过 1MB，最大边 1024px）
   const compressImage = useCallback(
@@ -324,7 +331,7 @@ export default function Home() {
         reader.onerror = () => reject(new Error("文件读取失败"));
         reader.readAsDataURL(file);
       }),
-    []
+    [],
   );
 
   // 处理图片上传
@@ -338,7 +345,7 @@ export default function Home() {
 
       try {
         const compressed = await Promise.all(
-          filesToProcess.map((file) => compressImage(file))
+          filesToProcess.map((file) => compressImage(file)),
         );
         setPendingImages((prev) => [...prev, ...compressed].slice(0, 4));
       } catch (err) {
@@ -350,7 +357,7 @@ export default function Home() {
         fileInputRef.current.value = "";
       }
     },
-    [pendingImages.length, compressImage]
+    [pendingImages.length, compressImage],
   );
 
   // 移除待发送的图片
@@ -377,21 +384,21 @@ export default function Home() {
 
       try {
         const compressed = await Promise.all(
-          filesToProcess.map((file) => compressImage(file))
+          filesToProcess.map((file) => compressImage(file)),
         );
         setPendingImages((prev) => [...prev, ...compressed].slice(0, 4));
       } catch (err) {
         console.error("粘贴图片处理失败:", err);
       }
     },
-    [pendingImages.length, compressImage]
+    [pendingImages.length, compressImage],
   );
 
   // 从消息 parts 中提取纯文本（用于复制）
   const getMessageText = (parts: (typeof messages)[0]["parts"]): string => {
     return parts
       .filter(
-        (part): part is { type: "text"; text: string } => part.type === "text"
+        (part): part is { type: "text"; text: string } => part.type === "text",
       )
       .map((part) => part.text)
       .join("");
@@ -486,24 +493,36 @@ export default function Home() {
     isDisabled,
   }: {
     messageId: string;
-    currentFeedback: 'helpful' | 'unclear' | null;
-    onFeedbackClick: (messageId: string, feedback: 'helpful' | 'unclear') => void;
+    currentFeedback: "helpful" | "unclear" | null;
+    onFeedbackClick: (
+      messageId: string,
+      feedback: "helpful" | "unclear",
+    ) => void;
     isDisabled: boolean;
   }) => {
     return (
       <div className="flex items-center gap-2">
         <button
-          onClick={() => onFeedbackClick(messageId, 'helpful')}
+          onClick={() => onFeedbackClick(messageId, "helpful")}
           disabled={isDisabled}
           className={cn(
             "px-3 py-1.5 rounded-lg border-2 text-sm font-medium transition-all",
             "hover:-translate-y-0.5 active:translate-x-0.5 active:translate-y-0.5",
-            "disabled:opacity-50 disabled:cursor-not-allowed"
+            "disabled:opacity-50 disabled:cursor-not-allowed",
           )}
           style={{
-            backgroundColor: currentFeedback === 'helpful' ? 'var(--fb-helpful-bg)' : 'var(--fb-inactive-bg)',
-            borderColor: currentFeedback === 'helpful' ? 'var(--border-color)' : 'var(--fb-inactive-border)',
-            color: currentFeedback === 'helpful' ? '#fff' : 'var(--fb-inactive-text)',
+            backgroundColor:
+              currentFeedback === "helpful"
+                ? "var(--fb-helpful-bg)"
+                : "var(--fb-inactive-bg)",
+            borderColor:
+              currentFeedback === "helpful"
+                ? "var(--border-color)"
+                : "var(--fb-inactive-border)",
+            color:
+              currentFeedback === "helpful"
+                ? "#fff"
+                : "var(--fb-inactive-text)",
             boxShadow: `2px 2px 0px 0px rgba(var(--shadow-color), 1)`,
           }}
         >
@@ -513,17 +532,26 @@ export default function Home() {
           </span>
         </button>
         <button
-          onClick={() => onFeedbackClick(messageId, 'unclear')}
+          onClick={() => onFeedbackClick(messageId, "unclear")}
           disabled={isDisabled}
           className={cn(
             "px-3 py-1.5 rounded-lg border-2 text-sm font-medium transition-all",
             "hover:-translate-y-0.5 active:translate-x-0.5 active:translate-y-0.5",
-            "disabled:opacity-50 disabled:cursor-not-allowed"
+            "disabled:opacity-50 disabled:cursor-not-allowed",
           )}
           style={{
-            backgroundColor: currentFeedback === 'unclear' ? 'var(--fb-unclear-bg)' : 'var(--fb-inactive-bg)',
-            borderColor: currentFeedback === 'unclear' ? 'var(--border-color)' : 'var(--fb-inactive-border)',
-            color: currentFeedback === 'unclear' ? '#fff' : 'var(--fb-inactive-text)',
+            backgroundColor:
+              currentFeedback === "unclear"
+                ? "var(--fb-unclear-bg)"
+                : "var(--fb-inactive-bg)",
+            borderColor:
+              currentFeedback === "unclear"
+                ? "var(--border-color)"
+                : "var(--fb-inactive-border)",
+            color:
+              currentFeedback === "unclear"
+                ? "#fff"
+                : "var(--fb-inactive-text)",
             boxShadow: `2px 2px 0px 0px rgba(var(--shadow-color), 1)`,
           }}
         >
@@ -583,12 +611,16 @@ export default function Home() {
   // 重新生成最后一条 AI 回复
   const handleRegenerate = useCallback(() => {
     // 找到最后一条 assistant 消息的索引
-    const lastAssistantIndex = messages.findLastIndex(m => m.role === "assistant");
+    const lastAssistantIndex = messages.findLastIndex(
+      (m) => m.role === "assistant",
+    );
     if (lastAssistantIndex === -1) return;
 
     // 找到该 assistant 消息之前最近的 user 消息及其索引
     const precedingMessages = messages.slice(0, lastAssistantIndex);
-    const lastUserIndex = precedingMessages.findLastIndex(m => m.role === "user");
+    const lastUserIndex = precedingMessages.findLastIndex(
+      (m) => m.role === "user",
+    );
     if (lastUserIndex === -1) return;
 
     const lastUserMessage = precedingMessages[lastUserIndex];
@@ -639,7 +671,6 @@ export default function Home() {
 
   return (
     <main className="min-h-screen flex items-center justify-center p-2 md:p-8 relative">
-
       <Card
         className="w-full max-w-2xl md:max-w-4xl h-[95vh] md:h-[85vh] flex flex-col border-4"
         style={{ boxShadow: "8px 8px 0px 0px rgba(var(--shadow-color), 1)" }}
@@ -661,7 +692,13 @@ export default function Home() {
                   boxShadow: `4px 4px 0px 0px var(--logo-shadow)`,
                 }}
               >
-                <Zap className="w-6 h-6 md:w-8 md:h-8" style={{ color: "var(--logo-icon)", fill: "var(--logo-icon)" }} />
+                <Zap
+                  className="w-6 h-6 md:w-8 md:h-8"
+                  style={{
+                    color: "var(--logo-icon)",
+                    fill: "var(--logo-icon)",
+                  }}
+                />
               </div>
               <CardTitle className="flex flex-col">
                 <span
@@ -713,13 +750,19 @@ export default function Home() {
           </p>
         </CardHeader>
 
-        <CardContent className="flex-1 overflow-y-auto p-4 space-y-4" style={{ backgroundColor: "var(--card-content-bg)" }}>
+        <CardContent
+          className="flex-1 overflow-y-auto p-4 space-y-4"
+          style={{ backgroundColor: "var(--card-content-bg)" }}
+        >
           {messages.length === 0 && (
             <div className="h-full flex flex-col items-center justify-center text-center space-y-6 px-2">
               <div className="relative">
                 <Sparkles
                   className="w-16 h-16 md:w-24 md:h-24 animate-[spin_10s_linear_infinite]"
-                  style={{ color: "var(--sparkle-color)", fill: "var(--sparkle-color)" }}
+                  style={{
+                    color: "var(--sparkle-color)",
+                    fill: "var(--sparkle-color)",
+                  }}
                 />
                 <div
                   className="absolute -top-2 -right-2 md:-top-3 md:-right-3 text-[10px] md:text-xs font-bold px-2 py-1 rounded-full border-2"
@@ -763,12 +806,13 @@ export default function Home() {
                         "flex flex-col items-center gap-2 p-3 rounded-xl border-2",
                         "transition-all hover:-translate-y-0.5",
                         "active:translate-x-0.5 active:translate-y-0.5",
-                        "disabled:opacity-50 disabled:cursor-not-allowed"
+                        "disabled:opacity-50 disabled:cursor-not-allowed",
                       )}
                       style={{
                         backgroundColor: `var(${item.colorVar})`,
                         borderColor: "var(--border-color)",
-                        boxShadow: "3px 3px 0px 0px rgba(var(--shadow-color), 1)",
+                        boxShadow:
+                          "3px 3px 0px 0px rgba(var(--shadow-color), 1)",
                         color: "var(--prompt-card-text)",
                       }}
                     >
@@ -779,7 +823,10 @@ export default function Home() {
                           borderColor: "var(--border-color)",
                         }}
                       >
-                        <Icon className="w-5 h-5" style={{ color: "var(--prompt-card-text)" }} />
+                        <Icon
+                          className="w-5 h-5"
+                          style={{ color: "var(--prompt-card-text)" }}
+                        />
                       </div>
                       <span className="text-sm font-bold whitespace-nowrap">
                         {item.label}
@@ -796,20 +843,23 @@ export default function Home() {
               key={message.id}
               className={cn(
                 "flex w-full",
-                message.role === "user" ? "justify-end" : "justify-start"
+                message.role === "user" ? "justify-end" : "justify-start",
               )}
             >
               <div
                 className={cn(
                   "flex max-w-[92%] md:max-w-[80%] items-start gap-2",
-                  message.role === "user" ? "flex-row-reverse" : "flex-row"
+                  message.role === "user" ? "flex-row-reverse" : "flex-row",
                 )}
               >
                 <div
                   className="w-8 h-8 rounded-full border-2 flex items-center justify-center shrink-0"
                   style={{
                     borderColor: "var(--border-color)",
-                    backgroundColor: message.role === "user" ? "var(--user-avatar-bg)" : "var(--ai-avatar-bg)",
+                    backgroundColor:
+                      message.role === "user"
+                        ? "var(--user-avatar-bg)"
+                        : "var(--ai-avatar-bg)",
                     boxShadow: "2px 2px 0px 0px rgba(var(--shadow-color), 1)",
                   }}
                 >
@@ -823,12 +873,20 @@ export default function Home() {
                   <div
                     className={cn(
                       "p-3 rounded-lg border-2 font-medium text-base",
-                      message.role === "user" ? "rounded-tr-none" : "rounded-tl-none"
+                      message.role === "user"
+                        ? "rounded-tr-none"
+                        : "rounded-tl-none",
                     )}
                     style={{
                       borderColor: "var(--border-color)",
-                      backgroundColor: message.role === "user" ? "var(--user-bubble-bg)" : "var(--ai-bubble-bg)",
-                      color: message.role === "user" ? "var(--user-bubble-text)" : "var(--ai-bubble-text)",
+                      backgroundColor:
+                        message.role === "user"
+                          ? "var(--user-bubble-bg)"
+                          : "var(--ai-bubble-bg)",
+                      color:
+                        message.role === "user"
+                          ? "var(--user-bubble-text)"
+                          : "var(--ai-bubble-text)",
                       boxShadow: "4px 4px 0px 0px rgba(var(--shadow-color), 1)",
                     }}
                   >
@@ -864,7 +922,8 @@ export default function Home() {
                                 className="max-w-full rounded-lg border-2 mt-2"
                                 style={{
                                   borderColor: "var(--border-color)",
-                                  boxShadow: "2px 2px 0px 0px rgba(var(--shadow-color), 1)",
+                                  boxShadow:
+                                    "2px 2px 0px 0px rgba(var(--shadow-color), 1)",
                                 }}
                               />
                             );
@@ -878,7 +937,7 @@ export default function Home() {
                     {/* 搜索来源 */}
                     {(() => {
                       const sources = message.parts.filter(
-                        (part) => part.type === "source-url"
+                        (part) => part.type === "source-url",
                       );
                       if (sources.length === 0) return null;
                       return (
@@ -887,7 +946,10 @@ export default function Home() {
                           style={{ borderColor: "var(--fb-inactive-border)" }}
                         >
                           <div className="flex items-center gap-1.5 mb-2">
-                            <Globe className="w-3.5 h-3.5" style={{ color: "var(--fb-inactive-text)" }} />
+                            <Globe
+                              className="w-3.5 h-3.5"
+                              style={{ color: "var(--fb-inactive-text)" }}
+                            />
                             <span
                               className="text-xs font-bold uppercase tracking-wide"
                               style={{ color: "var(--fb-inactive-text)" }}
@@ -902,7 +964,7 @@ export default function Home() {
                                 try {
                                   return new URL(part.url).hostname.replace(
                                     /^www\./,
-                                    ""
+                                    "",
                                   );
                                 } catch {
                                   return part.url;
@@ -936,21 +998,28 @@ export default function Home() {
                   </div>
                   {/* AI 消息操作按钮区域 */}
                   {message.role === "assistant" && (
-                    <div className={cn(
-                      "flex items-center justify-between gap-2 mt-2 transition-opacity",
-                      "md:opacity-0 md:group-hover:opacity-100"
-                    )}>
+                    <div
+                      className={cn(
+                        "flex items-center justify-between gap-2 mt-2 transition-opacity",
+                        "md:opacity-0 md:group-hover:opacity-100",
+                      )}
+                    >
                       {/* 反馈按钮（左侧） */}
                       <FeedbackButtons
                         messageId={message.id}
-                        currentFeedback={messageFeedback.get(message.id) || null}
+                        currentFeedback={
+                          messageFeedback.get(message.id) || null
+                        }
                         onFeedbackClick={handleFeedback}
                         isDisabled={isLoading}
                       />
                       {/* 重新生成 & 复制按钮（右侧） */}
                       <div className="flex items-center gap-1.5">
                         {/* 重新生成按钮（仅最后一条 AI 消息显示） */}
-                        {message.id === [...messages].reverse().find(m => m.role === "assistant")?.id && (
+                        {message.id ===
+                          [...messages]
+                            .reverse()
+                            .find((m) => m.role === "assistant")?.id && (
                           <button
                             onClick={handleRegenerate}
                             disabled={isLoading}
@@ -958,39 +1027,56 @@ export default function Home() {
                               "p-1.5 rounded-lg border-2",
                               "transition-all hover:-translate-y-0.5",
                               "active:translate-x-0.5 active:translate-y-0.5",
-                              "disabled:opacity-50 disabled:cursor-not-allowed"
+                              "disabled:opacity-50 disabled:cursor-not-allowed",
                             )}
                             style={{
                               borderColor: "var(--border-color)",
                               backgroundColor: "var(--fb-inactive-bg)",
-                              boxShadow: "2px 2px 0px 0px rgba(var(--shadow-color), 1)",
+                              boxShadow:
+                                "2px 2px 0px 0px rgba(var(--shadow-color), 1)",
                             }}
                             title="重新生成"
                           >
-                            <RefreshCw className={cn("w-4 h-4", isLoading && "animate-spin")} style={{ color: "var(--fb-inactive-text)" }} />
+                            <RefreshCw
+                              className={cn(
+                                "w-4 h-4",
+                                isLoading && "animate-spin",
+                              )}
+                              style={{ color: "var(--fb-inactive-text)" }}
+                            />
                           </button>
                         )}
                         {/* 复制按钮 */}
                         <button
                           onClick={() =>
-                            handleCopy(getMessageText(message.parts), message.id)
+                            handleCopy(
+                              getMessageText(message.parts),
+                              message.id,
+                            )
                           }
                           className={cn(
                             "p-1.5 rounded-lg border-2",
                             "transition-all hover:-translate-y-0.5",
-                            "active:translate-x-0.5 active:translate-y-0.5"
+                            "active:translate-x-0.5 active:translate-y-0.5",
                           )}
                           style={{
                             borderColor: "var(--border-color)",
                             backgroundColor: "var(--fb-inactive-bg)",
-                            boxShadow: "2px 2px 0px 0px rgba(var(--shadow-color), 1)",
+                            boxShadow:
+                              "2px 2px 0px 0px rgba(var(--shadow-color), 1)",
                           }}
                           title="复制回复"
                         >
                           {copiedId === message.id ? (
-                            <Check className="w-4 h-4" style={{ color: "var(--fb-helpful-bg)" }} />
+                            <Check
+                              className="w-4 h-4"
+                              style={{ color: "var(--fb-helpful-bg)" }}
+                            />
                           ) : (
-                            <Copy className="w-4 h-4" style={{ color: "var(--fb-inactive-text)" }} />
+                            <Copy
+                              className="w-4 h-4"
+                              style={{ color: "var(--fb-inactive-text)" }}
+                            />
                           )}
                         </button>
                       </div>
@@ -1000,50 +1086,66 @@ export default function Home() {
               </div>
             </div>
           ))}
-          {isLoading && (() => {
-            const lastMsg = messages[messages.length - 1];
-            const isSearching = lastMsg?.role === "assistant" &&
-              lastMsg.parts.some(
-                (p) => p.type.startsWith("tool-") && "state" in p && p.state !== "done" && p.state !== "output-available"
-              );
-            const hasNoText = !lastMsg || lastMsg.role !== "assistant" ||
-              !lastMsg.parts.some((p) => p.type === "text" && p.text.length > 0);
+          {isLoading &&
+            (() => {
+              const lastMsg = messages[messages.length - 1];
+              const isSearching =
+                lastMsg?.role === "assistant" &&
+                lastMsg.parts.some(
+                  (p) =>
+                    p.type.startsWith("tool-") &&
+                    "state" in p &&
+                    p.state !== "done" &&
+                    p.state !== "output-available",
+                );
+              const hasNoText =
+                !lastMsg ||
+                lastMsg.role !== "assistant" ||
+                !lastMsg.parts.some(
+                  (p) => p.type === "text" && p.text.length > 0,
+                );
 
-            if (!isSearching && !hasNoText) return null;
+              if (!isSearching && !hasNoText) return null;
 
-            return (
-              <div className="flex justify-start w-full">
-                <div className="flex items-center gap-2">
-                  <div
-                    className="w-8 h-8 rounded-full border-2 flex items-center justify-center"
-                    style={{
-                      borderColor: "var(--border-color)",
-                      backgroundColor: isSearching ? "var(--loading-search-avatar)" : "var(--ai-avatar-bg)",
-                      boxShadow: "2px 2px 0px 0px rgba(var(--shadow-color), 1)",
-                    }}
-                  >
-                    {isSearching ? (
-                      <Search className="w-5 h-5 text-white animate-pulse" />
-                    ) : (
-                      <Bot className="w-5 h-5 text-white animate-pulse" />
-                    )}
-                  </div>
-                  <div
-                    className="px-4 py-2 rounded-lg border-2 rounded-tl-none"
-                    style={{
-                      borderColor: "var(--border-color)",
-                      backgroundColor: isSearching ? "var(--loading-search-bg)" : "var(--loading-bg)",
-                      boxShadow: "4px 4px 0px 0px rgba(var(--shadow-color), 1)",
-                    }}
-                  >
-                    <span className="text-base font-bold animate-pulse">
-                      {isSearching ? "联网搜索中..." : "思考中..."}
-                    </span>
+              return (
+                <div className="flex justify-start w-full">
+                  <div className="flex items-center gap-2">
+                    <div
+                      className="w-8 h-8 rounded-full border-2 flex items-center justify-center"
+                      style={{
+                        borderColor: "var(--border-color)",
+                        backgroundColor: isSearching
+                          ? "var(--loading-search-avatar)"
+                          : "var(--ai-avatar-bg)",
+                        boxShadow:
+                          "2px 2px 0px 0px rgba(var(--shadow-color), 1)",
+                      }}
+                    >
+                      {isSearching ? (
+                        <Search className="w-5 h-5 text-white animate-pulse" />
+                      ) : (
+                        <Bot className="w-5 h-5 text-white animate-pulse" />
+                      )}
+                    </div>
+                    <div
+                      className="px-4 py-2 rounded-lg border-2 rounded-tl-none"
+                      style={{
+                        borderColor: "var(--border-color)",
+                        backgroundColor: isSearching
+                          ? "var(--loading-search-bg)"
+                          : "var(--loading-bg)",
+                        boxShadow:
+                          "4px 4px 0px 0px rgba(var(--shadow-color), 1)",
+                      }}
+                    >
+                      <span className="text-base font-bold animate-pulse">
+                        {isSearching ? "联网搜索中..." : "思考中..."}
+                      </span>
+                    </div>
                   </div>
                 </div>
-              </div>
-            );
-          })()}
+              );
+            })()}
           <div ref={messagesEndRef} />
         </CardContent>
 
@@ -1076,7 +1178,8 @@ export default function Home() {
                       className="w-16 h-16 object-cover rounded-lg border-2"
                       style={{
                         borderColor: "var(--border-color)",
-                        boxShadow: "2px 2px 0px 0px rgba(var(--shadow-color), 1)",
+                        boxShadow:
+                          "2px 2px 0px 0px rgba(var(--shadow-color), 1)",
                       }}
                     />
                     <button
@@ -1086,7 +1189,8 @@ export default function Home() {
                       style={{
                         backgroundColor: "var(--hot-badge-bg)",
                         borderColor: "var(--border-color)",
-                        boxShadow: "2px 2px 0px 0px rgba(var(--shadow-color), 1)",
+                        boxShadow:
+                          "2px 2px 0px 0px rgba(var(--shadow-color), 1)",
                       }}
                     >
                       <X className="w-3 h-3 text-white" />
@@ -1136,7 +1240,7 @@ export default function Home() {
                 placeholder={
                   pendingImages.length > 0
                     ? "添加说明，或直接发送图片..."
-                    : "跟我聊聊吧，我可聪明啦！"
+                    : "今天想聊点啥？"
                 }
               />
 
@@ -1148,10 +1252,12 @@ export default function Home() {
                   onClick={toggleVoiceInput}
                   className={cn(
                     "w-12 h-10 transition-all",
-                    isListening && "animate-pulse"
+                    isListening && "animate-pulse",
                   )}
                   style={{
-                    backgroundColor: isListening ? "var(--hot-badge-bg)" : "var(--btn-voice-bg)",
+                    backgroundColor: isListening
+                      ? "var(--hot-badge-bg)"
+                      : "var(--btn-voice-bg)",
                     color: "var(--btn-action-text)",
                   }}
                   disabled={isLoading}
@@ -1182,7 +1288,10 @@ export default function Home() {
             {/* 字符计数器 + 错误提示 */}
             <div className="flex items-center justify-between px-1">
               {apiError ? (
-                <span className="flex items-center gap-1 text-xs font-bold" style={{ color: "var(--hot-badge-bg)" }}>
+                <span
+                  className="flex items-center gap-1 text-xs font-bold"
+                  style={{ color: "var(--hot-badge-bg)" }}
+                >
                   <AlertTriangle className="w-3.5 h-3.5" />
                   {apiError}
                 </span>
