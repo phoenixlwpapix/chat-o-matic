@@ -23,9 +23,11 @@ const THEME_META: Record<Theme, { label: string; colors: string[] }> = {
 export function ThemeSwitcher({
     theme,
     setTheme,
+    variant = "dropdown",
 }: {
     theme: Theme;
     setTheme: (t: Theme) => void;
+    variant?: "dropdown" | "inline";
 }) {
     const [open, setOpen] = useState(false);
     const panelRef = useRef<HTMLDivElement>(null);
@@ -41,6 +43,44 @@ export function ThemeSwitcher({
         document.addEventListener("mousedown", handler);
         return () => document.removeEventListener("mousedown", handler);
     }, [open]);
+
+    // 内联模式：直接展示所有主题选项
+    if (variant === "inline") {
+        return (
+            <div className="flex gap-2">
+                {THEMES.map((t) => {
+                    const meta = THEME_META[t];
+                    const isActive = t === theme;
+                    return (
+                        <button
+                            key={t}
+                            onClick={() => setTheme(t)}
+                            className={cn(
+                                "flex flex-col items-center gap-1 p-2 rounded-lg border-2 transition-all flex-1",
+                                "hover:-translate-y-0.5 active:translate-x-0.5 active:translate-y-0.5",
+                                isActive
+                                    ? "shadow-[2px_2px_0px_0px_rgba(var(--shadow-color),1)]"
+                                    : "shadow-[1px_1px_0px_0px_rgba(var(--shadow-color),0.3)]",
+                            )}
+                            style={{
+                                borderColor: isActive ? "var(--border-color)" : "var(--fb-inactive-border)",
+                                backgroundColor: isActive ? meta.colors[0] + "30" : "transparent",
+                            }}
+                            title={meta.label}
+                        >
+                            <div
+                                className="w-5 h-5 rounded-full border-2"
+                                style={{ backgroundColor: meta.colors[0], borderColor: "var(--border-color)" }}
+                            />
+                            <span className="text-[10px] font-bold" style={{ color: "var(--foreground)" }}>
+                                {meta.label}
+                            </span>
+                        </button>
+                    );
+                })}
+            </div>
+        );
+    }
 
     return (
         <div ref={panelRef} className="relative">

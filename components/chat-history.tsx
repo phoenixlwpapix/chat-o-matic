@@ -10,6 +10,7 @@ interface ChatHistoryProps {
     currentSessionId: string | null;
     onSelect: (id: string) => void;
     onDelete: (id: string) => void;
+    variant?: "dropdown" | "sidebar";
 }
 
 /** Format a timestamp to a short relative string */
@@ -30,6 +31,7 @@ export function ChatHistory({
     currentSessionId,
     onSelect,
     onDelete,
+    variant = "dropdown",
 }: ChatHistoryProps) {
     const [open, setOpen] = useState(false);
     const panelRef = useRef<HTMLDivElement>(null);
@@ -72,6 +74,76 @@ export function ChatHistory({
         },
         [onDelete, confirmDeleteId],
     );
+
+    // ── Sidebar variant ──
+    if (variant === "sidebar") {
+        return (
+            <div>
+                <p
+                    className="text-[10px] font-black uppercase tracking-wider px-1 mb-1.5"
+                    style={{ color: "var(--header-subtitle)" }}
+                >
+                    历史记录
+                </p>
+                <div className="max-h-40 overflow-y-auto space-y-1">
+                    {sessions.length === 0 ? (
+                        <p
+                            className="text-xs font-bold px-1 py-2 opacity-40"
+                            style={{ color: "var(--foreground)" }}
+                        >
+                            暂无历史记录
+                        </p>
+                    ) : (
+                        sessions.map((session) => {
+                            const isActive = session.id === currentSessionId;
+                            return (
+                                <div
+                                    key={session.id}
+                                    className={cn(
+                                        "flex items-center gap-2 px-2 py-1.5 rounded-lg text-left transition-colors cursor-pointer group/item",
+                                        "hover:brightness-95",
+                                    )}
+                                    style={{
+                                        backgroundColor: isActive ? "var(--header-bg)" : "transparent",
+                                        color: isActive ? "var(--header-text)" : "var(--foreground)",
+                                    }}
+                                    onClick={() => onSelect(session.id)}
+                                >
+                                    <MessageSquare className="w-3 h-3 shrink-0 opacity-50" />
+                                    <div className="flex-1 min-w-0">
+                                        <p className="text-xs font-bold truncate">{session.title}</p>
+                                        <p className="text-[10px] opacity-50">{relativeTime(session.updatedAt)}</p>
+                                    </div>
+                                    <div
+                                        className={cn(
+                                            "shrink-0 transition-opacity",
+                                            confirmDeleteId === session.id ? "opacity-100" : "opacity-0 group-hover/item:opacity-100",
+                                        )}
+                                    >
+                                        <div
+                                            onClick={(e) => handleDelete(e, session.id)}
+                                            className="p-1 rounded cursor-pointer hover:brightness-90"
+                                            style={{
+                                                backgroundColor: confirmDeleteId === session.id ? "var(--hot-badge-bg)" : "transparent",
+                                            }}
+                                            title={confirmDeleteId === session.id ? "再次点击确认删除" : "删除"}
+                                        >
+                                            <Trash2
+                                                className="w-3 h-3"
+                                                style={{
+                                                    color: confirmDeleteId === session.id ? "#fff" : "var(--fb-inactive-text)",
+                                                }}
+                                            />
+                                        </div>
+                                    </div>
+                                </div>
+                            );
+                        })
+                    )}
+                </div>
+            </div>
+        );
+    }
 
     return (
         <div ref={panelRef} className="relative">

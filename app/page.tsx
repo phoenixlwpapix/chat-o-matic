@@ -1,13 +1,13 @@
 "use client";
 
-import { useRef, useEffect, useState, useCallback } from "react";
+import { useRef, useEffect, useState, useCallback, useMemo } from "react";
 import { useChat } from "@ai-sdk/react";
+import { DefaultChatTransport } from "ai";
 import { MAX_INPUT_LENGTH } from "@/lib/constants";
 import {
   Send,
   Bot,
   User as UserIcon,
-  Sparkles,
   Zap,
   Plus,
   Rocket,
@@ -26,6 +26,8 @@ import {
   Globe,
   Search,
   AlertTriangle,
+  PanelLeftOpen,
+  PanelLeftClose,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
@@ -39,6 +41,7 @@ import {
 import { cn } from "@/lib/utils";
 import { useTheme } from "@/lib/use-theme";
 import { ThemeSwitcher } from "@/components/theme-switcher";
+import { PERSONAS, getPersonaById, type Persona } from "@/lib/personas";
 import { ChatHistory } from "@/components/chat-history";
 import { useChatHistory, toStoredMessages } from "@/lib/use-chat-history";
 import ReactMarkdown, { Components } from "react-markdown";
@@ -117,8 +120,29 @@ export default function Home() {
   // API 错误提示
   const [apiError, setApiError] = useState<string | null>(null);
 
+  // 侧边栏
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+
+  // 人设选择
+  const [personaId, setPersonaId] = useState("default");
+  const currentPersona = getPersonaById(personaId);
+
+  // 用 ref 保存最新 personaId，供 transport body 回调读取
+  const personaIdRef = useRef(personaId);
+  personaIdRef.current = personaId;
+
+  // 创建 transport 实例（stable ref，body 通过函数动态解析）
+  const transport = useMemo(
+    () =>
+      new DefaultChatTransport({
+        body: () => ({ personaId: personaIdRef.current }),
+      }),
+    [],
+  );
+
   // AI SDK 6 useChat - 默认连接到 /api/chat
   const { messages, sendMessage, status, setMessages } = useChat({
+    transport,
     onError: (error) => {
       // useChat 的 error 对象中 message 可能包含 JSON body
       try {
@@ -564,6 +588,26 @@ export default function Home() {
     );
   };
 
+  // 处理人设选择
+  const handlePersonaSelect = useCallback(
+    (persona: Persona) => {
+      setPersonaId(persona.id);
+      // 切换人设时清空对话
+      if (messages.length > 0) {
+        history.saveSession(sessionIdRef.current, toStoredMessages(messages));
+        const newId = crypto.randomUUID();
+        sessionIdRef.current = newId;
+        history.setCurrentSessionId(newId);
+        prevLenRef.current = 0;
+        setMessages([]);
+        setInputValue("");
+        setPendingImages([]);
+      }
+    },
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [messages, setMessages],
+  );
+
   // 处理快捷提示词点击
   const handleQuickPrompt = (prompt: string) => {
     sendMessage({ text: prompt });
@@ -670,131 +714,229 @@ export default function Home() {
   };
 
   return (
-    <main className="min-h-screen flex items-center justify-center p-2 md:p-8 relative">
-      <Card
-        className="w-full max-w-2xl md:max-w-4xl h-[95vh] md:h-[85vh] flex flex-col border-4"
-        style={{ boxShadow: "8px 8px 0px 0px rgba(var(--shadow-color), 1)" }}
-      >
-        <CardHeader
-          className="border-b-2 rounded-t-lg py-4 md:py-6"
+    <main className="min-h-screen flex items-center justify-center p-2 md:p-4 relative">
+      <div className="w-full max-w-6xl h-[95vh] md:h-[90vh] flex gap-0 md:gap-4">
+        {/* ── 左侧边栏 ── */}
+
+        {/* 移动端遮罩 */}
+        {sidebarOpen && (
+          <div
+            className="fixed inset-0 z-40 bg-black/30 md:hidden"
+            onClick={() => setSidebarOpen(false)}
+          />
+        )}
+
+        <aside
+          className={cn(
+            // 移动端：固定定位浮层
+            "fixed inset-y-0 left-0 z-50 w-64 p-3 flex flex-col gap-3 transition-transform duration-200",
+            "md:static md:z-auto md:w-56 md:shrink-0 md:translate-x-0",
+            "rounded-none md:rounded-2xl border-r-2 md:border-2",
+            sidebarOpen ? "translate-x-0" : "-translate-x-full",
+          )}
           style={{
+            backgroundColor: "var(--card-bg)",
             borderColor: "var(--border-color)",
-            background: "var(--header-bg)",
-            color: "var(--header-text)",
+            boxShadow: "4px 4px 0px 0px rgba(var(--shadow-color), 1)",
           }}
         >
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3 md:gap-4">
-              <div
-                className="p-1.5 md:p-2 rounded-xl -rotate-3"
-                style={{
-                  backgroundColor: "var(--logo-bg)",
-                  boxShadow: `4px 4px 0px 0px var(--logo-shadow)`,
-                }}
-              >
-                <Zap
-                  className="w-6 h-6 md:w-8 md:h-8"
-                  style={{
-                    color: "var(--logo-icon)",
-                    fill: "var(--logo-icon)",
-                  }}
-                />
-              </div>
-              <CardTitle className="flex flex-col">
-                <span
-                  className="text-3xl md:text-5xl font-black tracking-tighter leading-none"
-                  style={{ color: "var(--header-text)" }}
-                >
-                  聊聊机
-                </span>
-                <span
-                  className="text-xs font-black uppercase tracking-[0.3em] mt-1"
-                  style={{ color: "var(--header-subtitle)" }}
-                >
-                  Chat-O-Matic
-                </span>
-              </CardTitle>
+          {/* Logo */}
+          <div className="flex items-center gap-2 px-1 pb-2 border-b-2" style={{ borderColor: "var(--border-color)" }}>
+            <div
+              className="p-1.5 rounded-lg -rotate-3"
+              style={{
+                backgroundColor: "var(--logo-bg)",
+                boxShadow: "2px 2px 0px 0px var(--logo-shadow)",
+              }}
+            >
+              <Zap className="w-5 h-5" style={{ color: "var(--logo-icon)", fill: "var(--logo-icon)" }} />
             </div>
-            <div className="flex items-center gap-2">
-              <ThemeSwitcher theme={theme} setTheme={setTheme} />
-              <ChatHistory
-                sessions={history.sessions}
-                currentSessionId={history.currentSessionId}
-                onSelect={handleRestoreSession}
-                onDelete={history.deleteSession}
-              />
-              <Button
-                onClick={resetConversation}
-                size="icon"
-                className="transition-all active:translate-x-0.5 active:translate-y-0.5"
-                style={{
-                  backgroundColor: "var(--btn-new-bg)",
-                  color: "var(--btn-new-text)",
-                  borderColor: "var(--border-color)",
-                  boxShadow: "4px 4px 0px 0px rgba(var(--shadow-color), 1)",
-                }}
-                title="开启新对话"
-              >
-                <Plus className="w-6 h-6" />
-              </Button>
+            <div>
+              <p className="text-lg font-black tracking-tighter leading-none" style={{ color: "var(--foreground)" }}>聊聊机</p>
+              <p className="text-[9px] font-black uppercase tracking-[0.2em]" style={{ color: "var(--header-subtitle)" }}>Chat-O-Matic</p>
             </div>
           </div>
-          <p
-            className="font-bold text-sm mt-2 inline-block px-2 py-0.5 self-start transform skew-x-[-10deg]"
+
+          {/* 新对话按钮 */}
+          <Button
+            onClick={() => { resetConversation(); setSidebarOpen(false); }}
+            className="w-full justify-start gap-2 transition-all active:translate-x-0.5 active:translate-y-0.5"
             style={{
-              backgroundColor: "var(--header-tag-bg)",
-              color: "var(--header-tag-text)",
+              backgroundColor: "var(--header-bg)",
+              color: "var(--header-text)",
+              borderColor: "var(--border-color)",
+              boxShadow: "3px 3px 0px 0px rgba(var(--shadow-color), 1)",
             }}
           >
-            你负责好奇，我负责想象
-          </p>
-        </CardHeader>
+            <Plus className="w-4 h-4" />
+            <span className="font-bold text-sm">新对话</span>
+          </Button>
+
+          {/* 人设选择 */}
+          <div>
+            <p className="text-[10px] font-black uppercase tracking-wider px-1 mb-1.5" style={{ color: "var(--header-subtitle)" }}>
+              AI 人设
+            </p>
+            <div className="space-y-1">
+              {PERSONAS.map((p) => {
+                const Icon = p.icon;
+                const isActive = p.id === personaId;
+                return (
+                  <button
+                    key={p.id}
+                    onClick={() => handlePersonaSelect(p)}
+                    className={cn(
+                      "w-full flex items-center gap-2.5 px-2.5 py-2 rounded-lg border-2 text-left text-sm font-bold transition-all",
+                      "hover:-translate-y-0.5 active:translate-x-0.5 active:translate-y-0.5",
+                    )}
+                    style={{
+                      backgroundColor: isActive ? `var(${p.colorVar})` : "var(--fb-inactive-bg)",
+                      borderColor: "var(--border-color)",
+                      boxShadow: isActive
+                        ? "2px 2px 0px 0px rgba(var(--shadow-color), 1)"
+                        : "1px 1px 0px 0px rgba(var(--shadow-color), 0.3)",
+                      color: isActive ? "var(--prompt-card-text)" : "var(--fb-inactive-text)",
+                    }}
+                  >
+                    <Icon className="w-4 h-4 shrink-0" />
+                    <div className="min-w-0">
+                      <span className="block truncate">{p.name}</span>
+                      <span className="block text-[10px] font-medium truncate" style={{ opacity: 0.65 }}>{p.subtitle}</span>
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* 主题切换 */}
+          <div>
+            <p className="text-[10px] font-black uppercase tracking-wider px-1 mb-1.5" style={{ color: "var(--header-subtitle)" }}>
+              主题配色
+            </p>
+            <ThemeSwitcher theme={theme} setTheme={setTheme} variant="inline" />
+          </div>
+
+          {/* 弹性空间：把历史记录推到底部 */}
+          <div className="flex-1" />
+
+          {/* 历史记录 */}
+          <div>
+            <ChatHistory
+              sessions={history.sessions}
+              currentSessionId={history.currentSessionId}
+              onSelect={(id) => { handleRestoreSession(id); setSidebarOpen(false); }}
+              onDelete={history.deleteSession}
+              variant="sidebar"
+            />
+          </div>
+        </aside>
+
+        {/* ── 主聊天区域 ── */}
+        <Card
+          className="flex-1 min-w-0 h-full flex flex-col border-4"
+          style={{ boxShadow: "8px 8px 0px 0px rgba(var(--shadow-color), 1)" }}
+        >
+          {/* 精简 Header：汉堡菜单 + 当前人设标签 */}
+          <CardHeader
+            className="border-b-2 rounded-t-lg py-3 md:py-4"
+            style={{
+              borderColor: "var(--border-color)",
+              background: "var(--header-bg)",
+              color: "var(--header-text)",
+            }}
+          >
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                {/* 移动端汉堡按钮 */}
+                <Button
+                  onClick={() => setSidebarOpen((v) => !v)}
+                  size="icon"
+                  className="md:hidden transition-all active:translate-x-0.5 active:translate-y-0.5"
+                  style={{
+                    backgroundColor: "var(--btn-new-bg)",
+                    color: "var(--btn-new-text)",
+                    borderColor: "var(--border-color)",
+                    boxShadow: "3px 3px 0px 0px rgba(var(--shadow-color), 1)",
+                  }}
+                >
+                  {sidebarOpen ? <PanelLeftClose className="w-5 h-5" /> : <PanelLeftOpen className="w-5 h-5" />}
+                </Button>
+
+                <div className="flex items-center gap-2">
+                  {(() => {
+                    const Icon = currentPersona.icon;
+                    return (
+                      <div
+                        className="p-1.5 rounded-lg border-2"
+                        style={{
+                          backgroundColor: `var(${currentPersona.colorVar})`,
+                          borderColor: "var(--border-color)",
+                          boxShadow: "2px 2px 0px 0px rgba(var(--shadow-color), 1)",
+                        }}
+                      >
+                        <Icon className="w-4 h-4" style={{ color: "var(--prompt-card-text)" }} />
+                      </div>
+                    );
+                  })()}
+                  <div>
+                    <CardTitle
+                      className="text-base md:text-lg font-black leading-none"
+                      style={{ color: "var(--header-text)" }}
+                    >
+                      {currentPersona.name}
+                    </CardTitle>
+                    <span className="text-[10px] font-bold" style={{ color: "var(--header-subtitle)" }}>
+                      {currentPersona.subtitle}
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              <p
+                className="hidden md:block font-bold text-xs px-2 py-0.5 transform skew-x-[-10deg]"
+                style={{
+                  backgroundColor: "var(--header-tag-bg)",
+                  color: "var(--header-tag-text)",
+                }}
+              >
+                你负责好奇，我负责想象
+              </p>
+            </div>
+          </CardHeader>
 
         <CardContent
           className="flex-1 overflow-y-auto p-4 space-y-4"
           style={{ backgroundColor: "var(--card-content-bg)" }}
         >
           {messages.length === 0 && (
-            <div className="h-full flex flex-col items-center justify-center text-center space-y-6 px-2">
-              <div className="relative">
-                <Sparkles
-                  className="w-16 h-16 md:w-24 md:h-24 animate-[spin_10s_linear_infinite]"
-                  style={{
-                    color: "var(--sparkle-color)",
-                    fill: "var(--sparkle-color)",
-                  }}
-                />
-                <div
-                  className="absolute -top-2 -right-2 md:-top-3 md:-right-3 text-[10px] md:text-xs font-bold px-2 py-1 rounded-full border-2"
-                  style={{
-                    backgroundColor: "var(--hot-badge-bg)",
-                    color: "var(--hot-badge-text)",
-                    borderColor: "var(--border-color)",
-                    boxShadow: "2px 2px 0px 0px rgba(var(--shadow-color), 1)",
-                  }}
-                >
-                  HOT
-                </div>
-              </div>
-              <div className="space-y-2">
-                <p className="text-2xl md:text-3xl font-black uppercase tracking-tighter">
-                  准备就绪！
-                </p>
-                <p
-                  className="text-sm md:text-base font-bold border-2 px-3 py-1"
-                  style={{
-                    backgroundColor: "var(--header-bg)",
-                    borderColor: "var(--border-color)",
-                    boxShadow: "4px 4px 0px 0px rgba(var(--shadow-color), 1)",
-                    color: "var(--header-text)",
-                  }}
-                >
-                  点击下方卡片，或自己输入问题
-                </p>
-              </div>
+            <div className="h-full flex flex-col items-center justify-center text-center space-y-5 px-2">
+              {(() => {
+                const PersonaIcon = currentPersona.icon;
+                return (
+                  <PersonaIcon
+                    className="w-12 h-12 md:w-16 md:h-16"
+                    style={{
+                      color: "var(--sparkle-color)",
+                      fill: "var(--sparkle-color)",
+                    }}
+                  />
+                );
+              })()}
+              <p
+                className="text-sm font-bold border-2 px-3 py-1 rounded-lg"
+                style={{
+                  backgroundColor: "var(--header-bg)",
+                  borderColor: "var(--border-color)",
+                  boxShadow: "3px 3px 0px 0px rgba(var(--shadow-color), 1)",
+                  color: "var(--header-text)",
+                }}
+              >
+                试试下面的话题，或直接输入问题
+              </p>
 
               {/* 快捷提示词卡片网格 */}
-              <div className="grid grid-cols-2 gap-3 w-full max-w-sm mt-2">
+              <div className="grid grid-cols-2 gap-3 w-full max-w-sm">
                 {QUICK_PROMPTS.map((item) => {
                   const Icon = item.icon;
                   return (
@@ -1315,6 +1457,7 @@ export default function Home() {
           </div>
         </CardFooter>
       </Card>
+      </div>
     </main>
   );
 }
