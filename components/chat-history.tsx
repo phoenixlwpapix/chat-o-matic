@@ -78,14 +78,14 @@ export function ChatHistory({
     // ── Sidebar variant ──
     if (variant === "sidebar") {
         return (
-            <div>
+            <div className="flex-1 min-h-0 flex flex-col">
                 <p
                     className="text-[10px] font-black uppercase tracking-wider px-1 mb-1.5"
                     style={{ color: "var(--header-subtitle)" }}
                 >
                     历史记录
                 </p>
-                <div className="max-h-40 overflow-y-auto space-y-1">
+                <div className="flex-1 overflow-y-auto min-h-0 space-y-1">
                     {sessions.length === 0 ? (
                         <p
                             className="text-xs font-bold px-1 py-2 opacity-40"

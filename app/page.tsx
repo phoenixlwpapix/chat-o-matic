@@ -817,11 +817,8 @@ export default function Home() {
             <ThemeSwitcher theme={theme} setTheme={setTheme} variant="inline" />
           </div>
 
-          {/* 弹性空间：把历史记录推到底部 */}
-          <div className="flex-1" />
-
           {/* 历史记录 */}
-          <div>
+          <div className="flex-1 min-h-0 flex flex-col">
             <ChatHistory
               sessions={history.sessions}
               currentSessionId={history.currentSessionId}
