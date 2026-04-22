@@ -1382,7 +1382,7 @@ export default function Home() {
                 placeholder={
                   pendingImages.length > 0
                     ? "添加说明，或直接发送图片..."
-                    : "今天想聊点啥？"
+                    : currentPersona.placeholder ?? "今天想聊点啥？"
                 }
               />
 
