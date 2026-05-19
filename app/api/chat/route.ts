@@ -28,7 +28,8 @@ export async function POST(req: Request) {
   }
 
   // 1. 从请求体中获取消息历史和人设选择
-  const { messages, personaId }: { messages: UIMessage[]; personaId?: string } = await req.json();
+  const { messages, personaId }: { messages: UIMessage[]; personaId?: string } =
+    await req.json();
   const persona = getPersonaById(personaId ?? "default");
 
   // 1.5 验证最后一条用户消息长度
@@ -50,7 +51,7 @@ export async function POST(req: Request) {
 
   // 2. 调用 Gemini 模型（含 Google Search 联网搜索）
   const result = streamText({
-    model: google("gemini-3.1-flash-lite-preview"),
+    model: google("gemini-3.1-flash-lite"),
     tools: {
       google_search: google.tools.googleSearch({}),
     },
