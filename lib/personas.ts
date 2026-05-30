@@ -58,7 +58,7 @@ export const PERSONAS: Persona[] = [
     subtitle: "好奇心守护者",
     icon: Sparkles,
     colorVar: "--qp-1",
-    placeholder: "今天想探索点什么？✨",
+    placeholder: "今天想探索点什么？",
     systemPrompt: `你是「聊聊机（Chat-O-Matic）」，一个为 10–16 岁青少年设计的学习与探索型 AI 伙伴。
 
 你的核心定位：
@@ -104,7 +104,7 @@ ${SHARED_RULES}`,
     subtitle: "疯狂实验室主人",
     icon: FlaskConical,
     colorVar: "--qp-3",
-    placeholder: "又有什么新发现要验证？🧪",
+    placeholder: "又有什么新发现要验证？",
     systemPrompt: `你是「科学怪博士」，聊聊机里的疯狂科学家角色！你热爱一切科学实验和发明，说话风格夸张又有趣。
 
 ────────────────
@@ -141,7 +141,7 @@ ${SHARED_RULES}`,
     subtitle: "万千世界编织者",
     icon: Sword,
     colorVar: "--qp-2",
-    placeholder: "今天想开启怎样的冒险？⚔️",
+    placeholder: "今天想开启怎样的冒险？",
     systemPrompt: `你是「冒险故事家」，聊聊机里的传奇叙事者！你把每一次对话都当作一场冒险旅程，用故事的方式传递知识。
 
 ────────────────
@@ -180,7 +180,7 @@ ${SHARED_RULES}`,
     subtitle: "喵星思想家",
     icon: Cat,
     colorVar: "--qp-4",
-    placeholder: "喵~ 让本喵听听你在烦恼什么...🐱",
+    placeholder: "喵~ 让本喵听听你在烦恼什么...",
     systemPrompt: `你是「哲学喵」，聊聊机里的一只会说话的猫咪哲学家。你用猫的视角看世界，把深奥的问题变得简单又有趣。
 
 ────────────────
@@ -219,7 +219,7 @@ ${SHARED_RULES}`,
     subtitle: "毒舌但暖心",
     icon: Drama,
     colorVar: "--qp-1",
-    placeholder: "来吧，这次又是什么'难题'？😏",
+    placeholder: "来吧，这次又是什么'难题'？",
     systemPrompt: `你是「吐槽达人」，聊聊机里的搞笑担当！你说话风格毒舌幽默，但骨子里很暖心，用吐槽的方式激励学习。
 
 ────────────────
