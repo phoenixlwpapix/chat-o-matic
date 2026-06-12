@@ -1,5 +1,17 @@
-import { Sparkles, FlaskConical, Sword, Cat, Drama } from "lucide-react";
+import {
+  Sparkles, FlaskConical, Sword, Cat, Drama,
+  Rocket, Lightbulb, BookOpen, Gamepad2,
+  Zap, Atom, Globe, Compass, Crown, Map,
+  Heart, MessageCircle, Smile,
+} from "lucide-react";
 import type { LucideIcon } from "lucide-react";
+
+export interface QuickPrompt {
+  icon: LucideIcon;
+  label: string;
+  prompt: string;
+  colorVar: string;
+}
 
 export interface Persona {
   id: string;
@@ -9,6 +21,7 @@ export interface Persona {
   colorVar: string;
   systemPrompt: string;
   placeholder?: string;
+  quickPrompts?: QuickPrompt[];
 }
 
 const SHARED_RULES = `
@@ -59,6 +72,12 @@ export const PERSONAS: Persona[] = [
     icon: Sparkles,
     colorVar: "--qp-1",
     placeholder: "今天想探索点什么？",
+    quickPrompts: [
+      { icon: Rocket, label: "宇宙探索", prompt: "告诉我一个超级酷的宇宙小知识！", colorVar: "--qp-1" },
+      { icon: Lightbulb, label: "创意灵感", prompt: "给我一个脑洞大开的故事开头！", colorVar: "--qp-2" },
+      { icon: BookOpen, label: "知识大百科", prompt: "用最简单的方式讲懂一个科学知识。", colorVar: "--qp-3" },
+      { icon: Gamepad2, label: "趣味冷知识", prompt: "告诉我一个有趣又冷门的生活小知识！", colorVar: "--qp-4" },
+    ],
     systemPrompt: `你是「聊聊机（Chat-O-Matic）」，一个为 10–16 岁青少年设计的学习与探索型 AI 伙伴。
 
 你的核心定位：
@@ -105,6 +124,12 @@ ${SHARED_RULES}`,
     icon: FlaskConical,
     colorVar: "--qp-3",
     placeholder: "又有什么新发现要验证？",
+    quickPrompts: [
+      { icon: FlaskConical, label: "疯狂实验", prompt: "教我在家就能做的超酷科学小实验！", colorVar: "--qp-1" },
+      { icon: Zap, label: "自然现象", prompt: "雷电是怎么形成的？给我讲得刺激一点！", colorVar: "--qp-2" },
+      { icon: Atom, label: "宇宙之谜", prompt: "黑洞里面到底是什么？博士来揭秘！", colorVar: "--qp-3" },
+      { icon: Globe, label: "科学脑洞", prompt: "如果地球突然停止自转会怎样？", colorVar: "--qp-4" },
+    ],
     systemPrompt: `你是「科学怪博士」，聊聊机里的疯狂科学家角色！你热爱一切科学实验和发明，说话风格夸张又有趣。
 
 ────────────────
@@ -142,6 +167,12 @@ ${SHARED_RULES}`,
     icon: Sword,
     colorVar: "--qp-2",
     placeholder: "今天想开启怎样的冒险？",
+    quickPrompts: [
+      { icon: Sword, label: "冒险故事", prompt: "给我讲一个勇者斗恶龙的奇幻故事！", colorVar: "--qp-1" },
+      { icon: Compass, label: "神秘探索", prompt: "带我去探索一座失落的古城！", colorVar: "--qp-2" },
+      { icon: Crown, label: "英雄传说", prompt: "告诉我一个关于勇敢和友谊的故事。", colorVar: "--qp-3" },
+      { icon: Map, label: "未知之旅", prompt: "如果你是一张藏宝图，你的终点在哪？", colorVar: "--qp-4" },
+    ],
     systemPrompt: `你是「冒险故事家」，聊聊机里的传奇叙事者！你把每一次对话都当作一场冒险旅程，用故事的方式传递知识。
 
 ────────────────
@@ -181,6 +212,12 @@ ${SHARED_RULES}`,
     icon: Cat,
     colorVar: "--qp-4",
     placeholder: "喵~ 让本喵听听你在烦恼什么...",
+    quickPrompts: [
+      { icon: Cat, label: "喵式哲学", prompt: "喵~ 你觉得什么是幸福？", colorVar: "--qp-1" },
+      { icon: Heart, label: "情绪探索", prompt: "为什么人会感到孤独？", colorVar: "--qp-2" },
+      { icon: Sparkles, label: "奇思妙想", prompt: "你觉得做梦是在另一个世界吗？", colorVar: "--qp-3" },
+      { icon: Lightbulb, label: "猫看世界", prompt: "什么是时间？从猫的角度回答看看", colorVar: "--qp-4" },
+    ],
     systemPrompt: `你是「哲学喵」，聊聊机里的一只会说话的猫咪哲学家。你用猫的视角看世界，把深奥的问题变得简单又有趣。
 
 ────────────────
@@ -220,6 +257,12 @@ ${SHARED_RULES}`,
     icon: Drama,
     colorVar: "--qp-1",
     placeholder: "来吧，这次又是什么'难题'？",
+    quickPrompts: [
+      { icon: Drama, label: "来吐槽吧", prompt: "吐槽一下写作业这件事😏", colorVar: "--qp-1" },
+      { icon: MessageCircle, label: "冷笑话", prompt: "来点冷笑话，最好是冷到北极那种", colorVar: "--qp-2" },
+      { icon: Smile, label: "AI 翻车", prompt: "讲讲你最离谱的一次 AI 翻车经历", colorVar: "--qp-3" },
+      { icon: Gamepad2, label: "日常吐槽", prompt: "为什么人类要早起上学？合理吗", colorVar: "--qp-4" },
+    ],
     systemPrompt: `你是「吐槽达人」，聊聊机里的搞笑担当！你说话风格毒舌幽默，但骨子里很暖心，用吐槽的方式激励学习。
 
 ────────────────

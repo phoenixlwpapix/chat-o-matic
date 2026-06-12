@@ -10,10 +10,6 @@ import {
   User as UserIcon,
   Zap,
   Plus,
-  Rocket,
-  BookOpen,
-  Lightbulb,
-  Gamepad2,
   Copy,
   RefreshCw,
   Check,
@@ -51,34 +47,6 @@ import rehypeKatex from "rehype-katex";
 import "katex/dist/katex.min.css";
 import { Prism as SyntaxHighlighter } from "react-syntax-highlighter";
 import { oneDark } from "react-syntax-highlighter/dist/esm/styles/prism";
-
-// 快捷提示词配置
-const QUICK_PROMPTS = [
-  {
-    icon: Rocket,
-    label: "宇宙探索",
-    prompt: "告诉我一个超级酷的宇宙小知识！",
-    colorVar: "--qp-1",
-  },
-  {
-    icon: Lightbulb,
-    label: "创意灵感",
-    prompt: "给我一个脑洞大开的故事开头！",
-    colorVar: "--qp-2",
-  },
-  {
-    icon: BookOpen,
-    label: "知识大百科",
-    prompt: "用最简单的方式讲懂一个科学知识。",
-    colorVar: "--qp-3",
-  },
-  {
-    icon: Gamepad2,
-    label: "趣味冷知识",
-    prompt: "告诉我一个有趣又冷门的生活小知识！",
-    colorVar: "--qp-4",
-  },
-];
 
 // SpeechRecognition 类型声明
 interface SpeechRecognitionEvent extends Event {
@@ -934,7 +902,7 @@ export default function Home() {
 
               {/* 快捷提示词卡片网格 */}
               <div className="grid grid-cols-2 gap-3 w-full max-w-sm">
-                {QUICK_PROMPTS.map((item) => {
+                {(currentPersona.quickPrompts ?? []).map((item) => {
                   const Icon = item.icon;
                   return (
                     <button
