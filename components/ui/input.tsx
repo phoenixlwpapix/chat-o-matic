@@ -6,7 +6,7 @@ export interface InputProps
   extends React.InputHTMLAttributes<HTMLInputElement> { }
 
 const Input = React.forwardRef<HTMLInputElement, InputProps>(
-  ({ className, type, ...props }, ref) => {
+  ({ className, type, style, ...props }, ref) => {
     return (
       <input
         type={type}
@@ -21,6 +21,7 @@ const Input = React.forwardRef<HTMLInputElement, InputProps>(
           boxShadow: "4px 4px 0px 0px rgba(var(--shadow-color), 1)",
           // @ts-expect-error -- CSS custom property for focus ring
           "--tw-ring-color": "var(--input-focus-ring)",
+          ...style,
         }}
         ref={ref}
         {...props}
