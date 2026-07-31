@@ -1,8 +1,15 @@
 "use client";
 
-import { useRef, useEffect, useState, useCallback, useMemo } from "react";
+import {
+  useRef,
+  useEffect,
+  useState,
+  useCallback,
+  useSyncExternalStore,
+} from "react";
+import Image from "next/image";
 import { useChat } from "@ai-sdk/react";
-import { DefaultChatTransport } from "ai";
+import { DefaultChatTransport, type UIMessage } from "ai";
 import { MAX_INPUT_LENGTH } from "@/lib/constants";
 import {
   Send,
@@ -17,8 +24,6 @@ import {
   X,
   Mic,
   MicOff,
-  ThumbsUp,
-  ThumbsDown,
   Globe,
   Search,
   AlertTriangle,
@@ -39,14 +44,13 @@ import { useTheme } from "@/lib/use-theme";
 import { ThemeSwitcher } from "@/components/theme-switcher";
 import { PERSONAS, getPersonaById, type Persona } from "@/lib/personas";
 import { ChatHistory } from "@/components/chat-history";
+import {
+  FeedbackButtons,
+  type MessageFeedback,
+} from "@/components/feedback-buttons";
+import { MarkdownContent } from "@/components/markdown-content";
 import { useChatHistory, toStoredMessages } from "@/lib/use-chat-history";
-import ReactMarkdown, { Components } from "react-markdown";
-import remarkGfm from "remark-gfm";
-import remarkMath from "remark-math";
-import rehypeKatex from "rehype-katex";
 import "katex/dist/katex.min.css";
-import { Prism as SyntaxHighlighter } from "react-syntax-highlighter";
-import { oneDark } from "react-syntax-highlighter/dist/esm/styles/prism";
 
 // SpeechRecognition 类型声明
 interface SpeechRecognitionEvent extends Event {
@@ -77,8 +81,23 @@ declare global {
   }
 }
 
+const chatTransport = new DefaultChatTransport();
+const subscribeToBrowserCapability = () => () => undefined;
+const getSpeechSupportSnapshot = () =>
+  "SpeechRecognition" in window || "webkitSpeechRecognition" in window;
+const getServerSpeechSupportSnapshot = () => false;
+
+function getMessageText(parts: UIMessage["parts"]): string {
+  return parts
+    .filter(
+      (part): part is { type: "text"; text: string } => part.type === "text",
+    )
+    .map((part) => part.text)
+    .join("");
+}
+
 export default function Home() {
-  const { theme, setTheme, mounted } = useTheme();
+  const { theme, setTheme } = useTheme();
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -95,22 +114,9 @@ export default function Home() {
   const [personaId, setPersonaId] = useState("default");
   const currentPersona = getPersonaById(personaId);
 
-  // 用 ref 保存最新 personaId，供 transport body 回调读取
-  const personaIdRef = useRef(personaId);
-  personaIdRef.current = personaId;
-
-  // 创建 transport 实例（stable ref，body 通过函数动态解析）
-  const transport = useMemo(
-    () =>
-      new DefaultChatTransport({
-        body: () => ({ personaId: personaIdRef.current }),
-      }),
-    [],
-  );
-
   // AI SDK 6 useChat - 默认连接到 /api/chat
-  const { messages, sendMessage, status, setMessages } = useChat({
-    transport,
+  const { messages, sendMessage, regenerate, status, setMessages } = useChat({
+    transport: chatTransport,
     onError: (error) => {
       // useChat 的 error 对象中 message 可能包含 JSON body
       try {
@@ -143,9 +149,13 @@ export default function Home() {
     // Only save when message count actually changed
     if (messages.length === prevLenRef.current) return;
     prevLenRef.current = messages.length;
-    history.saveSession(sessionIdRef.current, toStoredMessages(messages));
+    history.saveSession(
+      sessionIdRef.current,
+      toStoredMessages(messages),
+      personaId,
+    );
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [messages, isLoading]);
+  }, [messages, isLoading, personaId]);
 
   // 带字符限制的输入更新
   const handleInputChange = useCallback((value: string) => {
@@ -177,7 +187,7 @@ export default function Home() {
 
   // 反馈状态管理
   const [messageFeedback, setMessageFeedback] = useState<
-    Map<string, "helpful" | "unclear">
+    Map<string, MessageFeedback>
   >(new Map());
   const [simplifyRequested, setSimplifyRequested] = useState<Set<string>>(
     new Set(),
@@ -189,13 +199,11 @@ export default function Home() {
   // 记录语音识别开始前已有的文本，用于追加
   const preVoiceTextRef = useRef("");
 
-  const [isSpeechSupported, setIsSpeechSupported] = useState(false);
-
-  useEffect(() => {
-    setIsSpeechSupported(
-      "SpeechRecognition" in window || "webkitSpeechRecognition" in window,
-    );
-  }, []);
+  const isSpeechSupported = useSyncExternalStore(
+    subscribeToBrowserCapability,
+    getSpeechSupportSnapshot,
+    getServerSpeechSupportSnapshot,
+  );
 
   const toggleVoiceInput = useCallback(() => {
     if (isListening) {
@@ -271,7 +279,7 @@ export default function Home() {
 
   // 处理反馈点击
   const handleFeedback = useCallback(
-    (messageId: string, feedback: "helpful" | "unclear") => {
+    (messageId: string, feedback: MessageFeedback) => {
       setMessageFeedback((prev) => {
         const newMap = new Map(prev);
         newMap.set(messageId, feedback);
@@ -281,12 +289,15 @@ export default function Home() {
       // 如果是"没太懂"且未请求过简化，自动发送简化请求
       if (feedback === "unclear" && !simplifyRequested.has(messageId)) {
         setSimplifyRequested((prev) => new Set(prev).add(messageId));
-        sendMessage({
-          text: "请用更简单的方式，用我能听懂的例子再解释一遍刚才的回答",
-        });
+        sendMessage(
+          {
+            text: "请用更简单的方式，用我能听懂的例子再解释一遍刚才的回答",
+          },
+          { body: { personaId } },
+        );
       }
     },
-    [simplifyRequested, sendMessage],
+    [simplifyRequested, sendMessage, personaId],
   );
 
   // 压缩图片（确保不超过 1MB，最大边 1024px）
@@ -295,7 +306,7 @@ export default function Home() {
       new Promise((resolve, reject) => {
         const reader = new FileReader();
         reader.onload = (e) => {
-          const img = new Image();
+          const img = new window.Image();
           img.onload = () => {
             const canvas = document.createElement("canvas");
             const MAX_SIZE = 1024;
@@ -386,183 +397,17 @@ export default function Home() {
     [pendingImages.length, compressImage],
   );
 
-  // 从消息 parts 中提取纯文本（用于复制）
-  const getMessageText = (parts: (typeof messages)[0]["parts"]): string => {
-    return parts
-      .filter(
-        (part): part is { type: "text"; text: string } => part.type === "text",
-      )
-      .map((part) => part.text)
-      .join("");
-  };
-
-  // 标准化 Markdown：将 **"文字"** 转换为 "**文字**"
-  const normalizeMarkdown = (text: string): string => {
-    const QUOTES = [
-      ["\u201C", "\u201D"], // “ ”
-      ["\u2018", "\u2019"], // ‘ ’
-      ["\u300C", "\u300D"], // 「 」
-      ["\u300E", "\u300F"], // 『 』
-      ['"', '"'],
-      ["'", "'"],
-    ];
-
-    let result = text;
-
-    for (const [open, close] of QUOTES) {
-      const pattern = new RegExp(`\\*\\*${open}([^\\*]+?)${close}\\*\\*`, "g");
-      result = result.replace(pattern, `${open}**$1**${close}`);
-    }
-
-    return result;
-  };
-
-  // 自定义代码块渲染组件（支持语法高亮和复制）
-  const CodeBlock: Components["code"] = ({ className, children, ...props }) => {
-    const match = /language-(\w+)/.exec(className || "");
-    const language = match ? match[1] : "";
-    const codeString = String(children).replace(/\n$/, "");
-    const codeId = `code-${codeString.slice(0, 20)}`;
-    const isInline = !className;
-
-    if (isInline) {
-      return (
-        <code
-          className="px-1.5 py-0.5 rounded text-sm font-mono border"
-          style={{
-            backgroundColor: "var(--inline-code-bg)",
-            color: "var(--inline-code-text)",
-            borderColor: "var(--inline-code-border)",
-          }}
-          {...props}
-        >
-          {children}
-        </code>
-      );
-    }
-
-    return (
-      <div className="relative group my-3">
-        <div className="absolute right-2 top-2 z-10">
-          <button
-            onClick={() => handleCopy(codeString, codeId)}
-            className="p-1.5 rounded bg-gray-700 hover:bg-gray-600 text-gray-300 hover:text-white transition-colors border border-gray-600"
-            title="复制代码"
-          >
-            {copiedId === codeId ? (
-              <Check className="w-4 h-4 text-green-400" />
-            ) : (
-              <Copy className="w-4 h-4" />
-            )}
-          </button>
-        </div>
-        {language && (
-          <div className="absolute left-3 top-2 text-xs text-gray-400 font-mono">
-            {language}
-          </div>
-        )}
-        <SyntaxHighlighter
-          style={oneDark}
-          language={language || "text"}
-          PreTag="div"
-          className="!rounded-lg !border-2 !pt-8 !text-sm"
-          customStyle={{
-            borderColor: "var(--border-color)",
-            boxShadow: "4px 4px 0px 0px rgba(var(--shadow-color), 1)",
-          }}
-        >
-          {codeString}
-        </SyntaxHighlighter>
-      </div>
-    );
-  };
-
-  // 反馈按钮组件
-  const FeedbackButtons = ({
-    messageId,
-    currentFeedback,
-    onFeedbackClick,
-    isDisabled,
-  }: {
-    messageId: string;
-    currentFeedback: "helpful" | "unclear" | null;
-    onFeedbackClick: (
-      messageId: string,
-      feedback: "helpful" | "unclear",
-    ) => void;
-    isDisabled: boolean;
-  }) => {
-    return (
-      <div className="flex items-center gap-2">
-        <button
-          onClick={() => onFeedbackClick(messageId, "helpful")}
-          disabled={isDisabled}
-          className={cn(
-            "px-3 py-1.5 rounded-lg border-2 text-sm font-medium transition-all",
-            "hover:-translate-y-0.5 active:translate-x-0.5 active:translate-y-0.5",
-            "disabled:opacity-50 disabled:cursor-not-allowed",
-          )}
-          style={{
-            backgroundColor:
-              currentFeedback === "helpful"
-                ? "var(--fb-helpful-bg)"
-                : "var(--fb-inactive-bg)",
-            borderColor:
-              currentFeedback === "helpful"
-                ? "var(--border-color)"
-                : "var(--fb-inactive-border)",
-            color:
-              currentFeedback === "helpful"
-                ? "#fff"
-                : "var(--fb-inactive-text)",
-            boxShadow: `2px 2px 0px 0px rgba(var(--shadow-color), 1)`,
-          }}
-        >
-          <span className="flex items-center gap-1.5">
-            <ThumbsUp className="w-4 h-4" />
-            <span>有帮助</span>
-          </span>
-        </button>
-        <button
-          onClick={() => onFeedbackClick(messageId, "unclear")}
-          disabled={isDisabled}
-          className={cn(
-            "px-3 py-1.5 rounded-lg border-2 text-sm font-medium transition-all",
-            "hover:-translate-y-0.5 active:translate-x-0.5 active:translate-y-0.5",
-            "disabled:opacity-50 disabled:cursor-not-allowed",
-          )}
-          style={{
-            backgroundColor:
-              currentFeedback === "unclear"
-                ? "var(--fb-unclear-bg)"
-                : "var(--fb-inactive-bg)",
-            borderColor:
-              currentFeedback === "unclear"
-                ? "var(--border-color)"
-                : "var(--fb-inactive-border)",
-            color:
-              currentFeedback === "unclear"
-                ? "#fff"
-                : "var(--fb-inactive-text)",
-            boxShadow: `2px 2px 0px 0px rgba(var(--shadow-color), 1)`,
-          }}
-        >
-          <span className="flex items-center gap-1.5">
-            <ThumbsDown className="w-4 h-4" />
-            <span>没太懂</span>
-          </span>
-        </button>
-      </div>
-    );
-  };
-
   // 处理人设选择
   const handlePersonaSelect = useCallback(
     (persona: Persona) => {
       setPersonaId(persona.id);
       // 切换人设时清空对话
       if (messages.length > 0) {
-        history.saveSession(sessionIdRef.current, toStoredMessages(messages));
+        history.saveSession(
+          sessionIdRef.current,
+          toStoredMessages(messages),
+          personaId,
+        );
         const newId = crypto.randomUUID();
         sessionIdRef.current = newId;
         history.setCurrentSessionId(newId);
@@ -573,12 +418,12 @@ export default function Home() {
       }
     },
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [messages, setMessages],
+    [messages, personaId, setMessages],
   );
 
   // 处理快捷提示词点击
   const handleQuickPrompt = (prompt: string) => {
-    sendMessage({ text: prompt });
+    sendMessage({ text: prompt }, { body: { personaId } });
   };
 
   const scrollToBottom = () => {
@@ -588,7 +433,11 @@ export default function Home() {
   const resetConversation = () => {
     // Save current non-empty conversation before resetting
     if (messages.length > 0) {
-      history.saveSession(sessionIdRef.current, toStoredMessages(messages));
+      history.saveSession(
+        sessionIdRef.current,
+        toStoredMessages(messages),
+        personaId,
+      );
     }
     // Generate new session id
     const newId = crypto.randomUUID();
@@ -605,47 +454,38 @@ export default function Home() {
     (id: string) => {
       // Save current first
       if (messages.length > 0) {
-        history.saveSession(sessionIdRef.current, toStoredMessages(messages));
+        history.saveSession(
+          sessionIdRef.current,
+          toStoredMessages(messages),
+          personaId,
+        );
       }
       const restored = history.loadSession(id);
       if (!restored) return;
       sessionIdRef.current = id;
       history.setCurrentSessionId(id);
-      prevLenRef.current = restored.length;
-      setMessages(restored);
+      const restoredPersonaId = getPersonaById(restored.personaId).id;
+      prevLenRef.current = restored.messages.length;
+      setPersonaId(restoredPersonaId);
+      setMessages(restored.messages);
       setInputValue("");
       setPendingImages([]);
     },
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [messages, setMessages],
+    [messages, personaId, setMessages],
   );
 
   // 重新生成最后一条 AI 回复
   const handleRegenerate = useCallback(() => {
-    // 找到最后一条 assistant 消息的索引
-    const lastAssistantIndex = messages.findLastIndex(
-      (m) => m.role === "assistant",
-    );
-    if (lastAssistantIndex === -1) return;
+    const lastAssistant = messages.findLast((message) => message.role === "assistant");
+    if (!lastAssistant) return;
 
-    // 找到该 assistant 消息之前最近的 user 消息及其索引
-    const precedingMessages = messages.slice(0, lastAssistantIndex);
-    const lastUserIndex = precedingMessages.findLastIndex(
-      (m) => m.role === "user",
-    );
-    if (lastUserIndex === -1) return;
-
-    const lastUserMessage = precedingMessages[lastUserIndex];
-
-    // 提取用户消息文本
-    const userText = getMessageText(lastUserMessage.parts);
-
-    // 移除最后一条 user 消息和 assistant 消息（sendMessage 会重新添加 user 消息）
-    setMessages(messages.slice(0, lastUserIndex));
-
-    // 重新发送
-    sendMessage({ text: userText || "请再回答一次" });
-  }, [messages, setMessages, sendMessage]);
+    // AI SDK 会复用原始用户消息，包含其中的图片 parts。
+    regenerate({
+      messageId: lastAssistant.id,
+      body: { personaId },
+    });
+  }, [messages, personaId, regenerate]);
 
   useEffect(() => {
     scrollToBottom();
@@ -664,10 +504,13 @@ export default function Home() {
       url: dataUrl,
     }));
 
-    sendMessage({
-      text: inputValue || "请看这张图片，帮我解决问题",
-      files,
-    });
+    sendMessage(
+      {
+        text: inputValue || "请看这张图片，帮我解决问题",
+        files,
+      },
+      { body: { personaId } },
+    );
 
     // 发送前先关闭语音识别，abort() 不会再触发 onresult
     if (recognitionRef.current) {
@@ -1005,28 +848,20 @@ export default function Home() {
                           return message.role === "user" ? (
                             <span key={key}>{part.text}</span>
                           ) : (
-                            <div
-                              key={key}
-                              className="prose prose-base max-w-none"
-                            >
-                              <ReactMarkdown
-                                remarkPlugins={[remarkGfm, remarkMath]}
-                                rehypePlugins={[rehypeKatex]}
-                                components={{ code: CodeBlock }}
-                              >
-                                {normalizeMarkdown(part.text)}
-                              </ReactMarkdown>
-                            </div>
+                            <MarkdownContent key={key} text={part.text} />
                           );
                         case "file":
                           // 渲染用户上传的图片
                           if (part.mediaType?.startsWith("image/")) {
                             return (
-                              <img
+                              <Image
                                 key={key}
                                 src={part.url}
                                 alt="上传的图片"
-                                className="max-w-full rounded-lg border-2 mt-2"
+                                width={1024}
+                                height={1024}
+                                unoptimized
+                                className="w-auto h-auto max-w-full rounded-lg border-2 mt-2"
                                 style={{
                                   borderColor: "var(--border-color)",
                                   boxShadow:
@@ -1278,11 +1113,13 @@ export default function Home() {
             {pendingImages.length > 0 && (
               <div className="flex gap-2 flex-wrap">
                 {pendingImages.map((src, index) => (
-                  <div key={index} className="relative group">
-                    <img
+                  <div key={src} className="relative group w-16 h-16">
+                    <Image
                       src={src}
                       alt={`待发送图片 ${index + 1}`}
-                      className="w-16 h-16 object-cover rounded-lg border-2"
+                      fill
+                      unoptimized
+                      className="object-cover rounded-lg border-2"
                       style={{
                         borderColor: "var(--border-color)",
                         boxShadow:

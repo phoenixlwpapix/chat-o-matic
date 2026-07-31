@@ -4,6 +4,7 @@ import { useState, useRef, useEffect, useCallback } from "react";
 import { History, Trash2, MessageSquare } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { ChatSession } from "@/lib/use-chat-history";
+import { getPersonaById } from "@/lib/personas";
 
 interface ChatHistoryProps {
     sessions: ChatSession[];
@@ -100,42 +101,47 @@ export function ChatHistory({
                                 <div
                                     key={session.id}
                                     className={cn(
-                                        "flex items-center gap-2 px-2 py-1.5 rounded-lg text-left transition-colors cursor-pointer group/item",
+                                        "flex items-center rounded-lg text-left transition-colors group/item",
                                         "hover:brightness-95",
                                     )}
                                     style={{
                                         backgroundColor: isActive ? "var(--header-bg)" : "transparent",
                                         color: isActive ? "var(--header-text)" : "var(--foreground)",
                                     }}
-                                    onClick={() => onSelect(session.id)}
                                 >
-                                    <MessageSquare className="w-3 h-3 shrink-0 opacity-50" />
-                                    <div className="flex-1 min-w-0">
-                                        <p className="text-xs font-bold truncate">{session.title}</p>
-                                        <p className="text-[10px] opacity-50">{relativeTime(session.updatedAt)}</p>
-                                    </div>
-                                    <div
+                                    <button
+                                        type="button"
+                                        onClick={() => onSelect(session.id)}
+                                        className="flex min-w-0 flex-1 items-center gap-2 px-2 py-1.5 text-left"
+                                    >
+                                        <MessageSquare className="w-3 h-3 shrink-0 opacity-50" />
+                                        <span className="flex-1 min-w-0">
+                                            <span className="block text-xs font-bold truncate">{session.title}</span>
+                                            <span className="block text-[10px] opacity-50 truncate">
+                                                {getPersonaById(session.personaId).name} · {relativeTime(session.updatedAt)}
+                                            </span>
+                                        </span>
+                                    </button>
+                                    <button
+                                        type="button"
+                                        onClick={(event) => handleDelete(event, session.id)}
                                         className={cn(
-                                            "shrink-0 transition-opacity",
+                                            "m-1 shrink-0 rounded p-1 transition-opacity hover:brightness-90 focus-visible:opacity-100",
                                             confirmDeleteId === session.id ? "opacity-100" : "opacity-0 group-hover/item:opacity-100",
                                         )}
+                                        style={{
+                                            backgroundColor: confirmDeleteId === session.id ? "var(--hot-badge-bg)" : "transparent",
+                                        }}
+                                        aria-label={confirmDeleteId === session.id ? `确认删除${session.title}` : `删除${session.title}`}
+                                        title={confirmDeleteId === session.id ? "再次点击确认删除" : "删除"}
                                     >
-                                        <div
-                                            onClick={(e) => handleDelete(e, session.id)}
-                                            className="p-1 rounded cursor-pointer hover:brightness-90"
+                                        <Trash2
+                                            className="w-3 h-3"
                                             style={{
-                                                backgroundColor: confirmDeleteId === session.id ? "var(--hot-badge-bg)" : "transparent",
+                                                color: confirmDeleteId === session.id ? "#fff" : "var(--fb-inactive-text)",
                                             }}
-                                            title={confirmDeleteId === session.id ? "再次点击确认删除" : "删除"}
-                                        >
-                                            <Trash2
-                                                className="w-3 h-3"
-                                                style={{
-                                                    color: confirmDeleteId === session.id ? "#fff" : "var(--fb-inactive-text)",
-                                                }}
-                                            />
-                                        </div>
-                                    </div>
+                                        />
+                                    </button>
                                 </div>
                             );
                         })
@@ -213,11 +219,10 @@ export function ChatHistory({
                             sessions.map((session) => {
                                 const isActive = session.id === currentSessionId;
                                 return (
-                                    <button
+                                    <div
                                         key={session.id}
-                                        onClick={() => handleSelect(session.id)}
                                         className={cn(
-                                            "w-full flex items-center gap-3 px-3 py-2.5 text-left transition-colors group/item border-b last:border-b-0",
+                                            "w-full flex items-center text-left transition-colors group/item border-b last:border-b-0",
                                             "hover:brightness-95",
                                         )}
                                         style={{
@@ -230,60 +235,53 @@ export function ChatHistory({
                                                 : "var(--foreground)",
                                         }}
                                     >
-                                        {/* Content */}
-                                        <div className="flex-1 min-w-0">
+                                        <button
+                                            type="button"
+                                            onClick={() => handleSelect(session.id)}
+                                            className="flex-1 min-w-0 px-3 py-2.5 text-left"
+                                        >
                                             <p className="text-sm font-bold truncate">
                                                 {session.title}
                                             </p>
                                             <p className="text-xs opacity-60 mt-0.5">
+                                                {getPersonaById(session.personaId).name} ·{" "}
                                                 {relativeTime(session.updatedAt)} ·{" "}
                                                 {session.messages.length} 条消息
                                             </p>
-                                        </div>
+                                        </button>
 
                                         {/* Delete button */}
-                                        <div
+                                        <button
+                                            type="button"
+                                            onClick={(event) => handleDelete(event, session.id)}
                                             className={cn(
-                                                "shrink-0 transition-opacity",
+                                                "mr-3 shrink-0 rounded-md border-2 p-1.5 transition-all hover:-translate-y-0.5 active:translate-x-0.5 active:translate-y-0.5 focus-visible:opacity-100",
                                                 confirmDeleteId === session.id
                                                     ? "opacity-100"
                                                     : "opacity-0 group-hover/item:opacity-100",
                                             )}
-                                        >
-                                            <div
-                                                onClick={(e) => handleDelete(e, session.id)}
-                                                className={cn(
-                                                    "p-1.5 rounded-md border-2 transition-all cursor-pointer",
-                                                    "hover:-translate-y-0.5",
-                                                    "active:translate-x-0.5 active:translate-y-0.5",
-                                                )}
-                                                style={{
-                                                    borderColor: "var(--border-color)",
-                                                    backgroundColor:
-                                                        confirmDeleteId === session.id
-                                                            ? "var(--hot-badge-bg)"
-                                                            : "var(--fb-inactive-bg)",
-                                                    boxShadow:
-                                                        "2px 2px 0px 0px rgba(var(--shadow-color), 1)",
-                                                }}
-                                                title={
+                                            style={{
+                                                borderColor: "var(--border-color)",
+                                                backgroundColor:
                                                     confirmDeleteId === session.id
-                                                        ? "再次点击确认删除"
-                                                        : "删除此对话"
-                                                }
-                                            >
-                                                <Trash2
-                                                    className="w-3.5 h-3.5"
-                                                    style={{
-                                                        color:
-                                                            confirmDeleteId === session.id
-                                                                ? "#fff"
-                                                                : "var(--fb-inactive-text)",
-                                                    }}
-                                                />
-                                            </div>
-                                        </div>
-                                    </button>
+                                                        ? "var(--hot-badge-bg)"
+                                                        : "var(--fb-inactive-bg)",
+                                                boxShadow: "2px 2px 0px 0px rgba(var(--shadow-color), 1)",
+                                            }}
+                                            aria-label={confirmDeleteId === session.id ? `确认删除${session.title}` : `删除${session.title}`}
+                                            title={confirmDeleteId === session.id ? "再次点击确认删除" : "删除此对话"}
+                                        >
+                                            <Trash2
+                                                className="w-3.5 h-3.5"
+                                                style={{
+                                                    color:
+                                                        confirmDeleteId === session.id
+                                                            ? "#fff"
+                                                            : "var(--fb-inactive-text)",
+                                                }}
+                                            />
+                                        </button>
+                                    </div>
                                 );
                             })
                         )}

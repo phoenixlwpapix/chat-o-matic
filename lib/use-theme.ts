@@ -1,29 +1,49 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useCallback, useEffect, useSyncExternalStore } from "react";
 
 export const THEMES = ["sunflower", "ocean", "peach"] as const;
 export type Theme = (typeof THEMES)[number];
 
 const THEME_KEY = "chat-o-matic-theme";
+const THEME_CHANGE_EVENT = "chat-o-matic-theme-change";
+
+function getThemeSnapshot(): Theme {
+    const stored = localStorage.getItem(THEME_KEY);
+    return stored && THEMES.includes(stored as Theme)
+        ? (stored as Theme)
+        : "sunflower";
+}
+
+function getServerThemeSnapshot(): Theme {
+    return "sunflower";
+}
+
+function subscribeToTheme(onStoreChange: () => void) {
+    window.addEventListener("storage", onStoreChange);
+    window.addEventListener(THEME_CHANGE_EVENT, onStoreChange);
+    return () => {
+        window.removeEventListener("storage", onStoreChange);
+        window.removeEventListener(THEME_CHANGE_EVENT, onStoreChange);
+    };
+}
 
 export function useTheme() {
-    const [theme, setThemeState] = useState<Theme>("sunflower");
-    const [mounted, setMounted] = useState(false);
+    const theme = useSyncExternalStore(
+        subscribeToTheme,
+        getThemeSnapshot,
+        getServerThemeSnapshot,
+    );
 
     useEffect(() => {
-        const stored = localStorage.getItem(THEME_KEY) as Theme | null;
-        const initial = stored && THEMES.includes(stored) ? stored : "sunflower";
-        setThemeState(initial);
-        document.documentElement.setAttribute("data-theme", initial);
-        setMounted(true);
-    }, []);
+        document.documentElement.setAttribute("data-theme", theme);
+    }, [theme]);
 
     const setTheme = useCallback((t: Theme) => {
-        setThemeState(t);
         localStorage.setItem(THEME_KEY, t);
         document.documentElement.setAttribute("data-theme", t);
+        window.dispatchEvent(new Event(THEME_CHANGE_EVENT));
     }, []);
 
-    return { theme, setTheme, mounted } as const;
+    return { theme, setTheme } as const;
 }
