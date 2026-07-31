@@ -5,6 +5,7 @@ import {
   normalizeSessions,
   upsertSession,
   type ChatSession,
+  type SessionPreferences,
   type StoredMessage,
 } from "./chat-history";
 
@@ -69,8 +70,8 @@ export function useChatHistory() {
   const [currentSessionId, setCurrentSessionId] = useState<string | null>(null);
 
   const saveSession = useCallback(
-    (id: string, messages: StoredMessage[], personaId: string) => {
-      writeSessions(upsertSession(readSessions(), id, messages, personaId));
+    (id: string, messages: StoredMessage[], preferences: SessionPreferences) => {
+      writeSessions(upsertSession(readSessions(), id, messages, preferences));
     },
     [],
   );

@@ -3,6 +3,12 @@ import { streamText, convertToModelMessages } from "ai";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { ChatRequestError, parseChatRequest } from "@/lib/chat-request";
 import { getPersonaById } from "@/lib/personas";
+import { buildLearningPrompt } from "@/lib/learning-modes";
+import {
+  buildChatSystemPrompt,
+  buildSearchPrompt,
+  isSearchEnabled,
+} from "@/lib/search-modes";
 
 // 允许流式响应持续更长时间（防止超时）
 export const maxDuration = 30;
@@ -32,16 +38,22 @@ export async function POST(req: Request) {
     console.error("Failed to parse chat request", error);
     return Response.json({ error: "请求处理失败" }, { status: 400 });
   }
-  const { messages, personaId } = chatRequest;
+  const { messages, personaId, learningMode, searchMode } = chatRequest;
   const persona = getPersonaById(personaId);
+  const system = buildChatSystemPrompt(
+    persona.systemPrompt,
+    buildLearningPrompt(learningMode),
+    buildSearchPrompt(searchMode),
+  );
 
   // 2. 调用 Gemini 模型（含 Google Search 联网搜索）
   const result = streamText({
     model: google("gemini-3.5-flash-lite"),
-    tools: {
-      google_search: google.tools.googleSearch({}),
-    },
-    system: persona.systemPrompt,
+    tools:
+      isSearchEnabled(searchMode)
+        ? { google_search: google.tools.googleSearch({}) }
+        : undefined,
+    system,
     // 3. 将 UI 消息格式转换为模型能理解的格式
     messages: await convertToModelMessages(messages),
   });

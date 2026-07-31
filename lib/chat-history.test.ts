@@ -15,7 +15,7 @@ const messages: StoredMessage[] = [
 ];
 
 describe("chat history", () => {
-  it("migrates legacy sessions to the default persona", () => {
+  it("migrates legacy sessions to schema v2 defaults", () => {
     const sessions = normalizeSessions([
       {
         id: "legacy",
@@ -26,7 +26,13 @@ describe("chat history", () => {
       },
     ]);
 
-    expect(sessions[0].personaId).toBe("default");
+    expect(sessions[0]).toMatchObject({
+      schemaVersion: 2,
+      personaId: "default",
+      learningMode: "chat",
+      searchMode: "auto",
+      favoriteMessageIds: [],
+    });
   });
 
   it("persists the selected persona when creating a session", () => {
@@ -34,7 +40,11 @@ describe("chat history", () => {
       [],
       "session-1",
       messages,
-      "mad-scientist",
+      {
+        personaId: "mad-scientist",
+        learningMode: "hint",
+        searchMode: "off",
+      },
       100,
     );
 
@@ -42,6 +52,8 @@ describe("chat history", () => {
       id: "session-1",
       title: "黑洞是什么？",
       personaId: "mad-scientist",
+      learningMode: "hint",
+      searchMode: "off",
       createdAt: 100,
       updatedAt: 100,
     });
@@ -49,10 +61,14 @@ describe("chat history", () => {
 
   it("restores and updates an existing session without changing creation time", () => {
     const existing: ChatSession = {
+      schemaVersion: 2,
       id: "session-1",
       title: "旧标题",
       personaId: "default",
+      learningMode: "chat",
+      searchMode: "auto",
       messages,
+      favoriteMessageIds: ["message-1"],
       createdAt: 50,
       updatedAt: 75,
     };
@@ -61,12 +77,19 @@ describe("chat history", () => {
       [existing],
       "session-1",
       messages,
-      "philosophical-cat",
+      {
+        personaId: "philosophical-cat",
+        learningMode: "check-answer",
+        searchMode: "always",
+      },
       200,
     );
 
     expect(sessions[0]).toMatchObject({
       personaId: "philosophical-cat",
+      learningMode: "check-answer",
+      searchMode: "always",
+      favoriteMessageIds: ["message-1"],
       createdAt: 50,
       updatedAt: 200,
     });

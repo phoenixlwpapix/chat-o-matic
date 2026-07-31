@@ -1,4 +1,9 @@
 import type { TextUIPart, UIMessage } from "ai";
+import {
+  getLearningMode,
+  type LearningMode,
+} from "./learning-modes";
+import { getSearchMode, type SearchMode } from "./search-modes";
 
 const MAX_SESSIONS = 10;
 
@@ -14,12 +19,22 @@ export interface StoredMessage {
 }
 
 export interface ChatSession {
+  schemaVersion: 2;
   id: string;
   title: string;
   personaId: string;
+  learningMode: LearningMode;
+  searchMode: SearchMode;
   messages: StoredMessage[];
+  favoriteMessageIds: string[];
   createdAt: number;
   updatedAt: number;
+}
+
+export interface SessionPreferences {
+  personaId: string;
+  learningMode: LearningMode;
+  searchMode: SearchMode;
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -71,13 +86,29 @@ export function normalizeSessions(value: unknown): ChatSession[] {
 
     return [
       {
+        schemaVersion: 2,
         id: session.id,
         title: session.title,
         personaId:
           typeof session.personaId === "string"
             ? session.personaId
             : "default",
+        learningMode: getLearningMode(
+          typeof session.learningMode === "string"
+            ? session.learningMode
+            : "chat",
+        ).id,
+        searchMode: getSearchMode(
+          typeof session.searchMode === "string"
+            ? session.searchMode
+            : "auto",
+        ).id,
         messages: normalizeMessages(session.messages),
+        favoriteMessageIds: Array.isArray(session.favoriteMessageIds)
+          ? session.favoriteMessageIds.filter(
+              (id): id is string => typeof id === "string",
+            )
+          : [],
         createdAt: session.createdAt,
         updatedAt: session.updatedAt,
       },
@@ -108,17 +139,19 @@ export function upsertSession(
   sessions: ChatSession[],
   id: string,
   messages: StoredMessage[],
-  personaId: string,
+  preferences: SessionPreferences,
   now = Date.now(),
 ): ChatSession[] {
   if (messages.length === 0) return sessions;
 
   const existing = sessions.find((session) => session.id === id);
   const nextSession: ChatSession = {
+    schemaVersion: 2,
     id,
     title: deriveTitle(messages),
-    personaId,
+    ...preferences,
     messages,
+    favoriteMessageIds: existing?.favoriteMessageIds ?? [],
     createdAt: existing?.createdAt ?? now,
     updatedAt: now,
   };

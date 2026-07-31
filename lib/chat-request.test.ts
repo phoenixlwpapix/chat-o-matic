@@ -29,7 +29,34 @@ describe("parseChatRequest", () => {
     const result = await parseChatRequest(createRequest(validBody()));
 
     expect(result.personaId).toBe("default");
+    expect(result.learningMode).toBe("chat");
+    expect(result.searchMode).toBe("auto");
     expect(result.messages).toHaveLength(1);
+  });
+
+  it("accepts supported learning and search modes", async () => {
+    const result = await parseChatRequest(
+      createRequest({
+        ...validBody(),
+        learningMode: "step-by-step",
+        searchMode: "always",
+      }),
+    );
+
+    expect(result.learningMode).toBe("step-by-step");
+    expect(result.searchMode).toBe("always");
+  });
+
+  it.each([
+    ["learningMode", "instant-answer"],
+    ["searchMode", "sometimes"],
+  ])("rejects an invalid %s", async (field, value) => {
+    await expect(
+      parseChatRequest(createRequest({ ...validBody(), [field]: value })),
+    ).rejects.toMatchObject({
+      message: "请求参数不正确",
+      status: 400,
+    });
   });
 
   it("rejects unknown envelope fields", async () => {

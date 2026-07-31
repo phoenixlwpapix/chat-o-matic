@@ -5,6 +5,7 @@ import { History, Trash2, MessageSquare } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { ChatSession } from "@/lib/use-chat-history";
 import { getPersonaById } from "@/lib/personas";
+import { getLearningMode } from "@/lib/learning-modes";
 
 interface ChatHistoryProps {
     sessions: ChatSession[];
@@ -118,7 +119,7 @@ export function ChatHistory({
                                         <span className="flex-1 min-w-0">
                                             <span className="block text-xs font-bold truncate">{session.title}</span>
                                             <span className="block text-[10px] opacity-50 truncate">
-                                                {getPersonaById(session.personaId).name} · {relativeTime(session.updatedAt)}
+                                                {getPersonaById(session.personaId).name} · {getLearningMode(session.learningMode).shortLabel} · {relativeTime(session.updatedAt)}
                                             </span>
                                         </span>
                                     </button>
@@ -245,6 +246,7 @@ export function ChatHistory({
                                             </p>
                                             <p className="text-xs opacity-60 mt-0.5">
                                                 {getPersonaById(session.personaId).name} ·{" "}
+                                                {getLearningMode(session.learningMode).shortLabel} ·{" "}
                                                 {relativeTime(session.updatedAt)} ·{" "}
                                                 {session.messages.length} 条消息
                                             </p>

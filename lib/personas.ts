@@ -1,5 +1,5 @@
 import {
-  Sparkles, FlaskConical, Sword, Cat, Drama,
+  Sparkles, FlaskConical, Sword, Cat, Drama, BookOpenCheck, Laugh,
   Rocket, Lightbulb, BookOpen, Gamepad2,
   Zap, Atom, Globe, Compass, Crown, Map,
   Heart, MessageCircle, Smile,
@@ -69,7 +69,7 @@ export const PERSONAS: Persona[] = [
     id: "default",
     name: "学习伙伴",
     subtitle: "好奇心守护者",
-    icon: Sparkles,
+    icon: BookOpenCheck,
     colorVar: "--qp-1",
     placeholder: "今天想探索点什么？",
     quickPrompts: [
@@ -254,7 +254,7 @@ ${SHARED_RULES}`,
     id: "roast-master",
     name: "吐槽达人",
     subtitle: "毒舌但暖心",
-    icon: Drama,
+    icon: Laugh,
     colorVar: "--qp-1",
     placeholder: "来吧，这次又是什么'难题'？",
     quickPrompts: [

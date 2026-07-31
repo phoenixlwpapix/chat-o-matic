@@ -17,14 +17,10 @@ import {
   User as UserIcon,
   Zap,
   Plus,
-  Copy,
-  RefreshCw,
-  Check,
   ImagePlus,
   X,
   Mic,
   MicOff,
-  Globe,
   Search,
   AlertTriangle,
   PanelLeftOpen,
@@ -41,15 +37,21 @@ import {
 } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 import { useTheme } from "@/lib/use-theme";
+import { useChatPreferences } from "@/lib/use-chat-preferences";
 import { ThemeSwitcher } from "@/components/theme-switcher";
 import { PERSONAS, getPersonaById, type Persona } from "@/lib/personas";
 import { ChatHistory } from "@/components/chat-history";
-import {
-  FeedbackButtons,
-  type MessageFeedback,
-} from "@/components/feedback-buttons";
 import { MarkdownContent } from "@/components/markdown-content";
+import { ChatSettings } from "@/components/chat-settings";
+import {
+  RESPONSE_ACTIONS,
+  ResponseActions,
+  type ResponseAction,
+} from "@/components/response-actions";
+import { SourceList } from "@/components/source-list";
 import { useChatHistory, toStoredMessages } from "@/lib/use-chat-history";
+import type { LearningMode } from "@/lib/learning-modes";
+import type { SearchMode } from "@/lib/search-modes";
 import "katex/dist/katex.min.css";
 
 // SpeechRecognition 类型声明
@@ -96,8 +98,18 @@ function getMessageText(parts: UIMessage["parts"]): string {
     .join("");
 }
 
+function createChatRequestBody(
+  personaId: string,
+  learningMode: LearningMode,
+  searchMode: SearchMode,
+) {
+  return { personaId, learningMode, searchMode };
+}
+
 export default function Home() {
   const { theme, setTheme } = useTheme();
+  const { learningMode, searchMode, setLearningMode, setSearchMode } =
+    useChatPreferences();
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -130,6 +142,9 @@ export default function Home() {
   });
 
   const isLoading = status === "streaming" || status === "submitted";
+  const lastAssistantId = messages.findLast(
+    (message) => message.role === "assistant",
+  )?.id;
 
   // ── History ──
   const history = useChatHistory();
@@ -142,20 +157,20 @@ export default function Home() {
   }, []);
 
   // Auto-save whenever messages change (only when not streaming)
-  const prevLenRef = useRef(0);
+  const lastSavedSignatureRef = useRef("");
   useEffect(() => {
     if (isLoading) return;
     if (messages.length === 0) return;
-    // Only save when message count actually changed
-    if (messages.length === prevLenRef.current) return;
-    prevLenRef.current = messages.length;
+    const signature = `${messages.length}:${personaId}:${learningMode}:${searchMode}`;
+    if (signature === lastSavedSignatureRef.current) return;
+    lastSavedSignatureRef.current = signature;
     history.saveSession(
       sessionIdRef.current,
       toStoredMessages(messages),
-      personaId,
+      { personaId, learningMode, searchMode },
     );
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [messages, isLoading, personaId]);
+  }, [messages, isLoading, personaId, learningMode, searchMode]);
 
   // 带字符限制的输入更新
   const handleInputChange = useCallback((value: string) => {
@@ -184,14 +199,6 @@ export default function Home() {
 
   // 复制状态管理
   const [copiedId, setCopiedId] = useState<string | null>(null);
-
-  // 反馈状态管理
-  const [messageFeedback, setMessageFeedback] = useState<
-    Map<string, MessageFeedback>
-  >(new Map());
-  const [simplifyRequested, setSimplifyRequested] = useState<Set<string>>(
-    new Set(),
-  );
 
   // 语音输入状态
   const [isListening, setIsListening] = useState(false);
@@ -276,29 +283,6 @@ export default function Home() {
       console.error("复制失败:", err);
     }
   }, []);
-
-  // 处理反馈点击
-  const handleFeedback = useCallback(
-    (messageId: string, feedback: MessageFeedback) => {
-      setMessageFeedback((prev) => {
-        const newMap = new Map(prev);
-        newMap.set(messageId, feedback);
-        return newMap;
-      });
-
-      // 如果是"没太懂"且未请求过简化，自动发送简化请求
-      if (feedback === "unclear" && !simplifyRequested.has(messageId)) {
-        setSimplifyRequested((prev) => new Set(prev).add(messageId));
-        sendMessage(
-          {
-            text: "请用更简单的方式，用我能听懂的例子再解释一遍刚才的回答",
-          },
-          { body: { personaId } },
-        );
-      }
-    },
-    [simplifyRequested, sendMessage, personaId],
-  );
 
   // 压缩图片（确保不超过 1MB，最大边 1024px）
   const compressImage = useCallback(
@@ -400,31 +384,56 @@ export default function Home() {
   // 处理人设选择
   const handlePersonaSelect = useCallback(
     (persona: Persona) => {
+      if (persona.id === personaId) return;
       setPersonaId(persona.id);
       // 切换人设时清空对话
       if (messages.length > 0) {
         history.saveSession(
           sessionIdRef.current,
           toStoredMessages(messages),
-          personaId,
+          { personaId, learningMode, searchMode },
         );
         const newId = crypto.randomUUID();
         sessionIdRef.current = newId;
         history.setCurrentSessionId(newId);
-        prevLenRef.current = 0;
+        lastSavedSignatureRef.current = "";
         setMessages([]);
         setInputValue("");
         setPendingImages([]);
       }
     },
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [messages, personaId, setMessages],
+    [messages, personaId, learningMode, searchMode, setMessages],
   );
 
   // 处理快捷提示词点击
   const handleQuickPrompt = (prompt: string) => {
-    sendMessage({ text: prompt }, { body: { personaId } });
+    sendMessage(
+      { text: prompt },
+      {
+        body: createChatRequestBody(personaId, learningMode, searchMode),
+      },
+    );
   };
+
+  const handleResponseAction = useCallback(
+    (actionId: ResponseAction) => {
+      const action = RESPONSE_ACTIONS.find((item) => item.id === actionId);
+      if (!action) return;
+      const requestSearchMode = actionId === "verify" ? "always" : searchMode;
+      sendMessage(
+        { text: action.prompt },
+        {
+          body: createChatRequestBody(
+            personaId,
+            learningMode,
+            requestSearchMode,
+          ),
+        },
+      );
+    },
+    [sendMessage, personaId, learningMode, searchMode],
+  );
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -436,14 +445,14 @@ export default function Home() {
       history.saveSession(
         sessionIdRef.current,
         toStoredMessages(messages),
-        personaId,
+        { personaId, learningMode, searchMode },
       );
     }
     // Generate new session id
     const newId = crypto.randomUUID();
     sessionIdRef.current = newId;
     history.setCurrentSessionId(newId);
-    prevLenRef.current = 0;
+    lastSavedSignatureRef.current = "";
     setMessages([]);
     setInputValue("");
     setPendingImages([]);
@@ -457,7 +466,7 @@ export default function Home() {
         history.saveSession(
           sessionIdRef.current,
           toStoredMessages(messages),
-          personaId,
+          { personaId, learningMode, searchMode },
         );
       }
       const restored = history.loadSession(id);
@@ -465,14 +474,16 @@ export default function Home() {
       sessionIdRef.current = id;
       history.setCurrentSessionId(id);
       const restoredPersonaId = getPersonaById(restored.personaId).id;
-      prevLenRef.current = restored.messages.length;
+      lastSavedSignatureRef.current = `${restored.messages.length}:${restoredPersonaId}:${restored.learningMode}:${restored.searchMode}`;
       setPersonaId(restoredPersonaId);
+      setLearningMode(restored.learningMode);
+      setSearchMode(restored.searchMode);
       setMessages(restored.messages);
       setInputValue("");
       setPendingImages([]);
     },
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [messages, personaId, setMessages],
+    [messages, personaId, learningMode, searchMode, setMessages],
   );
 
   // 重新生成最后一条 AI 回复
@@ -483,9 +494,9 @@ export default function Home() {
     // AI SDK 会复用原始用户消息，包含其中的图片 parts。
     regenerate({
       messageId: lastAssistant.id,
-      body: { personaId },
+      body: createChatRequestBody(personaId, learningMode, searchMode),
     });
-  }, [messages, personaId, regenerate]);
+  }, [messages, personaId, learningMode, searchMode, regenerate]);
 
   useEffect(() => {
     scrollToBottom();
@@ -509,7 +520,9 @@ export default function Home() {
         text: inputValue || "请看这张图片，帮我解决问题",
         files,
       },
-      { body: { personaId } },
+      {
+        body: createChatRequestBody(personaId, learningMode, searchMode),
+      },
     );
 
     // 发送前先关闭语音识别，abort() 不会再触发 onresult
@@ -701,15 +714,13 @@ export default function Home() {
                 </div>
               </div>
 
-              <p
-                className="hidden md:block font-bold text-xs px-2 py-0.5 transform skew-x-[-10deg]"
-                style={{
-                  backgroundColor: "var(--header-tag-bg)",
-                  color: "var(--header-tag-text)",
-                }}
-              >
-                你负责好奇，我负责想象
-              </p>
+              <ChatSettings
+                learningMode={learningMode}
+                searchMode={searchMode}
+                onLearningModeChange={setLearningMode}
+                onSearchModeChange={setSearchMode}
+                disabled={isLoading}
+              />
             </div>
           </CardHeader>
 
@@ -726,7 +737,6 @@ export default function Home() {
                     className="w-12 h-12 md:w-16 md:h-16"
                     style={{
                       color: "var(--sparkle-color)",
-                      fill: "var(--sparkle-color)",
                     }}
                   />
                 );
@@ -876,154 +886,29 @@ export default function Home() {
                       }
                     })}
 
-                    {/* 搜索来源 */}
-                    {(() => {
-                      const sources = message.parts.filter(
-                        (part) => part.type === "source-url",
-                      );
-                      if (sources.length === 0) return null;
-                      return (
-                        <div
-                          className="mt-3 pt-3 border-t-2 border-dashed"
-                          style={{ borderColor: "var(--fb-inactive-border)" }}
-                        >
-                          <div className="flex items-center gap-1.5 mb-2">
-                            <Globe
-                              className="w-3.5 h-3.5"
-                              style={{ color: "var(--fb-inactive-text)" }}
-                            />
-                            <span
-                              className="text-xs font-bold uppercase tracking-wide"
-                              style={{ color: "var(--fb-inactive-text)" }}
-                            >
-                              搜索来源
-                            </span>
-                          </div>
-                          <div className="flex flex-wrap gap-1.5">
-                            {sources.map((part, sourceIndex) => {
-                              if (part.type !== "source-url") return null;
-                              const hostname = (() => {
-                                try {
-                                  return new URL(part.url).hostname.replace(
-                                    /^www\./,
-                                    "",
-                                  );
-                                } catch {
-                                  return part.url;
-                                }
-                              })();
-                              return (
-                                <a
-                                  key={`${message.id}-source-${sourceIndex}`}
-                                  href={part.url}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                  className="inline-flex items-center gap-1 px-2 py-1 text-xs font-medium rounded-md border transition-colors"
-                                  style={{
-                                    backgroundColor: "var(--source-bg)",
-                                    color: "var(--source-text)",
-                                    borderColor: "var(--source-border)",
-                                  }}
-                                  title={part.title ?? part.url}
-                                >
-                                  <Globe className="w-3 h-3 shrink-0" />
-                                  <span className="truncate max-w-[150px]">
-                                    {part.title ?? hostname}
-                                  </span>
-                                </a>
-                              );
-                            })}
-                          </div>
-                        </div>
-                      );
-                    })()}
-                  </div>
-                  {/* AI 消息操作按钮区域 */}
-                  {message.role === "assistant" && (
-                    <div
-                      className={cn(
-                        "flex items-center justify-between gap-2 mt-2 transition-opacity",
-                        "md:opacity-0 md:group-hover:opacity-100",
-                      )}
-                    >
-                      {/* 反馈按钮（左侧） */}
-                      <FeedbackButtons
+                    {message.role === "assistant" ? (
+                      <SourceList
                         messageId={message.id}
-                        currentFeedback={
-                          messageFeedback.get(message.id) || null
-                        }
-                        onFeedbackClick={handleFeedback}
-                        isDisabled={isLoading}
+                        parts={message.parts}
+                        isComplete={!isLoading || message.id !== lastAssistantId}
                       />
-                      {/* 重新生成 & 复制按钮（右侧） */}
-                      <div className="flex items-center gap-1.5">
-                        {/* 重新生成按钮（仅最后一条 AI 消息显示） */}
-                        {message.id ===
-                          [...messages]
-                            .reverse()
-                            .find((m) => m.role === "assistant")?.id && (
-                          <button
-                            onClick={handleRegenerate}
-                            disabled={isLoading}
-                            className={cn(
-                              "p-1.5 rounded-lg border-2",
-                              "transition-all hover:-translate-y-0.5",
-                              "active:translate-x-0.5 active:translate-y-0.5",
-                              "disabled:opacity-50 disabled:cursor-not-allowed",
-                            )}
-                            style={{
-                              borderColor: "var(--border-color)",
-                              backgroundColor: "var(--fb-inactive-bg)",
-                              boxShadow:
-                                "2px 2px 0px 0px rgba(var(--shadow-color), 1)",
-                            }}
-                            title="重新生成"
-                          >
-                            <RefreshCw
-                              className={cn(
-                                "w-4 h-4",
-                                isLoading && "animate-spin",
-                              )}
-                              style={{ color: "var(--fb-inactive-text)" }}
-                            />
-                          </button>
-                        )}
-                        {/* 复制按钮 */}
-                        <button
-                          onClick={() =>
-                            handleCopy(
-                              getMessageText(message.parts),
-                              message.id,
-                            )
-                          }
-                          className={cn(
-                            "p-1.5 rounded-lg border-2",
-                            "transition-all hover:-translate-y-0.5",
-                            "active:translate-x-0.5 active:translate-y-0.5",
-                          )}
-                          style={{
-                            borderColor: "var(--border-color)",
-                            backgroundColor: "var(--fb-inactive-bg)",
-                            boxShadow:
-                              "2px 2px 0px 0px rgba(var(--shadow-color), 1)",
-                          }}
-                          title="复制回复"
-                        >
-                          {copiedId === message.id ? (
-                            <Check
-                              className="w-4 h-4"
-                              style={{ color: "var(--fb-helpful-bg)" }}
-                            />
-                          ) : (
-                            <Copy
-                              className="w-4 h-4"
-                              style={{ color: "var(--fb-inactive-text)" }}
-                            />
-                          )}
-                        </button>
-                      </div>
-                    </div>
-                  )}
+                    ) : null}
+                  </div>
+                  {message.role === "assistant" ? (
+                    <ResponseActions
+                      disabled={isLoading}
+                      showLearningActions={message.id === lastAssistantId}
+                      isCopied={copiedId === message.id}
+                      isRegenerating={
+                        isLoading && message.id === lastAssistantId
+                      }
+                      onAction={handleResponseAction}
+                      onRegenerate={handleRegenerate}
+                      onCopy={() =>
+                        handleCopy(getMessageText(message.parts), message.id)
+                      }
+                    />
+                  ) : null}
                 </div>
               </div>
             </div>
