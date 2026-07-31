@@ -13,7 +13,11 @@ import { PERSONAS } from "./personas";
 
 const requestEnvelopeSchema = z
   .object({
+    // DefaultChatTransport includes these AI SDK protocol fields in every request.
+    id: z.string().max(200),
     messages: z.unknown(),
+    trigger: z.enum(["submit-message", "regenerate-message"]),
+    messageId: z.string().max(200).optional(),
     personaId: z.string().max(50).optional(),
   })
   .strict();
