@@ -42,6 +42,8 @@ Get API key from: https://aistudio.google.com/apikey
 - **AI Provider**: Uses `@ai-sdk/google` with `google("gemini-3.5-flash-lite")` model
 - **Message Flow**: UI messages → `convertToModelMessages()` → Gemini → `toUIMessageStreamResponse()`
 - **System Prompt**: Embedded in route handler, defines AI persona for 10-16 year old audience
+- **Request Validation**: `lib/chat-request.ts` validates the JSON envelope, AI SDK UI message schema, roles, parts, text totals, and image data before model invocation
+- **Rate Limiting**: Vercel WAF rule `Chat API rate limit` protects `/api/chat` at 30 requests per IP per hour; `lib/rate-limit.ts` is a secondary per-instance guard
 
 ### Frontend State Management
 
@@ -74,6 +76,8 @@ app/
 └── api/chat/route.ts   # Streaming AI endpoint
 
 components/ui/          # Radix-based UI primitives
+lib/chat-request.ts     # Runtime validation and payload limits for the chat API
+lib/rate-limit.ts       # Secondary in-process rate limiting
 lib/utils.ts            # cn() utility for Tailwind class merging
 ```
 
@@ -92,7 +96,7 @@ To change Gemini model, edit `app/api/chat/route.ts`:
 model: google("gemini-3.5-flash-lite")
 ```
 
-System prompt is inline in the same file (lines 14-76).
+System prompts are defined in `lib/personas.ts`.
 
 ## Styling Guidelines
 

@@ -12,6 +12,7 @@
 - **Google Gemini**：由 Gemini 3.5 Flash-Lite 模型驱动
 - **AI 人设切换**：5 种个性鲜明的聊天角色（学习伙伴、科学怪博士、冒险故事家、哲学喵、吐槽达人），随时切换不同风格的对话体验
 - **多主题配色**：Sunflower / Ocean / Peach 三套 Neo-Brutalism 主题自由切换
+- **接口防护**：严格校验消息、图片和请求体，并通过 Vercel WAF 执行跨实例限流
 - **响应式设计**：完美适配桌面端和移动端
 - **青少年友好**：专为 10-16 岁好奇青少年优化的对话体验
 
@@ -27,7 +28,7 @@
 
 ### 前置要求
 
-- Node.js 18+
+- Node.js 20.9+
 - pnpm（推荐）
 - Google AI Studio API Key（[获取地址](https://aistudio.google.com/apikey)）
 
@@ -72,7 +73,27 @@ model: google("gemini-3.5-flash-lite"), // 或其他可用模型
 ```
 
 可用模型包括：
+
 - `gemini-3.5-flash-lite` - 低延迟、低成本的稳定模型（当前使用）
+
+### 生产限流
+
+Vercel 项目已配置 `Chat API rate limit` WAF 规则：
+
+- 路径：`/api/chat`
+- 维度：客户端 IP
+- 限额：每小时 30 次
+- 超限动作：Rate Limit，持续 1 小时
+
+应用内限流只是二次防护；新建 Vercel 项目时必须同步配置上述 WAF 规则。
+
+### 请求限制
+
+- 请求体最大 4 MiB
+- 最多 40 条历史消息
+- 单条用户消息最多 3000 字符
+- 每条消息最多 4 张图片
+- 单张图片最大 1 MiB，仅允许 JPEG、PNG、WebP 和 GIF
 
 ## 📝 License
 
