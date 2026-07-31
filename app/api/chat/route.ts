@@ -2,7 +2,10 @@ import { google } from "@ai-sdk/google";
 import { streamText, convertToModelMessages } from "ai";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { ChatRequestError, parseChatRequest } from "@/lib/chat-request";
-import { getPersonaById } from "@/lib/personas";
+import {
+  getPersonaById,
+  personaSupportsLearningModes,
+} from "@/lib/personas";
 import { buildLearningPrompt } from "@/lib/learning-modes";
 import {
   buildChatSystemPrompt,
@@ -42,7 +45,9 @@ export async function POST(req: Request) {
   const persona = getPersonaById(personaId);
   const system = buildChatSystemPrompt(
     persona.systemPrompt,
-    buildLearningPrompt(learningMode),
+    personaSupportsLearningModes(personaId)
+      ? buildLearningPrompt(learningMode)
+      : null,
     buildSearchPrompt(searchMode),
   );
 

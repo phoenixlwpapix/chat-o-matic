@@ -78,6 +78,17 @@
   --btn-new-bg: #ffffff;
   --btn-new-hover: #fce7f3;
   --btn-new-text: #000000;
+  /* Conversation settings */
+  --settings-panel-bg: #ffffff;
+  --settings-option-bg: #fffdf2;
+  --settings-option-text: #171717;
+  --settings-option-muted: #52525b;
+  --settings-selected-bg: #fff3bf;
+  --settings-selected-border: #ca8a04;
+  --settings-selected-text: #422006;
+  --settings-selected-muted: #713f12;
+  --settings-selected-badge-bg: #facc15;
+  --settings-selected-badge-text: #171717;
   /* Logo icon */
   --logo-bg: #000000;
   --logo-icon: #fde047;
@@ -91,74 +102,84 @@
   --btn-action-text: #000000;
 }
 
-/* ── Theme: Ocean (Cyan variation) ── */
+/* ── Theme: Ocean (midnight trench + bioluminescence) ── */
 [data-theme="ocean"] {
-  --page-bg: #232946;
-  --page-dot: #2e3560;
-  --header-bg: #22d3ee;
-  --header-text: #232946;
-  --header-subtitle: rgba(35, 41, 70, 0.65);
-  --header-tag-bg: #121629;
-  --header-tag-text: #b8c1ec;
-  --border-color: #121629;
-  --shadow-color: 18, 22, 41;
-  --card-bg: #232946;
-  --card-content-bg: #2e3560;
-  --card-footer-bg: #1a1f3a;
-  --user-avatar-bg: #22d3ee;
-  --user-bubble-bg: #d4d8f0;
-  --user-bubble-text: #121629;
-  --ai-avatar-bg: #b8c1ec;
-  --ai-bubble-bg: #323868;
-  --ai-bubble-text: #fffffe;
-  --input-bg: #323868;
-  --input-border: #121629;
-  --input-text: #fffffe;
-  --input-placeholder: #8a8fad;
-  --input-focus-ring: #22d3ee;
-  --scrollbar-track: #232946;
-  --scrollbar-thumb: #22d3ee;
-  --scrollbar-thumb-hover: #06b6d4;
-  --loading-bg: #323868;
-  --loading-search-bg: #3c4480;
-  --loading-search-avatar: #22d3ee;
-  --qp-1: #22d3ee;
-  --qp-2: #b8c1ec;
-  --qp-3: #06b6d4;
-  --qp-4: #d4d8f0;
-  --hot-badge-bg: #06b6d4;
-  --hot-badge-text: #121629;
-  --sparkle-color: #22d3ee;
-  --inline-code-bg: #323868;
-  --inline-code-text: #22d3ee;
-  --inline-code-border: #4a5090;
-  --fb-helpful-bg: #22d3ee;
-  --fb-unclear-bg: #06b6d4;
-  --fb-inactive-bg: #323868;
-  --fb-inactive-text: #b8c1ec;
-  --fb-inactive-border: #4a5090;
-  --source-bg: #323868;
-  --source-text: #22d3ee;
-  --source-border: #4a5090;
-  --source-hover-bg: #3c4480;
-  --source-hover-border: #22d3ee;
-  --btn-image-bg: #b8c1ec;
-  --btn-image-hover: #9aa3d4;
-  --btn-voice-bg: #22d3ee;
-  --btn-voice-hover: #06b6d4;
-  --btn-send-bg: #22d3ee;
-  --btn-send-hover: #06b6d4;
-  --btn-new-bg: #323868;
-  --btn-new-hover: #3c4480;
-  --btn-new-text: #22d3ee;
-  --logo-bg: #121629;
-  --logo-icon: #22d3ee;
-  --logo-shadow: rgba(34, 211, 238, 0.4);
-  --foreground: #fffffe;
-  --background: #232946;
-  --prompt-card-text: #232946;
-  --prompt-card-icon-bg: #fffffe;
-  --btn-action-text: #232946;
+  --page-bg: #06131f;
+  --page-dot: #173047;
+  --header-bg: #5bd9e8;
+  --header-text: #07202c;
+  --header-subtitle: rgba(7, 32, 44, 0.68);
+  --header-tag-bg: #0c3443;
+  --header-tag-text: #d8f7fb;
+  --border-color: #020c14;
+  --shadow-color: 2, 12, 20;
+  --card-bg: #0b1b2a;
+  --card-content-bg: #10263a;
+  --card-footer-bg: #091927;
+  --user-avatar-bg: #5bd9e8;
+  --user-bubble-bg: #b9edf2;
+  --user-bubble-text: #09202d;
+  --ai-avatar-bg: #80edcc;
+  --ai-bubble-bg: #17344a;
+  --ai-bubble-text: #eefbff;
+  --input-bg: #132e43;
+  --input-border: #020c14;
+  --input-text: #eefbff;
+  --input-placeholder: #86a9b9;
+  --input-focus-ring: #5bd9e8;
+  --scrollbar-track: #0b1b2a;
+  --scrollbar-thumb: #3fb9cb;
+  --scrollbar-thumb-hover: #5bd9e8;
+  --loading-bg: #17344a;
+  --loading-search-bg: #123c4d;
+  --loading-search-avatar: #80edcc;
+  --qp-1: #5bd9e8;
+  --qp-2: #9bd8ea;
+  --qp-3: #80edcc;
+  --qp-4: #b8c4ff;
+  --hot-badge-bg: #ffb86b;
+  --hot-badge-text: #241405;
+  --sparkle-color: #5bd9e8;
+  --inline-code-bg: #0d2233;
+  --inline-code-text: #80edcc;
+  --inline-code-border: #28506a;
+  --fb-helpful-bg: #80edcc;
+  --fb-unclear-bg: #ffb86b;
+  --fb-inactive-bg: #132e43;
+  --fb-inactive-text: #c8e6ef;
+  --fb-inactive-border: #28506a;
+  --source-bg: #102f43;
+  --source-text: #71e4ef;
+  --source-border: #285e72;
+  --source-hover-bg: #16425a;
+  --source-hover-border: #5bd9e8;
+  --btn-image-bg: #a8b8ff;
+  --btn-image-hover: #92a4f0;
+  --btn-voice-bg: #5bd9e8;
+  --btn-voice-hover: #3fb9cb;
+  --btn-send-bg: #80edcc;
+  --btn-send-hover: #5fd7b9;
+  --btn-new-bg: #132e43;
+  --btn-new-hover: #1a3c55;
+  --btn-new-text: #d6f4fa;
+  --settings-panel-bg: #10263a;
+  --settings-option-bg: #132e43;
+  --settings-option-text: #eefbff;
+  --settings-option-muted: #abcbd7;
+  --settings-selected-bg: #16495b;
+  --settings-selected-border: #5bd9e8;
+  --settings-selected-text: #f2fdff;
+  --settings-selected-muted: #c5f3f7;
+  --settings-selected-badge-bg: #5bd9e8;
+  --settings-selected-badge-text: #08303d;
+  --logo-bg: #020c14;
+  --logo-icon: #5bd9e8;
+  --logo-shadow: rgba(91, 217, 232, 0.28);
+  --foreground: #eefbff;
+  --background: #06131f;
+  --prompt-card-text: #071923;
+  --prompt-card-icon-bg: #f1fcff;
+  --btn-action-text: #071923;
 }
 
 /* Force prose to inherit text color in Ocean dark theme */
@@ -173,9 +194,9 @@
   --tw-prose-quote-borders: var(--border-color);
   --tw-prose-th-borders: var(--border-color);
   --tw-prose-td-borders: var(--fb-inactive-border);
-  --tw-prose-code: #22d3ee;
-  --tw-prose-pre-bg: #1a1f3a;
-  --tw-prose-pre-code: #b8c1ec;
+  --tw-prose-code: #80edcc;
+  --tw-prose-pre-bg: #071522;
+  --tw-prose-pre-code: #c8e6ef;
 }
 
 /* ── Theme: Peach (inspired by Happy Hues #7) ── */
@@ -238,6 +259,16 @@
   --btn-new-bg: #f9f8fc;
   --btn-new-hover: #d9d4e7;
   --btn-new-text: #0e172c;
+  --settings-panel-bg: #f9f8fc;
+  --settings-option-bg: #fffffe;
+  --settings-option-text: #0e172c;
+  --settings-option-muted: #596275;
+  --settings-selected-bg: #eee9fb;
+  --settings-selected-border: #7c5ac7;
+  --settings-selected-text: #2f2355;
+  --settings-selected-muted: #57437e;
+  --settings-selected-badge-bg: #a786df;
+  --settings-selected-badge-text: #fffffe;
   --logo-bg: #a786df;
   --logo-icon: #fffffe;
   --logo-shadow: rgba(167, 134, 223, 0.4);
@@ -252,7 +283,7 @@
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
+  --font-sans: var(--font-noto-sans-sc);
   --font-mono: var(--font-geist-mono);
 }
 
@@ -262,7 +293,8 @@ body {
   background-image: radial-gradient(var(--page-dot) 1px, transparent 1px);
   background-size: 20px 20px;
   color: var(--foreground);
-  font-family: var(--font-sans), Arial, Helvetica, sans-serif;
+  font-family: var(--font-noto-sans-sc), "Noto Sans SC", "PingFang SC",
+    "Microsoft YaHei", sans-serif;
 }
 
 /* ── Animations ── */

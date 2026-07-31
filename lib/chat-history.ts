@@ -4,6 +4,7 @@ import {
   type LearningMode,
 } from "./learning-modes";
 import { getSearchMode, type SearchMode } from "./search-modes";
+import { resolvePersonaLearningMode } from "./personas";
 
 const MAX_SESSIONS = 10;
 
@@ -84,20 +85,19 @@ export function normalizeSessions(value: unknown): ChatSession[] {
       return [];
     }
 
+    const personaId =
+      typeof session.personaId === "string" ? session.personaId : "default";
+    const learningMode = getLearningMode(
+      typeof session.learningMode === "string" ? session.learningMode : "chat",
+    ).id;
+
     return [
       {
         schemaVersion: 2,
         id: session.id,
         title: session.title,
-        personaId:
-          typeof session.personaId === "string"
-            ? session.personaId
-            : "default",
-        learningMode: getLearningMode(
-          typeof session.learningMode === "string"
-            ? session.learningMode
-            : "chat",
-        ).id,
+        personaId,
+        learningMode: resolvePersonaLearningMode(personaId, learningMode),
         searchMode: getSearchMode(
           typeof session.searchMode === "string"
             ? session.searchMode
@@ -150,6 +150,10 @@ export function upsertSession(
     id,
     title: deriveTitle(messages),
     ...preferences,
+    learningMode: resolvePersonaLearningMode(
+      preferences.personaId,
+      preferences.learningMode,
+    ),
     messages,
     favoriteMessageIds: existing?.favoriteMessageIds ?? [],
     createdAt: existing?.createdAt ?? now,

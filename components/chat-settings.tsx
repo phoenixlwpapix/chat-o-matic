@@ -41,6 +41,7 @@ const SEARCH_MODE_ICONS: Record<SearchMode, LucideIcon> = {
 };
 
 interface ChatSettingsProps {
+  showLearningModes: boolean;
   learningMode: LearningMode;
   searchMode: SearchMode;
   onLearningModeChange: (mode: LearningMode) => void;
@@ -49,6 +50,7 @@ interface ChatSettingsProps {
 }
 
 export function ChatSettings({
+  showLearningModes,
   learningMode,
   searchMode,
   onLearningModeChange,
@@ -99,11 +101,17 @@ export function ChatSettings({
           color: "var(--btn-new-text)",
           boxShadow: "3px 3px 0px 0px rgba(var(--shadow-color), 1)",
         }}
-        title={`对话设置：${learningModeLabel} · ${searchModeLabel}`}
+        title={
+          showLearningModes
+            ? `对话设置：${learningModeLabel} · ${searchModeLabel}`
+            : `对话设置：${searchModeLabel}`
+        }
       >
         <Settings2 className="h-4 w-4" />
         <span className="hidden max-w-44 truncate sm:inline">
-          {learningModeLabel} · {searchModeLabel}
+          {showLearningModes
+            ? `${learningModeLabel} · ${searchModeLabel}`
+            : searchModeLabel}
         </span>
         <span className="sm:hidden">设置</span>
         <ChevronDown
@@ -119,78 +127,117 @@ export function ChatSettings({
           className="absolute right-0 top-[calc(100%+0.65rem)] z-50 w-[calc(100vw-2rem)] max-w-sm rounded-xl border-2 p-3 sm:w-96"
           style={{
             borderColor: "var(--border-color)",
-            backgroundColor: "var(--card-content-bg)",
-            color: "var(--foreground)",
+            backgroundColor: "var(--settings-panel-bg)",
+            color: "var(--settings-option-text)",
             boxShadow: "7px 7px 0px 0px rgba(var(--shadow-color), 1)",
           }}
         >
           <div className="mb-3 flex items-start justify-between gap-3">
             <div>
               <p className="text-sm font-black">对话设置</p>
-              <p className="mt-0.5 text-[11px] font-semibold opacity-65">
-                立即保存为新对话默认值
+              <p
+                className="mt-0.5 text-[11px] font-semibold"
+                style={{ color: "var(--settings-option-muted)" }}
+              >
+                {showLearningModes
+                  ? "学习与联网设置会立即保存"
+                  : "当前人设使用自由闲聊，可设置联网方式"}
               </p>
             </div>
             <button
               type="button"
               onClick={() => setIsOpen(false)}
               className="rounded-md border-2 p-1 transition-transform hover:-translate-y-0.5"
-              style={{ borderColor: "var(--border-color)" }}
+              style={{
+                borderColor: "var(--border-color)",
+                backgroundColor: "var(--settings-option-bg)",
+                color: "var(--settings-option-text)",
+              }}
               aria-label="关闭对话设置"
             >
               <X className="h-4 w-4" />
             </button>
           </div>
 
-          <fieldset disabled={disabled}>
-            <legend className="mb-1.5 text-[11px] font-black uppercase tracking-wider opacity-70">
-              学习模式
-            </legend>
-            <div className="grid grid-cols-2 gap-2">
-              {LEARNING_MODES.map((mode) => {
-                const Icon = LEARNING_MODE_ICONS[mode.id];
-                const isActive = mode.id === learningMode;
-                return (
-                  <button
-                    key={mode.id}
-                    type="button"
-                    onClick={() => onLearningModeChange(mode.id)}
-                    aria-pressed={isActive}
-                    className={cn(
-                      "relative min-h-17 rounded-lg border-2 p-2 text-left transition-all",
-                      "hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-50",
-                    )}
-                    style={{
-                      borderColor: "var(--border-color)",
-                      backgroundColor: isActive
-                        ? "var(--header-tag-bg)"
-                        : "var(--btn-new-bg)",
-                      color: isActive
-                        ? "var(--header-tag-text)"
-                        : "var(--btn-new-text)",
-                      boxShadow: isActive
-                        ? "3px 3px 0px 0px rgba(var(--shadow-color), 1)"
-                        : "none",
-                    }}
-                  >
-                    <span className="flex items-center gap-1.5 pr-4 text-xs font-black">
-                      <Icon className="h-3.5 w-3.5 shrink-0" />
-                      {mode.label}
-                    </span>
-                    <span className="mt-1 block text-[10px] font-semibold leading-tight opacity-70">
-                      {mode.description}
-                    </span>
-                    {isActive ? (
-                      <Check className="absolute right-1.5 top-1.5 h-3.5 w-3.5" />
-                    ) : null}
-                  </button>
-                );
-              })}
-            </div>
-          </fieldset>
+          {showLearningModes ? (
+            <fieldset disabled={disabled}>
+              <legend
+                className="mb-1.5 text-[11px] font-black uppercase tracking-wider"
+                style={{ color: "var(--settings-option-muted)" }}
+              >
+                学习模式
+              </legend>
+              <div className="grid grid-cols-2 gap-2">
+                {LEARNING_MODES.map((mode) => {
+                  const Icon = LEARNING_MODE_ICONS[mode.id];
+                  const isActive = mode.id === learningMode;
+                  return (
+                    <button
+                      key={mode.id}
+                      type="button"
+                      onClick={() => onLearningModeChange(mode.id)}
+                      aria-pressed={isActive}
+                      className={cn(
+                        "relative min-h-17 rounded-lg border-2 p-2 text-left transition-all",
+                        "hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-50",
+                      )}
+                      style={{
+                        borderColor: isActive
+                          ? "var(--settings-selected-border)"
+                          : "var(--border-color)",
+                        backgroundColor: isActive
+                          ? "var(--settings-selected-bg)"
+                          : "var(--settings-option-bg)",
+                        color: isActive
+                          ? "var(--settings-selected-text)"
+                          : "var(--settings-option-text)",
+                        boxShadow: isActive
+                          ? "3px 3px 0px 0px var(--settings-selected-border)"
+                          : "none",
+                      }}
+                    >
+                      <span className="flex items-center gap-1.5 pr-4 text-xs font-black">
+                        <Icon className="h-3.5 w-3.5 shrink-0" />
+                        {mode.label}
+                      </span>
+                      <span
+                        className="mt-1 block text-[10px] font-semibold leading-tight"
+                        style={{
+                          color: isActive
+                            ? "var(--settings-selected-muted)"
+                            : "var(--settings-option-muted)",
+                        }}
+                      >
+                        {mode.description}
+                      </span>
+                      {isActive ? (
+                        <span
+                          className="absolute right-1.5 top-1.5 grid h-5 w-5 place-items-center rounded-full"
+                          style={{
+                            backgroundColor:
+                              "var(--settings-selected-badge-bg)",
+                            color: "var(--settings-selected-badge-text)",
+                          }}
+                          aria-hidden="true"
+                        >
+                          <Check className="h-3.5 w-3.5" strokeWidth={3} />
+                        </span>
+                      ) : null}
+                    </button>
+                  );
+                })}
+              </div>
+            </fieldset>
+          ) : null}
 
-          <fieldset className="mt-3" disabled={disabled}>
-            <legend className="mb-1.5 text-[11px] font-black uppercase tracking-wider opacity-70">
+          <fieldset
+            className={showLearningModes ? "mt-3" : "mt-0"}
+            disabled={disabled}
+          >
+            <legend
+              className="mb-1.5 text-[11px] font-black uppercase tracking-wider"
+              style={{ color: "var(--settings-option-muted)" }}
+            >
               联网模式
             </legend>
             <div className="grid grid-cols-3 gap-2">
@@ -205,15 +252,17 @@ export function ChatSettings({
                     aria-pressed={isActive}
                     className="relative min-h-16 rounded-lg border-2 p-2 text-left transition-all hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-50"
                     style={{
-                      borderColor: "var(--border-color)",
+                      borderColor: isActive
+                        ? "var(--settings-selected-border)"
+                        : "var(--border-color)",
                       backgroundColor: isActive
-                        ? "var(--source-text)"
-                        : "var(--btn-new-bg)",
+                        ? "var(--settings-selected-bg)"
+                        : "var(--settings-option-bg)",
                       color: isActive
-                        ? "var(--btn-action-text)"
-                        : "var(--btn-new-text)",
+                        ? "var(--settings-selected-text)"
+                        : "var(--settings-option-text)",
                       boxShadow: isActive
-                        ? "3px 3px 0px 0px rgba(var(--shadow-color), 1)"
+                        ? "3px 3px 0px 0px var(--settings-selected-border)"
                         : "none",
                     }}
                   >
@@ -221,11 +270,27 @@ export function ChatSettings({
                       <Icon className="h-3.5 w-3.5 shrink-0" />
                       {mode.shortLabel}
                     </span>
-                    <span className="mt-1 block text-[9px] font-semibold leading-tight opacity-70">
+                    <span
+                      className="mt-1 block text-[9px] font-semibold leading-tight"
+                      style={{
+                        color: isActive
+                          ? "var(--settings-selected-muted)"
+                          : "var(--settings-option-muted)",
+                      }}
+                    >
                       {mode.description}
                     </span>
                     {isActive ? (
-                      <Check className="absolute right-1 top-1 h-3 w-3" />
+                      <span
+                        className="absolute right-1 top-1 grid h-4.5 w-4.5 place-items-center rounded-full"
+                        style={{
+                          backgroundColor: "var(--settings-selected-badge-bg)",
+                          color: "var(--settings-selected-badge-text)",
+                        }}
+                        aria-hidden="true"
+                      >
+                        <Check className="h-3 w-3" strokeWidth={3} />
+                      </span>
                     ) : null}
                   </button>
                 );

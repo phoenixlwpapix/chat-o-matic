@@ -39,7 +39,13 @@ import { cn } from "@/lib/utils";
 import { useTheme } from "@/lib/use-theme";
 import { useChatPreferences } from "@/lib/use-chat-preferences";
 import { ThemeSwitcher } from "@/components/theme-switcher";
-import { PERSONAS, getPersonaById, type Persona } from "@/lib/personas";
+import {
+  PERSONAS,
+  getPersonaById,
+  personaSupportsLearningModes,
+  resolvePersonaLearningMode,
+  type Persona,
+} from "@/lib/personas";
 import { ChatHistory } from "@/components/chat-history";
 import { MarkdownContent } from "@/components/markdown-content";
 import { ChatSettings } from "@/components/chat-settings";
@@ -103,7 +109,11 @@ function createChatRequestBody(
   learningMode: LearningMode,
   searchMode: SearchMode,
 ) {
-  return { personaId, learningMode, searchMode };
+  return {
+    personaId,
+    learningMode: resolvePersonaLearningMode(personaId, learningMode),
+    searchMode,
+  };
 }
 
 export default function Home() {
@@ -125,6 +135,11 @@ export default function Home() {
   // 人设选择
   const [personaId, setPersonaId] = useState("default");
   const currentPersona = getPersonaById(personaId);
+  const supportsLearningModes = personaSupportsLearningModes(personaId);
+  const effectiveLearningMode = resolvePersonaLearningMode(
+    personaId,
+    learningMode,
+  );
 
   // AI SDK 6 useChat - 默认连接到 /api/chat
   const { messages, sendMessage, regenerate, status, setMessages } = useChat({
@@ -161,16 +176,16 @@ export default function Home() {
   useEffect(() => {
     if (isLoading) return;
     if (messages.length === 0) return;
-    const signature = `${messages.length}:${personaId}:${learningMode}:${searchMode}`;
+    const signature = `${messages.length}:${personaId}:${effectiveLearningMode}:${searchMode}`;
     if (signature === lastSavedSignatureRef.current) return;
     lastSavedSignatureRef.current = signature;
     history.saveSession(
       sessionIdRef.current,
       toStoredMessages(messages),
-      { personaId, learningMode, searchMode },
+      { personaId, learningMode: effectiveLearningMode, searchMode },
     );
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [messages, isLoading, personaId, learningMode, searchMode]);
+  }, [messages, isLoading, personaId, effectiveLearningMode, searchMode]);
 
   // 带字符限制的输入更新
   const handleInputChange = useCallback((value: string) => {
@@ -391,7 +406,7 @@ export default function Home() {
         history.saveSession(
           sessionIdRef.current,
           toStoredMessages(messages),
-          { personaId, learningMode, searchMode },
+          { personaId, learningMode: effectiveLearningMode, searchMode },
         );
         const newId = crypto.randomUUID();
         sessionIdRef.current = newId;
@@ -403,7 +418,7 @@ export default function Home() {
       }
     },
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [messages, personaId, learningMode, searchMode, setMessages],
+    [messages, personaId, effectiveLearningMode, searchMode, setMessages],
   );
 
   // 处理快捷提示词点击
@@ -445,7 +460,7 @@ export default function Home() {
       history.saveSession(
         sessionIdRef.current,
         toStoredMessages(messages),
-        { personaId, learningMode, searchMode },
+        { personaId, learningMode: effectiveLearningMode, searchMode },
       );
     }
     // Generate new session id
@@ -466,7 +481,7 @@ export default function Home() {
         history.saveSession(
           sessionIdRef.current,
           toStoredMessages(messages),
-          { personaId, learningMode, searchMode },
+          { personaId, learningMode: effectiveLearningMode, searchMode },
         );
       }
       const restored = history.loadSession(id);
@@ -476,14 +491,16 @@ export default function Home() {
       const restoredPersonaId = getPersonaById(restored.personaId).id;
       lastSavedSignatureRef.current = `${restored.messages.length}:${restoredPersonaId}:${restored.learningMode}:${restored.searchMode}`;
       setPersonaId(restoredPersonaId);
-      setLearningMode(restored.learningMode);
+      if (personaSupportsLearningModes(restoredPersonaId)) {
+        setLearningMode(restored.learningMode);
+      }
       setSearchMode(restored.searchMode);
       setMessages(restored.messages);
       setInputValue("");
       setPendingImages([]);
     },
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [messages, personaId, learningMode, searchMode, setMessages],
+    [messages, personaId, effectiveLearningMode, searchMode, setMessages],
   );
 
   // 重新生成最后一条 AI 回复
@@ -715,6 +732,7 @@ export default function Home() {
               </div>
 
               <ChatSettings
+                showLearningModes={supportsLearningModes}
                 learningMode={learningMode}
                 searchMode={searchMode}
                 onLearningModeChange={setLearningMode}

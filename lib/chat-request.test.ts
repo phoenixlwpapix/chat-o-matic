@@ -47,6 +47,19 @@ describe("parseChatRequest", () => {
     expect(result.searchMode).toBe("always");
   });
 
+  it("limits learning modes to the learning companion", async () => {
+    const result = await parseChatRequest(
+      createRequest({
+        ...validBody(),
+        personaId: "mad-scientist",
+        learningMode: "step-by-step",
+      }),
+    );
+
+    expect(result.personaId).toBe("mad-scientist");
+    expect(result.learningMode).toBe("chat");
+  });
+
   it.each([
     ["learningMode", "instant-answer"],
     ["searchMode", "sometimes"],

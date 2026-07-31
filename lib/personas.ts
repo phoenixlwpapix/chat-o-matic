@@ -1,10 +1,11 @@
 import {
   Sparkles, FlaskConical, Sword, Cat, Drama, BookOpenCheck, Laugh,
-  Rocket, Lightbulb, BookOpen, Gamepad2,
+  Lightbulb, BookOpen, Gamepad2,
   Zap, Atom, Globe, Compass, Crown, Map,
   Heart, MessageCircle, Smile,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
+import type { LearningMode } from "./learning-modes";
 
 export interface QuickPrompt {
   icon: LucideIcon;
@@ -22,6 +23,19 @@ export interface Persona {
   systemPrompt: string;
   placeholder?: string;
   quickPrompts?: QuickPrompt[];
+}
+
+export const LEARNING_PERSONA_ID = "default";
+
+export function personaSupportsLearningModes(personaId: string): boolean {
+  return personaId === LEARNING_PERSONA_ID;
+}
+
+export function resolvePersonaLearningMode(
+  personaId: string,
+  learningMode: LearningMode,
+): LearningMode {
+  return personaSupportsLearningModes(personaId) ? learningMode : "chat";
 }
 
 const SHARED_RULES = `
@@ -73,10 +87,10 @@ export const PERSONAS: Persona[] = [
     colorVar: "--qp-1",
     placeholder: "今天想探索点什么？",
     quickPrompts: [
-      { icon: Rocket, label: "宇宙探索", prompt: "告诉我一个超级酷的宇宙小知识！", colorVar: "--qp-1" },
-      { icon: Lightbulb, label: "创意灵感", prompt: "给我一个脑洞大开的故事开头！", colorVar: "--qp-2" },
-      { icon: BookOpen, label: "知识大百科", prompt: "用最简单的方式讲懂一个科学知识。", colorVar: "--qp-3" },
-      { icon: Gamepad2, label: "趣味冷知识", prompt: "告诉我一个有趣又冷门的生活小知识！", colorVar: "--qp-4" },
+      { icon: BookOpen, label: "讲懂概念", prompt: "我想弄懂一个概念。请先问我想学什么和目前了解多少，再按照当前学习模式帮助我。", colorVar: "--qp-1" },
+      { icon: Lightbulb, label: "卡题急救", prompt: "我有一道题卡住了。请先让我发题目和已经尝试过的思路，再按照当前学习模式帮助我。", colorVar: "--qp-2" },
+      { icon: BookOpenCheck, label: "检查思路", prompt: "我想检查一道题的解题思路。请先让我发题目、过程和答案，再帮我找到关键问题。", colorVar: "--qp-3" },
+      { icon: Gamepad2, label: "复习小测", prompt: "我想做个复习小测。请先问我要复习的主题，然后出 3 道由浅入深的小题，一次只出一道。", colorVar: "--qp-4" },
     ],
     systemPrompt: `你是「聊聊机（Chat-O-Matic）」，一个为 10–16 岁青少年设计的学习与探索型 AI 伙伴。
 
@@ -107,14 +121,11 @@ export const PERSONAS: Persona[] = [
 - 如果话题较大，主动拆分并让用户选择继续方向
 
 ────────────────
-【学习与作业辅导】
+【学习方式】
 
-- 默认"引导思考"而不是直接给答案
-- 多使用提示式语言：
-  - "我们可以先想想第一步是什么"
-  - "你觉得这里的关键点在哪？"
-- 如果给出答案，要同时解释思路
-- 鼓励提问和试错，不评价对错，只评价"思考过程"
+- 具体教学策略由当前学习模式决定，不要自行切换或覆盖模式要求
+- 无论使用哪种模式，都要解释关键思路，并鼓励提问和试错
+- 肯定用户具体的思考过程，不做笼统或比较式评价
 ${SHARED_RULES}`,
   },
   {
@@ -125,10 +136,10 @@ ${SHARED_RULES}`,
     colorVar: "--qp-3",
     placeholder: "又有什么新发现要验证？",
     quickPrompts: [
-      { icon: FlaskConical, label: "疯狂实验", prompt: "教我在家就能做的超酷科学小实验！", colorVar: "--qp-1" },
-      { icon: Zap, label: "自然现象", prompt: "雷电是怎么形成的？给我讲得刺激一点！", colorVar: "--qp-2" },
-      { icon: Atom, label: "宇宙之谜", prompt: "黑洞里面到底是什么？博士来揭秘！", colorVar: "--qp-3" },
-      { icon: Globe, label: "科学脑洞", prompt: "如果地球突然停止自转会怎样？", colorVar: "--qp-4" },
+      { icon: FlaskConical, label: "安全实验", prompt: "推荐一个只用常见安全材料、不使用火、刀具、插座或药品的小实验。请先说明风险、是否需要成年人陪同，再讲实验原理。", colorVar: "--qp-1" },
+      { icon: Zap, label: "现象侦探", prompt: "请像科学侦探一样，先让我描述观察到的日常现象，再按照观察、猜想、验证的方式分析。", colorVar: "--qp-2" },
+      { icon: Atom, label: "科学脑洞", prompt: "给我一个大胆但符合科学逻辑的思想实验，先让我猜会发生什么，再揭晓推理。", colorVar: "--qp-3" },
+      { icon: Globe, label: "真假辟谣", prompt: "先让我说一个听来的科学说法，再帮我检查证据、判断真假，并解释为什么。", colorVar: "--qp-4" },
     ],
     systemPrompt: `你是「科学怪博士」，聊聊机里的疯狂科学家角色！你热爱一切科学实验和发明，说话风格夸张又有趣。
 
@@ -168,10 +179,10 @@ ${SHARED_RULES}`,
     colorVar: "--qp-2",
     placeholder: "今天想开启怎样的冒险？",
     quickPrompts: [
-      { icon: Sword, label: "冒险故事", prompt: "给我讲一个勇者斗恶龙的奇幻故事！", colorVar: "--qp-1" },
-      { icon: Compass, label: "神秘探索", prompt: "带我去探索一座失落的古城！", colorVar: "--qp-2" },
-      { icon: Crown, label: "英雄传说", prompt: "告诉我一个关于勇敢和友谊的故事。", colorVar: "--qp-3" },
-      { icon: Map, label: "未知之旅", prompt: "如果你是一张藏宝图，你的终点在哪？", colorVar: "--qp-4" },
+      { icon: Sword, label: "选择冒险", prompt: "现在开始一场分支冒险。先让我选择世界和角色，之后每回合给我 2～3 个行动选项，不要替我做决定。", colorVar: "--qp-1" },
+      { icon: Compass, label: "共创世界", prompt: "和我共同创造一个幻想世界。每次只问我一个设定问题，并把我的选择逐步编进世界。", colorVar: "--qp-2" },
+      { icon: Crown, label: "谜题地牢", prompt: "设计一座依靠观察和逻辑破解的谜题地牢。让我先尝试，只有我提出需要时才分级给提示。", colorVar: "--qp-3" },
+      { icon: Map, label: "关键词故事", prompt: "先让我提供三个关键词，再把它们编成一个五分钟内能读完、有完整结局的故事。", colorVar: "--qp-4" },
     ],
     systemPrompt: `你是「冒险故事家」，聊聊机里的传奇叙事者！你把每一次对话都当作一场冒险旅程，用故事的方式传递知识。
 
@@ -213,10 +224,10 @@ ${SHARED_RULES}`,
     colorVar: "--qp-4",
     placeholder: "喵~ 让本喵听听你在烦恼什么...",
     quickPrompts: [
-      { icon: Cat, label: "喵式哲学", prompt: "喵~ 你觉得什么是幸福？", colorVar: "--qp-1" },
-      { icon: Heart, label: "情绪探索", prompt: "为什么人会感到孤独？", colorVar: "--qp-2" },
-      { icon: Sparkles, label: "奇思妙想", prompt: "你觉得做梦是在另一个世界吗？", colorVar: "--qp-3" },
-      { icon: Lightbulb, label: "猫看世界", prompt: "什么是时间？从猫的角度回答看看", colorVar: "--qp-4" },
+      { icon: Cat, label: "两难选择", prompt: "给我一个没有标准答案、适合青少年的两难选择。先听我的决定，再追问我为什么这样选。", colorVar: "--qp-1" },
+      { icon: Heart, label: "情绪观察", prompt: "我想说说最近的一种情绪。请先帮我辨认和描述它，不急着评价或给建议。", colorVar: "--qp-2" },
+      { icon: Sparkles, label: "日常为什么", prompt: "从一个常见的日常小事里提出一个哲学问题，让我先回答，再和我一起想下去。", colorVar: "--qp-3" },
+      { icon: Lightbulb, label: "猫眼看世界", prompt: "选一个人类习以为常的行为，用猫的视角幽默地分析它，再问问我的看法。", colorVar: "--qp-4" },
     ],
     systemPrompt: `你是「哲学喵」，聊聊机里的一只会说话的猫咪哲学家。你用猫的视角看世界，把深奥的问题变得简单又有趣。
 
@@ -258,10 +269,10 @@ ${SHARED_RULES}`,
     colorVar: "--qp-1",
     placeholder: "来吧，这次又是什么'难题'？",
     quickPrompts: [
-      { icon: Drama, label: "来吐槽吧", prompt: "吐槽一下写作业这件事😏", colorVar: "--qp-1" },
-      { icon: MessageCircle, label: "冷笑话", prompt: "来点冷笑话，最好是冷到北极那种", colorVar: "--qp-2" },
-      { icon: Smile, label: "AI 翻车", prompt: "讲讲你最离谱的一次 AI 翻车经历", colorVar: "--qp-3" },
-      { icon: Gamepad2, label: "日常吐槽", prompt: "为什么人类要早起上学？合理吗", colorVar: "--qp-4" },
+      { icon: Drama, label: "今日槽点", prompt: "先让我说今天最想吐槽的一件事。可以吐槽事情和现象，但不要攻击具体的人。", colorVar: "--qp-1" },
+      { icon: MessageCircle, label: "冷笑话局", prompt: "给我讲 3 个适合青少年的原创冷笑话，一次只讲一个，等我打分后再继续。", colorVar: "--qp-2" },
+      { icon: Smile, label: "嘴硬夸夸", prompt: "先让我说一个最近完成的小事或小进步，再用嘴硬但真诚、不过度吹捧的方式夸夸我。", colorVar: "--qp-3" },
+      { icon: Gamepad2, label: "吐槽辩论", prompt: "给我一个轻松无害、没有标准答案的话题，和我进行三回合吐槽式辩论，观点可以犀利但不能人身攻击。", colorVar: "--qp-4" },
     ],
     systemPrompt: `你是「吐槽达人」，聊聊机里的搞笑担当！你说话风格毒舌幽默，但骨子里很暖心，用吐槽的方式激励学习。
 

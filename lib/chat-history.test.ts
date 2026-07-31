@@ -52,7 +52,7 @@ describe("chat history", () => {
       id: "session-1",
       title: "黑洞是什么？",
       personaId: "mad-scientist",
-      learningMode: "hint",
+      learningMode: "chat",
       searchMode: "off",
       createdAt: 100,
       updatedAt: 100,
@@ -87,7 +87,7 @@ describe("chat history", () => {
 
     expect(sessions[0]).toMatchObject({
       personaId: "philosophical-cat",
-      learningMode: "check-answer",
+      learningMode: "chat",
       searchMode: "always",
       favoriteMessageIds: ["message-1"],
       createdAt: 50,

@@ -9,7 +9,7 @@ import {
   MAX_IMAGES_PER_MESSAGE,
   MAX_INPUT_LENGTH,
 } from "./constants";
-import { PERSONAS } from "./personas";
+import { PERSONAS, resolvePersonaLearningMode } from "./personas";
 import {
   LEARNING_MODE_IDS,
   type LearningMode,
@@ -177,7 +177,10 @@ export async function parseChatRequest(req: Request): Promise<ValidatedChatReque
   return {
     messages: messageResult.data,
     personaId,
-    learningMode: envelopeResult.data.learningMode,
+    learningMode: resolvePersonaLearningMode(
+      personaId,
+      envelopeResult.data.learningMode,
+    ),
     searchMode: envelopeResult.data.searchMode,
   };
 }

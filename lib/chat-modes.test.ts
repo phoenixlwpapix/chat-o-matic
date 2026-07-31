@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
 import { normalizeChatPreferences } from "./chat-preferences";
+import {
+  personaSupportsLearningModes,
+  resolvePersonaLearningMode,
+} from "./personas";
 import { buildLearningPrompt } from "./learning-modes";
 import {
   buildChatSystemPrompt,
@@ -28,6 +32,25 @@ describe("chat mode prompts", () => {
     expect(buildSearchPrompt("off")).toContain("不要猜测");
     expect(isSearchEnabled("off")).toBe(false);
     expect(isSearchEnabled("auto")).toBe(true);
+  });
+
+  it("omits learning instructions for chat-only personas", () => {
+    const result = buildChatSystemPrompt(
+      "PERSONA",
+      null,
+      buildSearchPrompt("auto"),
+    );
+
+    expect(result).toContain("PERSONA");
+    expect(result).not.toContain("当前学习模式");
+    expect(result).toContain("联网策略：自动");
+  });
+
+  it("supports learning modes only for the learning companion", () => {
+    expect(personaSupportsLearningModes("default")).toBe(true);
+    expect(personaSupportsLearningModes("philosophical-cat")).toBe(false);
+    expect(resolvePersonaLearningMode("default", "hint")).toBe("hint");
+    expect(resolvePersonaLearningMode("roast-master", "hint")).toBe("chat");
   });
 });
 
