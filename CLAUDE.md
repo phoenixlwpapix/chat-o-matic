@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-Chat-O-Matic (聊聊机) is a Neo-Brutalism styled AI chat application designed for teenagers (ages 10-16), powered by Google Gemini 3 Flash. The app uses Next.js 16 App Router with React 19 and Vercel AI SDK 6.
+Chat-O-Matic (聊聊机) is a Neo-Brutalism styled AI chat application designed for teenagers (ages 10-16), powered by Google Gemini 3.5 Flash-Lite. The app uses Next.js 16 App Router with React 19 and Vercel AI SDK 6.
 
 ## Commands
 
@@ -39,7 +39,7 @@ Get API key from: https://aistudio.google.com/apikey
 ### AI Streaming Architecture
 
 - **Route Handler**: `app/api/chat/route.ts` handles POST requests with 30s max duration
-- **AI Provider**: Uses `@ai-sdk/google` with `google("gemini-3-flash-preview")` model
+- **AI Provider**: Uses `@ai-sdk/google` with `google("gemini-3.5-flash-lite")` model
 - **Message Flow**: UI messages → `convertToModelMessages()` → Gemini → `toUIMessageStreamResponse()`
 - **System Prompt**: Embedded in route handler, defines AI persona for 10-16 year old audience
 
@@ -89,8 +89,7 @@ lib/utils.ts            # cn() utility for Tailwind class merging
 
 To change Gemini model, edit `app/api/chat/route.ts`:
 ```typescript
-model: google("gemini-3-flash-preview")
-// Available: gemini-2.0-flash, gemini-1.5-pro
+model: google("gemini-3.5-flash-lite")
 ```
 
 System prompt is inline in the same file (lines 14-76).

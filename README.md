@@ -9,7 +9,7 @@
 - **Neo-Brutalism UI**：大胆边框、鲜艳色彩和厚重阴影，打造独特视觉体验
 - **实时流式响应**：打字机效果，实时观看 AI 思考和回复
 - **Markdown 渲染**：完整支持 Markdown 格式，包括表格、代码块和任务列表
-- **Google Gemini**：由最新的 Gemini 3 Flash 模型驱动
+- **Google Gemini**：由 Gemini 3.5 Flash-Lite 模型驱动
 - **AI 人设切换**：5 种个性鲜明的聊天角色（学习伙伴、科学怪博士、冒险故事家、哲学喵、吐槽达人），随时切换不同风格的对话体验
 - **多主题配色**：Sunflower / Ocean / Peach 三套 Neo-Brutalism 主题自由切换
 - **响应式设计**：完美适配桌面端和移动端
@@ -68,13 +68,11 @@
 在 `app/api/chat/route.ts` 中修改模型：
 
 ```typescript
-model: google("gemini-3-flash-preview"), // 或其他可用模型
+model: google("gemini-3.5-flash-lite"), // 或其他可用模型
 ```
 
 可用模型包括：
-- `gemini-3-flash-preview` - 最新快速模型
-- `gemini-2.0-flash` - 稳定快速模型  
-- `gemini-1.5-pro` - 高性能模型
+- `gemini-3.5-flash-lite` - 低延迟、低成本的稳定模型（当前使用）
 
 ## 📝 License
 
