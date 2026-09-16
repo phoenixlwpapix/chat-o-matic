@@ -116,8 +116,14 @@ function createChatRequestBody(
 
 export default function Home() {
   const { theme, setTheme } = useTheme();
-  const { personaId, searchMode, setPersonaId, setSearchMode } =
-    useChatPreferences();
+  const {
+    personaId,
+    searchMode,
+    userAvatar,
+    setPersonaId,
+    setSearchMode,
+    setUserAvatar,
+  } = useChatPreferences();
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -876,18 +882,24 @@ export default function Home() {
                 )}
               >
                 <div
-                  className="w-8 h-8 rounded-full border-2 flex items-center justify-center shrink-0"
+                  role="img"
+                  aria-label={message.role === "user" ? "用户头像" : "AI 头像"}
+                  className="w-8 h-8 rounded-full border-2 flex items-center justify-center shrink-0 overflow-hidden bg-cover bg-center"
                   style={{
                     borderColor: "var(--border-color)",
                     backgroundColor:
                       message.role === "user"
                         ? "var(--user-avatar-bg)"
                         : "var(--ai-avatar-bg)",
+                    backgroundImage:
+                      message.role === "user" && userAvatar
+                        ? `url(${userAvatar})`
+                        : undefined,
                     boxShadow: "2px 2px 0px 0px rgba(var(--shadow-color), 1)",
                   }}
                 >
                   {message.role === "user" ? (
-                    <UserIcon className="w-5 h-5 text-white" />
+                    userAvatar ? null : <UserIcon className="w-5 h-5 text-white" />
                   ) : (
                     <Bot className="w-5 h-5 text-white" />
                   )}
@@ -1213,12 +1225,14 @@ export default function Home() {
         personaId={personaId}
         searchMode={searchMode}
         theme={theme}
+        userAvatar={userAvatar}
         hasActiveConversation={messages.length > 0}
         historyCount={history.sessions.length}
         onOpenChange={setSettingsOpen}
         onPersonaChange={handlePersonaSelect}
         onSearchModeChange={setSearchMode}
         onThemeChange={setTheme}
+        onUserAvatarChange={setUserAvatar}
         onClearHistory={clearConversationHistory}
       />
       <PersonaSwitcher

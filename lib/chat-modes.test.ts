@@ -38,9 +38,10 @@ describe("chat preferences", () => {
         searchMode: "off",
       }),
     ).toEqual({
-      schemaVersion: 2,
+      schemaVersion: 3,
       personaId: "philosophical-cat",
       searchMode: "off",
+      userAvatar: null,
     });
   });
 
@@ -51,9 +52,21 @@ describe("chat preferences", () => {
         searchMode: 123,
       }),
     ).toEqual({
-      schemaVersion: 2,
+      schemaVersion: 3,
       personaId: "default",
       searchMode: "auto",
+      userAvatar: null,
     });
+  });
+
+  it("keeps supported local avatars and rejects remote images", () => {
+    const localAvatar = "data:image/jpeg;base64,YXZhdGFy";
+    expect(
+      normalizeChatPreferences({ userAvatar: localAvatar }).userAvatar,
+    ).toBe(localAvatar);
+    expect(
+      normalizeChatPreferences({ userAvatar: "https://example.com/avatar.jpg" })
+        .userAvatar,
+    ).toBeNull();
   });
 });

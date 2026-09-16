@@ -68,10 +68,16 @@ export function useChatPreferences() {
     writePreferences({ ...readPreferences(), searchMode });
   }, []);
 
+  const setUserAvatar = useCallback((userAvatar: string | null) => {
+    writePreferences({ ...readPreferences(), userAvatar });
+  }, []);
+
   return {
     personaId: preferences.personaId,
     searchMode: preferences.searchMode,
+    userAvatar: preferences.userAvatar,
     setPersonaId,
     setSearchMode,
+    setUserAvatar,
   } as const;
 }

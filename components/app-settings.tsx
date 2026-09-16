@@ -4,13 +4,17 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import {
   Check,
   Globe2,
+  ImagePlus,
   Radio,
+  RotateCcw,
   Settings2,
   Trash2,
+  UserRound,
   WifiOff,
   X,
   type LucideIcon,
 } from "lucide-react";
+import { AvatarCropper } from "@/components/avatar-cropper";
 import { Button } from "@/components/ui/button";
 import { ThemeSwitcher } from "@/components/theme-switcher";
 import { PERSONAS, getPersonaById, type Persona } from "@/lib/personas";
@@ -29,12 +33,14 @@ interface AppSettingsProps {
   personaId: string;
   searchMode: SearchMode;
   theme: Theme;
+  userAvatar: string | null;
   hasActiveConversation: boolean;
   historyCount: number;
   onOpenChange: (open: boolean) => void;
   onPersonaChange: (persona: Persona) => void;
   onSearchModeChange: (mode: SearchMode) => void;
   onThemeChange: (theme: Theme) => void;
+  onUserAvatarChange: (avatar: string | null) => void;
   onClearHistory: () => void;
 }
 
@@ -43,27 +49,44 @@ export function AppSettings({
   personaId,
   searchMode,
   theme,
+  userAvatar,
   hasActiveConversation,
   historyCount,
   onOpenChange,
   onPersonaChange,
   onSearchModeChange,
   onThemeChange,
+  onUserAvatarChange,
   onClearHistory,
 }: AppSettingsProps) {
   const closeButtonRef = useRef<HTMLButtonElement>(null);
+  const avatarInputRef = useRef<HTMLInputElement>(null);
+  const avatarCropUrlRef = useRef<string | null>(null);
   const [pendingPersonaId, setPendingPersonaId] = useState<string | null>(null);
   const [confirmClearHistory, setConfirmClearHistory] = useState(false);
+  const [avatarCropUrl, setAvatarCropUrl] = useState<string | null>(null);
+  const [avatarError, setAvatarError] = useState<string | null>(null);
   const selectedPersonaId = pendingPersonaId ?? personaId;
   const pendingPersona = pendingPersonaId
     ? getPersonaById(pendingPersonaId)
     : null;
 
   const closeDialog = useCallback(() => {
+    if (avatarCropUrlRef.current) URL.revokeObjectURL(avatarCropUrlRef.current);
+    avatarCropUrlRef.current = null;
+    setAvatarCropUrl(null);
+    setAvatarError(null);
     setPendingPersonaId(null);
     setConfirmClearHistory(false);
     onOpenChange(false);
   }, [onOpenChange]);
+
+  const closeCropper = useCallback(() => {
+    if (avatarCropUrlRef.current) URL.revokeObjectURL(avatarCropUrlRef.current);
+    avatarCropUrlRef.current = null;
+    setAvatarCropUrl(null);
+    if (avatarInputRef.current) avatarInputRef.current.value = "";
+  }, []);
 
   useEffect(() => {
     if (!open) return;
@@ -72,7 +95,7 @@ export function AppSettings({
     const previousFocus = document.activeElement as HTMLElement | null;
     const focusFrame = requestAnimationFrame(() => closeButtonRef.current?.focus());
     const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape") closeDialog();
+      if (event.key === "Escape" && !avatarCropUrlRef.current) closeDialog();
     };
 
     document.body.style.overflow = "hidden";
@@ -103,7 +126,32 @@ export function AppSettings({
     closeDialog();
   };
 
+  const selectAvatarFile = (file: File | undefined) => {
+    setAvatarError(null);
+    if (!file) return;
+    if (!/^image\/(?:jpeg|png|webp)$/.test(file.type)) {
+      setAvatarError("请选择 JPG、PNG 或 WebP 图片");
+      if (avatarInputRef.current) avatarInputRef.current.value = "";
+      return;
+    }
+    if (file.size > 10 * 1024 * 1024) {
+      setAvatarError("图片不能超过 10 MB");
+      if (avatarInputRef.current) avatarInputRef.current.value = "";
+      return;
+    }
+    if (avatarCropUrlRef.current) URL.revokeObjectURL(avatarCropUrlRef.current);
+    const nextCropUrl = URL.createObjectURL(file);
+    avatarCropUrlRef.current = nextCropUrl;
+    setAvatarCropUrl(nextCropUrl);
+  };
+
+  const saveAvatar = (avatar: string) => {
+    onUserAvatarChange(avatar);
+    closeCropper();
+  };
+
   return (
+    <>
     <div
       className="fixed inset-0 z-[70] flex items-center justify-center bg-black/45 p-3 backdrop-blur-[2px] sm:p-6"
       onMouseDown={(event) => {
@@ -147,7 +195,7 @@ export function AppSettings({
                 设置
               </h2>
               <p className="mt-1 text-[10px] font-bold opacity-65">
-                人设、联网与外观
+                头像、人设、联网与外观
               </p>
             </div>
           </div>
@@ -237,6 +285,75 @@ export function AppSettings({
               })}
             </div>
           </fieldset>
+
+          <div
+            className="mt-7 border-t-2 pt-7"
+            style={{ borderColor: "var(--border-color)" }}
+          >
+            <div className="flex items-center justify-between gap-4">
+              <div className="flex min-w-0 items-center gap-3">
+                <div
+                  role="img"
+                  aria-label={userAvatar ? "当前本地头像" : "默认头像"}
+                  className="grid h-14 w-14 shrink-0 place-items-center overflow-hidden rounded-full border-[3px] bg-cover bg-center"
+                  style={{
+                    borderColor: "var(--border-color)",
+                    backgroundColor: "var(--user-avatar-bg)",
+                    backgroundImage: userAvatar ? `url(${userAvatar})` : undefined,
+                    boxShadow: "3px 3px 0px 0px rgba(var(--shadow-color), 1)",
+                  }}
+                >
+                  {userAvatar ? null : <UserRound className="h-6 w-6 text-white" />}
+                </div>
+                <div className="min-w-0">
+                  <p className="text-xs font-black uppercase tracking-[0.16em]">
+                    本地头像
+                  </p>
+                  <p className="mt-1 text-[10px] font-semibold leading-relaxed opacity-55">
+                    {avatarError ?? (userAvatar ? "头像仅保存在当前浏览器" : "选择图片并裁剪合适区域")}
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex shrink-0 gap-2">
+                {userAvatar ? (
+                  <button
+                    type="button"
+                    onClick={() => onUserAvatarChange(null)}
+                    className="grid h-9 w-9 place-items-center rounded-lg border-2 transition-transform hover:-translate-y-0.5"
+                    style={{
+                      borderColor: "var(--border-color)",
+                      backgroundColor: "var(--settings-option-bg)",
+                    }}
+                    aria-label="恢复默认头像"
+                    title="恢复默认头像"
+                  >
+                    <RotateCcw className="h-4 w-4" />
+                  </button>
+                ) : null}
+                <button
+                  type="button"
+                  onClick={() => avatarInputRef.current?.click()}
+                  className="inline-flex h-9 items-center gap-1.5 rounded-lg border-2 px-3 text-[11px] font-black transition-transform hover:-translate-y-0.5"
+                  style={{
+                    borderColor: "var(--border-color)",
+                    backgroundColor: "var(--settings-option-bg)",
+                  }}
+                >
+                  <ImagePlus className="h-4 w-4" />
+                  {userAvatar ? "更换" : "选择图片"}
+                </button>
+                <input
+                  ref={avatarInputRef}
+                  type="file"
+                  accept="image/jpeg,image/png,image/webp"
+                  className="hidden"
+                  tabIndex={-1}
+                  onChange={(event) => selectAvatarFile(event.target.files?.[0])}
+                />
+              </div>
+            </div>
+          </div>
 
           <div
             className="mt-7 grid gap-7 border-t-2 pt-7 sm:grid-cols-2"
@@ -393,5 +510,13 @@ export function AppSettings({
         ) : null}
       </section>
     </div>
+    {avatarCropUrl ? (
+      <AvatarCropper
+        imageUrl={avatarCropUrl}
+        onCancel={closeCropper}
+        onConfirm={saveAvatar}
+      />
+    ) : null}
+    </>
   );
 }
