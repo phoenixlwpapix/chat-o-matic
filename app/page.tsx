@@ -27,6 +27,7 @@ import {
   PanelLeftClose,
   ChevronRight,
   Settings2,
+  Star,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
@@ -55,6 +56,7 @@ import {
 } from "@/components/response-actions";
 import { SourceList } from "@/components/source-list";
 import { useChatHistory, toStoredMessages } from "@/lib/use-chat-history";
+import { MAX_FAVORITE_SESSIONS } from "@/lib/chat-history";
 import type { SearchMode } from "@/lib/search-modes";
 import "katex/dist/katex.min.css";
 
@@ -156,6 +158,16 @@ export default function Home() {
   // ── History ──
   const history = useChatHistory();
   const sessionIdRef = useRef<string>(crypto.randomUUID());
+  const currentSession = history.sessions.find(
+    (session) => session.id === history.currentSessionId,
+  );
+  const favoriteSessionCount = history.sessions.filter(
+    (session) => session.isFavorite,
+  ).length;
+  const favoriteButtonDisabled =
+    !currentSession ||
+    (!currentSession.isFavorite &&
+      favoriteSessionCount >= MAX_FAVORITE_SESSIONS);
 
   // Keep the hook's currentSessionId in sync
   useEffect(() => {
@@ -653,6 +665,7 @@ export default function Home() {
               currentSessionId={history.currentSessionId}
               onSelect={(id) => { handleRestoreSession(id); setSidebarOpen(false); }}
               onDelete={history.deleteSession}
+              onToggleFavorite={history.toggleFavorite}
               variant="sidebar"
             />
           </div>
@@ -662,7 +675,7 @@ export default function Home() {
             type="button"
             onClick={() => { setSettingsOpen(true); setSidebarOpen(false); }}
             disabled={isLoading}
-            className="flex w-full items-center gap-2 rounded-lg border-2 px-3 py-2 text-sm font-black transition-all hover:-translate-y-0.5 active:translate-x-0.5 active:translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-50"
+            className="inline-flex self-end items-center gap-2 rounded-lg border-2 px-3 py-2 text-sm font-black transition-all hover:-translate-y-0.5 active:translate-x-0.5 active:translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-50"
             style={{
               backgroundColor: "var(--btn-new-bg)",
               borderColor: "var(--border-color)",
@@ -689,7 +702,7 @@ export default function Home() {
               color: "var(--header-text)",
             }}
           >
-            <div className="flex items-center">
+            <div className="flex items-center justify-between gap-3">
               <div className="flex items-center gap-3">
                 {/* 移动端汉堡按钮 */}
                 <Button
@@ -735,7 +748,42 @@ export default function Home() {
                   </div>
                 </div>
               </div>
-
+              <button
+                type="button"
+                onClick={() => {
+                  if (currentSession) history.toggleFavorite(currentSession.id);
+                }}
+                disabled={favoriteButtonDisabled}
+                className="inline-flex shrink-0 items-center gap-1.5 rounded-lg border-2 px-2.5 py-1.5 text-xs font-black transition-all hover:-translate-y-0.5 active:translate-x-0.5 active:translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-35"
+                style={{
+                  backgroundColor: currentSession?.isFavorite
+                    ? "var(--qp-2)"
+                    : "var(--btn-new-bg)",
+                  borderColor: "var(--border-color)",
+                  color: currentSession?.isFavorite
+                    ? "var(--prompt-card-text)"
+                    : "var(--btn-new-text)",
+                  boxShadow: "3px 3px 0px 0px rgba(var(--shadow-color), 1)",
+                }}
+                aria-label={currentSession?.isFavorite ? "取消收藏当前对话" : "收藏当前对话"}
+                title={
+                  !currentSession
+                    ? "发送消息后可收藏"
+                    : favoriteButtonDisabled
+                      ? `收藏夹最多 ${MAX_FAVORITE_SESSIONS} 条`
+                      : currentSession.isFavorite
+                        ? "取消收藏当前对话"
+                        : "收藏当前对话"
+                }
+              >
+                <Star
+                  className="h-4 w-4"
+                  fill={currentSession?.isFavorite ? "currentColor" : "none"}
+                />
+                <span className="hidden sm:inline">
+                  {currentSession?.isFavorite ? "已收藏" : "收藏"}
+                </span>
+              </button>
             </div>
           </CardHeader>
 

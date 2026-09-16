@@ -3,6 +3,7 @@
 import { useCallback, useState, useSyncExternalStore } from "react";
 import {
   normalizeSessions,
+  toggleSessionFavorite,
   upsertSession,
   type ChatSession,
   type SessionPreferences,
@@ -100,6 +101,12 @@ export function useChatHistory() {
     setCurrentSessionId(null);
   }, []);
 
+  const toggleFavorite = useCallback((id: string) => {
+    const currentSessions = readSessions();
+    const nextSessions = toggleSessionFavorite(currentSessions, id);
+    if (nextSessions !== currentSessions) writeSessions(nextSessions);
+  }, []);
+
   return {
     sessions,
     currentSessionId,
@@ -107,6 +114,7 @@ export function useChatHistory() {
     saveSession,
     loadSession,
     deleteSession,
+    toggleFavorite,
     clearSessions,
   };
 }

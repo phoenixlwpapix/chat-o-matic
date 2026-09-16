@@ -1,7 +1,8 @@
 import type { TextUIPart, UIMessage } from "ai";
 import { getSearchMode, type SearchMode } from "./search-modes";
 
-const MAX_SESSIONS = 10;
+const MAX_SESSIONS = 20;
+export const MAX_FAVORITE_SESSIONS = 10;
 
 export interface StoredTextPart {
   type: "text";
@@ -15,11 +16,12 @@ export interface StoredMessage {
 }
 
 export interface ChatSession {
-  schemaVersion: 3;
+  schemaVersion: 4;
   id: string;
   title: string;
   personaId: string;
   searchMode: SearchMode;
+  isFavorite: boolean;
   messages: StoredMessage[];
   favoriteMessageIds: string[];
   createdAt: number;
@@ -82,7 +84,7 @@ export function normalizeSessions(value: unknown): ChatSession[] {
       typeof session.personaId === "string" ? session.personaId : "default";
     return [
       {
-        schemaVersion: 3,
+        schemaVersion: 4,
         id: session.id,
         title: session.title,
         personaId,
@@ -91,6 +93,7 @@ export function normalizeSessions(value: unknown): ChatSession[] {
             ? session.searchMode
             : "auto",
         ).id,
+        isFavorite: session.isFavorite === true,
         messages: normalizeMessages(session.messages),
         favoriteMessageIds: Array.isArray(session.favoriteMessageIds)
           ? session.favoriteMessageIds.filter(
@@ -145,6 +148,46 @@ function messagesAreEqual(
   });
 }
 
+function trimSessions(sessions: ChatSession[]): ChatSession[] {
+  if (sessions.length <= MAX_SESSIONS) return sessions;
+
+  const removeIds = new Set<string>();
+  let remaining = sessions.length - MAX_SESSIONS;
+
+  for (let index = sessions.length - 1; index >= 0 && remaining > 0; index--) {
+    if (!sessions[index].isFavorite) {
+      removeIds.add(sessions[index].id);
+      remaining -= 1;
+    }
+  }
+
+  for (let index = sessions.length - 1; index >= 0 && remaining > 0; index--) {
+    if (!removeIds.has(sessions[index].id)) {
+      removeIds.add(sessions[index].id);
+      remaining -= 1;
+    }
+  }
+
+  return sessions.filter((session) => !removeIds.has(session.id));
+}
+
+export function toggleSessionFavorite(
+  sessions: ChatSession[],
+  id: string,
+): ChatSession[] {
+  const session = sessions.find((item) => item.id === id);
+  if (!session) return sessions;
+
+  const favoriteCount = sessions.filter((item) => item.isFavorite).length;
+  if (!session.isFavorite && favoriteCount >= MAX_FAVORITE_SESSIONS) {
+    return sessions;
+  }
+
+  return sessions.map((item) =>
+    item.id === id ? { ...item, isFavorite: !item.isFavorite } : item,
+  );
+}
+
 export function upsertSession(
   sessions: ChatSession[],
   id: string,
@@ -165,17 +208,21 @@ export function upsertSession(
   }
 
   const nextSession: ChatSession = {
-    schemaVersion: 3,
+    schemaVersion: 4,
     id,
     title: deriveTitle(messages),
     ...preferences,
     messages,
+    isFavorite: existing?.isFavorite ?? false,
     favoriteMessageIds: existing?.favoriteMessageIds ?? [],
     createdAt: existing?.createdAt ?? now,
     updatedAt: now,
   };
 
-  return [nextSession, ...sessions.filter((session) => session.id !== id)]
-    .toSorted((a, b) => b.updatedAt - a.updatedAt)
-    .slice(0, MAX_SESSIONS);
+  const sortedSessions = [
+    nextSession,
+    ...sessions.filter((session) => session.id !== id),
+  ].toSorted((a, b) => b.updatedAt - a.updatedAt);
+
+  return trimSessions(sortedSessions);
 }

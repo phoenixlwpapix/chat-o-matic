@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   normalizeSessions,
+  toggleSessionFavorite,
   upsertSession,
   type ChatSession,
   type StoredMessage,
@@ -15,7 +16,7 @@ const messages: StoredMessage[] = [
 ];
 
 describe("chat history", () => {
-  it("migrates legacy sessions to schema v3 defaults", () => {
+  it("migrates legacy sessions to schema v4 defaults", () => {
     const sessions = normalizeSessions([
       {
         id: "legacy",
@@ -27,9 +28,10 @@ describe("chat history", () => {
     ]);
 
     expect(sessions[0]).toMatchObject({
-      schemaVersion: 3,
+      schemaVersion: 4,
       personaId: "default",
       searchMode: "auto",
+      isFavorite: false,
       favoriteMessageIds: [],
     });
   });
@@ -58,11 +60,12 @@ describe("chat history", () => {
 
   it("restores and updates an existing session without changing creation time", () => {
     const existing: ChatSession = {
-      schemaVersion: 3,
+      schemaVersion: 4,
       id: "session-1",
       title: "旧标题",
       personaId: "default",
       searchMode: "auto",
+      isFavorite: false,
       messages,
       favoriteMessageIds: ["message-1"],
       createdAt: 50,
@@ -91,11 +94,12 @@ describe("chat history", () => {
 
   it("keeps history order and timestamps unchanged when a session is only viewed", () => {
     const viewedSession: ChatSession = {
-      schemaVersion: 3,
+      schemaVersion: 4,
       id: "viewed-session",
       title: "黑洞是什么？",
       personaId: "default",
       searchMode: "auto",
+      isFavorite: false,
       messages,
       favoriteMessageIds: [],
       createdAt: 25,
@@ -124,5 +128,57 @@ describe("chat history", () => {
       "viewed-session",
     ]);
     expect(sessions[1].updatedAt).toBe(50);
+  });
+
+  it("keeps favorite sessions when the history limit is exceeded", () => {
+    const existingSessions: ChatSession[] = Array.from(
+      { length: 20 },
+      (_, index) => ({
+        schemaVersion: 4,
+        id: `session-${index}`,
+        title: `对话 ${index}`,
+        personaId: "default",
+        searchMode: "auto",
+        isFavorite: index === 0,
+        messages,
+        favoriteMessageIds: [],
+        createdAt: index,
+        updatedAt: index,
+      }),
+    ).toSorted((a, b) => b.updatedAt - a.updatedAt);
+
+    const sessions = upsertSession(
+      existingSessions,
+      "new-session",
+      [{ ...messages[0], id: "new-message" }],
+      { personaId: "default", searchMode: "auto" },
+      100,
+    );
+
+    expect(sessions).toHaveLength(20);
+    expect(sessions.some((session) => session.id === "session-0")).toBe(true);
+    expect(sessions.some((session) => session.id === "session-1")).toBe(false);
+  });
+
+  it("limits favorites to ten sessions and still allows unfavoriting", () => {
+    const sessions: ChatSession[] = Array.from({ length: 11 }, (_, index) => ({
+      schemaVersion: 4,
+      id: `session-${index}`,
+      title: `对话 ${index}`,
+      personaId: "default",
+      searchMode: "auto",
+      isFavorite: index < 10,
+      messages,
+      favoriteMessageIds: [],
+      createdAt: index,
+      updatedAt: index,
+    }));
+
+    expect(toggleSessionFavorite(sessions, "session-10")).toBe(sessions);
+
+    const withSpace = toggleSessionFavorite(sessions, "session-0");
+    const updated = toggleSessionFavorite(withSpace, "session-10");
+    expect(updated.find((session) => session.id === "session-0")?.isFavorite).toBe(false);
+    expect(updated.find((session) => session.id === "session-10")?.isFavorite).toBe(true);
   });
 });
