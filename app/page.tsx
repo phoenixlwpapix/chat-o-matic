@@ -25,6 +25,8 @@ import {
   AlertTriangle,
   PanelLeftOpen,
   PanelLeftClose,
+  ChevronRight,
+  Settings2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
@@ -38,17 +40,14 @@ import {
 import { cn } from "@/lib/utils";
 import { useTheme } from "@/lib/use-theme";
 import { useChatPreferences } from "@/lib/use-chat-preferences";
-import { ThemeSwitcher } from "@/components/theme-switcher";
 import {
-  PERSONAS,
   getPersonaById,
-  personaSupportsLearningModes,
-  resolvePersonaLearningMode,
   type Persona,
 } from "@/lib/personas";
 import { ChatHistory } from "@/components/chat-history";
 import { MarkdownContent } from "@/components/markdown-content";
-import { ChatSettings } from "@/components/chat-settings";
+import { AppSettings } from "@/components/app-settings";
+import { PersonaSwitcher } from "@/components/persona-switcher";
 import {
   RESPONSE_ACTIONS,
   ResponseActions,
@@ -56,7 +55,6 @@ import {
 } from "@/components/response-actions";
 import { SourceList } from "@/components/source-list";
 import { useChatHistory, toStoredMessages } from "@/lib/use-chat-history";
-import type { LearningMode } from "@/lib/learning-modes";
 import type { SearchMode } from "@/lib/search-modes";
 import "katex/dist/katex.min.css";
 
@@ -106,19 +104,17 @@ function getMessageText(parts: UIMessage["parts"]): string {
 
 function createChatRequestBody(
   personaId: string,
-  learningMode: LearningMode,
   searchMode: SearchMode,
 ) {
   return {
     personaId,
-    learningMode: resolvePersonaLearningMode(personaId, learningMode),
     searchMode,
   };
 }
 
 export default function Home() {
   const { theme, setTheme } = useTheme();
-  const { learningMode, searchMode, setLearningMode, setSearchMode } =
+  const { personaId, searchMode, setPersonaId, setSearchMode } =
     useChatPreferences();
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -131,15 +127,11 @@ export default function Home() {
 
   // 侧边栏
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  const [personaSwitcherOpen, setPersonaSwitcherOpen] = useState(false);
 
-  // 人设选择
-  const [personaId, setPersonaId] = useState("default");
   const currentPersona = getPersonaById(personaId);
-  const supportsLearningModes = personaSupportsLearningModes(personaId);
-  const effectiveLearningMode = resolvePersonaLearningMode(
-    personaId,
-    learningMode,
-  );
+  const CurrentPersonaIcon = currentPersona.icon;
 
   // AI SDK 6 useChat - 默认连接到 /api/chat
   const { messages, sendMessage, regenerate, status, setMessages } = useChat({
@@ -176,16 +168,16 @@ export default function Home() {
   useEffect(() => {
     if (isLoading) return;
     if (messages.length === 0) return;
-    const signature = `${messages.length}:${personaId}:${effectiveLearningMode}:${searchMode}`;
+    const signature = `${messages.length}:${personaId}:${searchMode}`;
     if (signature === lastSavedSignatureRef.current) return;
     lastSavedSignatureRef.current = signature;
     history.saveSession(
       sessionIdRef.current,
       toStoredMessages(messages),
-      { personaId, learningMode: effectiveLearningMode, searchMode },
+      { personaId, searchMode },
     );
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [messages, isLoading, personaId, effectiveLearningMode, searchMode]);
+  }, [messages, isLoading, personaId, searchMode]);
 
   // 带字符限制的输入更新
   const handleInputChange = useCallback((value: string) => {
@@ -406,7 +398,7 @@ export default function Home() {
         history.saveSession(
           sessionIdRef.current,
           toStoredMessages(messages),
-          { personaId, learningMode: effectiveLearningMode, searchMode },
+          { personaId, searchMode },
         );
         const newId = crypto.randomUUID();
         sessionIdRef.current = newId;
@@ -418,7 +410,7 @@ export default function Home() {
       }
     },
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [messages, personaId, effectiveLearningMode, searchMode, setMessages],
+    [messages, personaId, searchMode, setMessages],
   );
 
   // 处理快捷提示词点击
@@ -426,7 +418,7 @@ export default function Home() {
     sendMessage(
       { text: prompt },
       {
-        body: createChatRequestBody(personaId, learningMode, searchMode),
+        body: createChatRequestBody(personaId, searchMode),
       },
     );
   };
@@ -441,13 +433,12 @@ export default function Home() {
         {
           body: createChatRequestBody(
             personaId,
-            learningMode,
             requestSearchMode,
           ),
         },
       );
     },
-    [sendMessage, personaId, learningMode, searchMode],
+    [sendMessage, personaId, searchMode],
   );
 
   const scrollToBottom = () => {
@@ -460,7 +451,7 @@ export default function Home() {
       history.saveSession(
         sessionIdRef.current,
         toStoredMessages(messages),
-        { personaId, learningMode: effectiveLearningMode, searchMode },
+        { personaId, searchMode },
       );
     }
     // Generate new session id
@@ -473,6 +464,17 @@ export default function Home() {
     setPendingImages([]);
   };
 
+  const clearConversationHistory = useCallback(() => {
+    history.clearSessions();
+    const newId = crypto.randomUUID();
+    sessionIdRef.current = newId;
+    history.setCurrentSessionId(newId);
+    lastSavedSignatureRef.current = "";
+    setMessages([]);
+    setInputValue("");
+    setPendingImages([]);
+  }, [history, setMessages]);
+
   // Restore a conversation from history
   const handleRestoreSession = useCallback(
     (id: string) => {
@@ -481,7 +483,7 @@ export default function Home() {
         history.saveSession(
           sessionIdRef.current,
           toStoredMessages(messages),
-          { personaId, learningMode: effectiveLearningMode, searchMode },
+          { personaId, searchMode },
         );
       }
       const restored = history.loadSession(id);
@@ -489,18 +491,15 @@ export default function Home() {
       sessionIdRef.current = id;
       history.setCurrentSessionId(id);
       const restoredPersonaId = getPersonaById(restored.personaId).id;
-      lastSavedSignatureRef.current = `${restored.messages.length}:${restoredPersonaId}:${restored.learningMode}:${restored.searchMode}`;
+      lastSavedSignatureRef.current = `${restored.messages.length}:${restoredPersonaId}:${restored.searchMode}`;
       setPersonaId(restoredPersonaId);
-      if (personaSupportsLearningModes(restoredPersonaId)) {
-        setLearningMode(restored.learningMode);
-      }
       setSearchMode(restored.searchMode);
       setMessages(restored.messages);
       setInputValue("");
       setPendingImages([]);
     },
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [messages, personaId, effectiveLearningMode, searchMode, setMessages],
+    [messages, personaId, searchMode, setMessages],
   );
 
   // 重新生成最后一条 AI 回复
@@ -511,9 +510,9 @@ export default function Home() {
     // AI SDK 会复用原始用户消息，包含其中的图片 parts。
     regenerate({
       messageId: lastAssistant.id,
-      body: createChatRequestBody(personaId, learningMode, searchMode),
+      body: createChatRequestBody(personaId, searchMode),
     });
-  }, [messages, personaId, learningMode, searchMode, regenerate]);
+  }, [messages, personaId, searchMode, regenerate]);
 
   useEffect(() => {
     scrollToBottom();
@@ -538,7 +537,7 @@ export default function Home() {
         files,
       },
       {
-        body: createChatRequestBody(personaId, learningMode, searchMode),
+        body: createChatRequestBody(personaId, searchMode),
       },
     );
 
@@ -613,49 +612,38 @@ export default function Home() {
             <span className="font-bold text-sm">新对话</span>
           </Button>
 
-          {/* 人设选择 */}
+          {/* 当前人设 */}
           <div>
             <p className="text-[10px] font-black uppercase tracking-wider px-1 mb-1.5" style={{ color: "var(--header-subtitle)" }}>
-              AI 人设
+              当前人设
             </p>
-            <div className="space-y-1">
-              {PERSONAS.map((p) => {
-                const Icon = p.icon;
-                const isActive = p.id === personaId;
-                return (
-                  <button
-                    key={p.id}
-                    onClick={() => handlePersonaSelect(p)}
-                    className={cn(
-                      "w-full flex items-center gap-2.5 px-2.5 py-2 rounded-lg border-2 text-left text-sm font-bold transition-all",
-                      "hover:-translate-y-0.5 active:translate-x-0.5 active:translate-y-0.5",
-                    )}
-                    style={{
-                      backgroundColor: isActive ? `var(${p.colorVar})` : "var(--fb-inactive-bg)",
-                      borderColor: "var(--border-color)",
-                      boxShadow: isActive
-                        ? "2px 2px 0px 0px rgba(var(--shadow-color), 1)"
-                        : "1px 1px 0px 0px rgba(var(--shadow-color), 0.3)",
-                      color: isActive ? "var(--prompt-card-text)" : "var(--fb-inactive-text)",
-                    }}
-                  >
-                    <Icon className="w-4 h-4 shrink-0" />
-                    <div className="min-w-0">
-                      <span className="block truncate">{p.name}</span>
-                      <span className="block text-[10px] font-medium truncate" style={{ opacity: 0.65 }}>{p.subtitle}</span>
-                    </div>
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-
-          {/* 主题切换 */}
-          <div>
-            <p className="text-[10px] font-black uppercase tracking-wider px-1 mb-1.5" style={{ color: "var(--header-subtitle)" }}>
-              主题配色
-            </p>
-            <ThemeSwitcher theme={theme} setTheme={setTheme} variant="inline" />
+            <button
+              type="button"
+              onClick={() => { setPersonaSwitcherOpen(true); setSidebarOpen(false); }}
+              disabled={isLoading}
+              className="group flex w-full items-center gap-2.5 rounded-xl border-2 px-2.5 py-2.5 text-left transition-all hover:-translate-y-0.5 active:translate-x-0.5 active:translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-50"
+              style={{
+                backgroundColor: `var(${currentPersona.colorVar})`,
+                borderColor: "var(--border-color)",
+                boxShadow: "3px 3px 0px 0px rgba(var(--shadow-color), 1)",
+                color: "var(--prompt-card-text)",
+              }}
+            >
+              <span
+                className="grid h-9 w-9 shrink-0 place-items-center rounded-lg border-2"
+                style={{
+                  backgroundColor: "var(--prompt-card-icon-bg)",
+                  borderColor: "var(--border-color)",
+                }}
+              >
+                <CurrentPersonaIcon className="h-4.5 w-4.5" />
+              </span>
+              <span className="min-w-0 flex-1">
+                <span className="block truncate text-sm font-black">{currentPersona.name}</span>
+                <span className="block truncate text-[10px] font-semibold opacity-65">{currentPersona.subtitle}</span>
+              </span>
+              <ChevronRight className="h-4 w-4 shrink-0 transition-transform group-hover:translate-x-0.5" />
+            </button>
           </div>
 
           {/* 历史记录 */}
@@ -668,6 +656,23 @@ export default function Home() {
               variant="sidebar"
             />
           </div>
+
+          {/* 统一设置入口 */}
+          <button
+            type="button"
+            onClick={() => { setSettingsOpen(true); setSidebarOpen(false); }}
+            disabled={isLoading}
+            className="flex w-full items-center gap-2 rounded-lg border-2 px-3 py-2 text-sm font-black transition-all hover:-translate-y-0.5 active:translate-x-0.5 active:translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-50"
+            style={{
+              backgroundColor: "var(--btn-new-bg)",
+              borderColor: "var(--border-color)",
+              color: "var(--btn-new-text)",
+              boxShadow: "3px 3px 0px 0px rgba(var(--shadow-color), 1)",
+            }}
+          >
+            <Settings2 className="h-4 w-4" />
+            设置
+          </button>
         </aside>
 
         {/* ── 主聊天区域 ── */}
@@ -684,7 +689,7 @@ export default function Home() {
               color: "var(--header-text)",
             }}
           >
-            <div className="flex items-center justify-between">
+            <div className="flex items-center">
               <div className="flex items-center gap-3">
                 {/* 移动端汉堡按钮 */}
                 <Button
@@ -731,14 +736,6 @@ export default function Home() {
                 </div>
               </div>
 
-              <ChatSettings
-                showLearningModes={supportsLearningModes}
-                learningMode={learningMode}
-                searchMode={searchMode}
-                onLearningModeChange={setLearningMode}
-                onSearchModeChange={setSearchMode}
-                disabled={isLoading}
-              />
             </div>
           </CardHeader>
 
@@ -1163,6 +1160,26 @@ export default function Home() {
         </CardFooter>
       </Card>
       </div>
+      <AppSettings
+        open={settingsOpen}
+        personaId={personaId}
+        searchMode={searchMode}
+        theme={theme}
+        hasActiveConversation={messages.length > 0}
+        historyCount={history.sessions.length}
+        onOpenChange={setSettingsOpen}
+        onPersonaChange={handlePersonaSelect}
+        onSearchModeChange={setSearchMode}
+        onThemeChange={setTheme}
+        onClearHistory={clearConversationHistory}
+      />
+      <PersonaSwitcher
+        open={personaSwitcherOpen}
+        personaId={personaId}
+        hasActiveConversation={messages.length > 0}
+        onOpenChange={setPersonaSwitcherOpen}
+        onPersonaChange={handlePersonaSelect}
+      />
     </main>
   );
 }

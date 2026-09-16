@@ -25,14 +25,12 @@ describe("persona quick prompts", () => {
     expect(experiment?.prompt).toContain("成年人陪同");
   });
 
-  it("makes the learning companion starters honor the active learning mode", () => {
+  it("keeps learning companion starters independent from retired learning modes", () => {
     const learningCompanion = PERSONAS.find(
       (persona) => persona.id === "default",
     );
     const learningPrompts = learningCompanion?.quickPrompts ?? [];
 
-    expect(
-      learningPrompts.filter((prompt) => prompt.prompt.includes("当前学习模式")),
-    ).toHaveLength(2);
+    expect(learningPrompts.every((prompt) => !prompt.prompt.includes("当前学习模式"))).toBe(true);
   });
 });

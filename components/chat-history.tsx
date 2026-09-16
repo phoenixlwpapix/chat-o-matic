@@ -4,11 +4,7 @@ import { useState, useRef, useEffect, useCallback } from "react";
 import { History, Trash2, MessageSquare } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { ChatSession } from "@/lib/use-chat-history";
-import {
-    getPersonaById,
-    personaSupportsLearningModes,
-} from "@/lib/personas";
-import { getLearningMode } from "@/lib/learning-modes";
+import { getPersonaById } from "@/lib/personas";
 
 interface ChatHistoryProps {
     sessions: ChatSession[];
@@ -32,9 +28,7 @@ function relativeTime(ts: number): string {
 }
 
 function sessionContext(session: ChatSession): string {
-    const persona = getPersonaById(session.personaId);
-    if (!personaSupportsLearningModes(persona.id)) return persona.name;
-    return `${persona.name} · ${getLearningMode(session.learningMode).shortLabel}`;
+    return getPersonaById(session.personaId).name;
 }
 
 export function ChatHistory({

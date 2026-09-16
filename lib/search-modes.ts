@@ -53,10 +53,7 @@ export function isSearchEnabled(mode: SearchMode): boolean {
 
 export function buildChatSystemPrompt(
   personaPrompt: string,
-  learningPrompt: string | null,
   searchPrompt: string,
 ): string {
-  return [personaPrompt, learningPrompt, searchPrompt]
-    .filter((prompt): prompt is string => Boolean(prompt))
-    .join("\n\n");
+  return [personaPrompt, searchPrompt].join("\n\n");
 }

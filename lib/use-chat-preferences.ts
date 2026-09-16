@@ -6,7 +6,6 @@ import {
   normalizeChatPreferences,
   type ChatPreferences,
 } from "./chat-preferences";
-import type { LearningMode } from "./learning-modes";
 import type { SearchMode } from "./search-modes";
 
 const STORAGE_KEY = "chat-o-matic-preferences";
@@ -61,8 +60,8 @@ export function useChatPreferences() {
     getServerPreferences,
   );
 
-  const setLearningMode = useCallback((learningMode: LearningMode) => {
-    writePreferences({ ...readPreferences(), learningMode });
+  const setPersonaId = useCallback((personaId: string) => {
+    writePreferences({ ...readPreferences(), personaId });
   }, []);
 
   const setSearchMode = useCallback((searchMode: SearchMode) => {
@@ -70,9 +69,9 @@ export function useChatPreferences() {
   }, []);
 
   return {
-    learningMode: preferences.learningMode,
+    personaId: preferences.personaId,
     searchMode: preferences.searchMode,
-    setLearningMode,
+    setPersonaId,
     setSearchMode,
   } as const;
 }

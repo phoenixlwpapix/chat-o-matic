@@ -1,10 +1,5 @@
 import type { TextUIPart, UIMessage } from "ai";
-import {
-  getLearningMode,
-  type LearningMode,
-} from "./learning-modes";
 import { getSearchMode, type SearchMode } from "./search-modes";
-import { resolvePersonaLearningMode } from "./personas";
 
 const MAX_SESSIONS = 10;
 
@@ -20,11 +15,10 @@ export interface StoredMessage {
 }
 
 export interface ChatSession {
-  schemaVersion: 2;
+  schemaVersion: 3;
   id: string;
   title: string;
   personaId: string;
-  learningMode: LearningMode;
   searchMode: SearchMode;
   messages: StoredMessage[];
   favoriteMessageIds: string[];
@@ -34,7 +28,6 @@ export interface ChatSession {
 
 export interface SessionPreferences {
   personaId: string;
-  learningMode: LearningMode;
   searchMode: SearchMode;
 }
 
@@ -87,17 +80,12 @@ export function normalizeSessions(value: unknown): ChatSession[] {
 
     const personaId =
       typeof session.personaId === "string" ? session.personaId : "default";
-    const learningMode = getLearningMode(
-      typeof session.learningMode === "string" ? session.learningMode : "chat",
-    ).id;
-
     return [
       {
-        schemaVersion: 2,
+        schemaVersion: 3,
         id: session.id,
         title: session.title,
         personaId,
-        learningMode: resolvePersonaLearningMode(personaId, learningMode),
         searchMode: getSearchMode(
           typeof session.searchMode === "string"
             ? session.searchMode
@@ -135,6 +123,28 @@ export function toStoredMessages(messages: UIMessage[]): StoredMessage[] {
   });
 }
 
+function messagesAreEqual(
+  first: StoredMessage[],
+  second: StoredMessage[],
+): boolean {
+  if (first.length !== second.length) return false;
+
+  return first.every((message, messageIndex) => {
+    const otherMessage = second[messageIndex];
+    if (
+      message.id !== otherMessage.id ||
+      message.role !== otherMessage.role ||
+      message.parts.length !== otherMessage.parts.length
+    ) {
+      return false;
+    }
+
+    return message.parts.every(
+      (part, partIndex) => part.text === otherMessage.parts[partIndex].text,
+    );
+  });
+}
+
 export function upsertSession(
   sessions: ChatSession[],
   id: string,
@@ -145,15 +155,20 @@ export function upsertSession(
   if (messages.length === 0) return sessions;
 
   const existing = sessions.find((session) => session.id === id);
+  if (
+    existing &&
+    existing.personaId === preferences.personaId &&
+    existing.searchMode === preferences.searchMode &&
+    messagesAreEqual(existing.messages, messages)
+  ) {
+    return sessions;
+  }
+
   const nextSession: ChatSession = {
-    schemaVersion: 2,
+    schemaVersion: 3,
     id,
     title: deriveTitle(messages),
     ...preferences,
-    learningMode: resolvePersonaLearningMode(
-      preferences.personaId,
-      preferences.learningMode,
-    ),
     messages,
     favoriteMessageIds: existing?.favoriteMessageIds ?? [],
     createdAt: existing?.createdAt ?? now,

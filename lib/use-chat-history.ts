@@ -71,7 +71,14 @@ export function useChatHistory() {
 
   const saveSession = useCallback(
     (id: string, messages: StoredMessage[], preferences: SessionPreferences) => {
-      writeSessions(upsertSession(readSessions(), id, messages, preferences));
+      const currentSessions = readSessions();
+      const nextSessions = upsertSession(
+        currentSessions,
+        id,
+        messages,
+        preferences,
+      );
+      if (nextSessions !== currentSessions) writeSessions(nextSessions);
     },
     [],
   );
@@ -88,6 +95,11 @@ export function useChatHistory() {
     [currentSessionId],
   );
 
+  const clearSessions = useCallback(() => {
+    writeSessions(EMPTY_SESSIONS);
+    setCurrentSessionId(null);
+  }, []);
+
   return {
     sessions,
     currentSessionId,
@@ -95,5 +107,6 @@ export function useChatHistory() {
     saveSession,
     loadSession,
     deleteSession,
+    clearSessions,
   };
 }

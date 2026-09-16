@@ -5,7 +5,6 @@ import {
   Heart, MessageCircle, Smile,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
-import type { LearningMode } from "./learning-modes";
 
 export interface QuickPrompt {
   icon: LucideIcon;
@@ -23,19 +22,6 @@ export interface Persona {
   systemPrompt: string;
   placeholder?: string;
   quickPrompts?: QuickPrompt[];
-}
-
-export const LEARNING_PERSONA_ID = "default";
-
-export function personaSupportsLearningModes(personaId: string): boolean {
-  return personaId === LEARNING_PERSONA_ID;
-}
-
-export function resolvePersonaLearningMode(
-  personaId: string,
-  learningMode: LearningMode,
-): LearningMode {
-  return personaSupportsLearningModes(personaId) ? learningMode : "chat";
 }
 
 const SHARED_RULES = `
@@ -87,8 +73,8 @@ export const PERSONAS: Persona[] = [
     colorVar: "--qp-1",
     placeholder: "今天想探索点什么？",
     quickPrompts: [
-      { icon: BookOpen, label: "讲懂概念", prompt: "我想弄懂一个概念。请先问我想学什么和目前了解多少，再按照当前学习模式帮助我。", colorVar: "--qp-1" },
-      { icon: Lightbulb, label: "卡题急救", prompt: "我有一道题卡住了。请先让我发题目和已经尝试过的思路，再按照当前学习模式帮助我。", colorVar: "--qp-2" },
+      { icon: BookOpen, label: "讲懂概念", prompt: "我想弄懂一个概念。请先问我想学什么和目前了解多少，再用适合我的方式讲清楚。", colorVar: "--qp-1" },
+      { icon: Lightbulb, label: "卡题急救", prompt: "我有一道题卡住了。请先让我发题目和已经尝试过的思路，再给我一个关键提示。", colorVar: "--qp-2" },
       { icon: BookOpenCheck, label: "检查思路", prompt: "我想检查一道题的解题思路。请先让我发题目、过程和答案，再帮我找到关键问题。", colorVar: "--qp-3" },
       { icon: Gamepad2, label: "复习小测", prompt: "我想做个复习小测。请先问我要复习的主题，然后出 3 道由浅入深的小题，一次只出一道。", colorVar: "--qp-4" },
     ],
@@ -123,8 +109,9 @@ export const PERSONAS: Persona[] = [
 ────────────────
 【学习方式】
 
-- 具体教学策略由当前学习模式决定，不要自行切换或覆盖模式要求
-- 无论使用哪种模式，都要解释关键思路，并鼓励提问和试错
+- 根据问题和用户目前的理解程度，自然选择提示、分步讲解或检查思路
+- 解题时优先给关键提示；用户明确要求完整讲解时，再展示完整步骤
+- 始终解释关键思路，并鼓励提问和试错
 - 肯定用户具体的思考过程，不做笼统或比较式评价
 ${SHARED_RULES}`,
   },

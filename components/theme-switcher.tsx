@@ -54,6 +54,7 @@ export function ThemeSwitcher({
                     return (
                         <button
                             key={t}
+                            type="button"
                             onClick={() => setTheme(t)}
                             className={cn(
                                 "flex flex-col items-center gap-1 p-2 rounded-lg border-2 transition-all flex-1",
@@ -85,6 +86,7 @@ export function ThemeSwitcher({
     return (
         <div ref={panelRef} className="relative">
             <button
+                type="button"
                 onClick={() => setOpen((v) => !v)}
                 className={cn(
                     "w-10 h-10 flex items-center justify-center rounded-lg border-2 transition-all",
@@ -123,6 +125,7 @@ export function ThemeSwitcher({
                             return (
                                 <button
                                     key={t}
+                                    type="button"
                                     onClick={() => {
                                         setTheme(t);
                                         setOpen(false);

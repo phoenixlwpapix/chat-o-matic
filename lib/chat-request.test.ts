@@ -29,43 +29,33 @@ describe("parseChatRequest", () => {
     const result = await parseChatRequest(createRequest(validBody()));
 
     expect(result.personaId).toBe("default");
-    expect(result.learningMode).toBe("chat");
     expect(result.searchMode).toBe("auto");
     expect(result.messages).toHaveLength(1);
   });
 
-  it("accepts supported learning and search modes", async () => {
+  it("accepts supported search modes", async () => {
     const result = await parseChatRequest(
       createRequest({
         ...validBody(),
-        learningMode: "step-by-step",
         searchMode: "always",
       }),
     );
 
-    expect(result.learningMode).toBe("step-by-step");
     expect(result.searchMode).toBe("always");
   });
 
-  it("limits learning modes to the learning companion", async () => {
-    const result = await parseChatRequest(
-      createRequest({
-        ...validBody(),
-        personaId: "mad-scientist",
-        learningMode: "step-by-step",
-      }),
-    );
-
-    expect(result.personaId).toBe("mad-scientist");
-    expect(result.learningMode).toBe("chat");
+  it("rejects an invalid search mode", async () => {
+    await expect(
+      parseChatRequest(createRequest({ ...validBody(), searchMode: "sometimes" })),
+    ).rejects.toMatchObject({
+      message: "请求参数不正确",
+      status: 400,
+    });
   });
 
-  it.each([
-    ["learningMode", "instant-answer"],
-    ["searchMode", "sometimes"],
-  ])("rejects an invalid %s", async (field, value) => {
+  it("rejects the retired learning mode field", async () => {
     await expect(
-      parseChatRequest(createRequest({ ...validBody(), [field]: value })),
+      parseChatRequest(createRequest({ ...validBody(), learningMode: "hint" })),
     ).rejects.toMatchObject({
       message: "请求参数不正确",
       status: 400,

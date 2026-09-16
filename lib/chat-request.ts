@@ -9,11 +9,7 @@ import {
   MAX_IMAGES_PER_MESSAGE,
   MAX_INPUT_LENGTH,
 } from "./constants";
-import { PERSONAS, resolvePersonaLearningMode } from "./personas";
-import {
-  LEARNING_MODE_IDS,
-  type LearningMode,
-} from "./learning-modes";
+import { PERSONAS } from "./personas";
 import { SEARCH_MODE_IDS, type SearchMode } from "./search-modes";
 
 const requestEnvelopeSchema = z
@@ -24,7 +20,6 @@ const requestEnvelopeSchema = z
     trigger: z.enum(["submit-message", "regenerate-message"]),
     messageId: z.string().max(200).optional(),
     personaId: z.string().max(50).optional(),
-    learningMode: z.enum(LEARNING_MODE_IDS).default("chat"),
     searchMode: z.enum(SEARCH_MODE_IDS).default("auto"),
   })
   .strict();
@@ -43,7 +38,6 @@ const IMAGE_DATA_URL_PATTERN =
 export interface ValidatedChatRequest {
   messages: UIMessage[];
   personaId: string;
-  learningMode: LearningMode;
   searchMode: SearchMode;
 }
 
@@ -177,10 +171,6 @@ export async function parseChatRequest(req: Request): Promise<ValidatedChatReque
   return {
     messages: messageResult.data,
     personaId,
-    learningMode: resolvePersonaLearningMode(
-      personaId,
-      envelopeResult.data.learningMode,
-    ),
     searchMode: envelopeResult.data.searchMode,
   };
 }

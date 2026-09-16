@@ -2,11 +2,7 @@ import { google } from "@ai-sdk/google";
 import { streamText, convertToModelMessages } from "ai";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { ChatRequestError, parseChatRequest } from "@/lib/chat-request";
-import {
-  getPersonaById,
-  personaSupportsLearningModes,
-} from "@/lib/personas";
-import { buildLearningPrompt } from "@/lib/learning-modes";
+import { getPersonaById } from "@/lib/personas";
 import {
   buildChatSystemPrompt,
   buildSearchPrompt,
@@ -41,13 +37,10 @@ export async function POST(req: Request) {
     console.error("Failed to parse chat request", error);
     return Response.json({ error: "请求处理失败" }, { status: 400 });
   }
-  const { messages, personaId, learningMode, searchMode } = chatRequest;
+  const { messages, personaId, searchMode } = chatRequest;
   const persona = getPersonaById(personaId);
   const system = buildChatSystemPrompt(
     persona.systemPrompt,
-    personaSupportsLearningModes(personaId)
-      ? buildLearningPrompt(learningMode)
-      : null,
     buildSearchPrompt(searchMode),
   );
 
