@@ -33,6 +33,111 @@ function sessionContext(session: ChatSession): string {
     return getPersonaById(session.personaId).name;
 }
 
+interface SidebarSessionRowProps {
+    session: ChatSession;
+    isActive: boolean;
+    favoriteCount: number;
+    confirmDeleteId: string | null;
+    onSelect: (id: string) => void;
+    onFavorite: (event: React.MouseEvent, id: string) => void;
+    onDelete: (event: React.MouseEvent, id: string) => void;
+}
+
+function SidebarSessionRow({
+    session,
+    isActive,
+    favoriteCount,
+    confirmDeleteId,
+    onSelect,
+    onFavorite,
+    onDelete,
+}: SidebarSessionRowProps) {
+    return (
+        <div
+            className={cn(
+                "group/item relative flex items-center rounded-lg border text-left transition-all",
+                "hover:-translate-y-px hover:brightness-95",
+            )}
+            style={{
+                borderColor: session.isFavorite ? "var(--qp-2)" : "transparent",
+                backgroundColor: isActive
+                    ? "var(--header-bg)"
+                    : session.isFavorite ? "var(--fb-inactive-bg)" : "transparent",
+                color: isActive ? "var(--header-text)" : "var(--foreground)",
+            }}
+        >
+            <button
+                type="button"
+                onClick={() => onSelect(session.id)}
+                className="flex min-w-0 flex-1 items-center gap-2 px-2 py-1.5 text-left"
+            >
+                {session.isFavorite ? (
+                    <Star
+                        className="h-3 w-3 shrink-0"
+                        fill="var(--qp-2)"
+                        style={{ color: "var(--qp-2)" }}
+                    />
+                ) : (
+                    <MessageSquare className="h-3 w-3 shrink-0 opacity-50" />
+                )}
+                <span className="min-w-0 flex-1">
+                    <span className="block truncate text-xs font-bold">{session.title}</span>
+                    <span className="block truncate text-[10px] opacity-50">
+                        {sessionContext(session)} · {relativeTime(session.updatedAt)}
+                    </span>
+                </span>
+            </button>
+            <div
+                className={cn(
+                    "absolute right-1 top-1/2 flex -translate-y-1/2 items-center rounded-md pl-1 transition-opacity",
+                    confirmDeleteId === session.id
+                        ? "opacity-100"
+                        : "opacity-0 group-hover/item:opacity-100 group-focus-within/item:opacity-100",
+                )}
+                style={{
+                    backgroundColor: isActive ? "var(--header-bg)" : "var(--card-bg)",
+                }}
+            >
+                <button
+                    type="button"
+                    onClick={(event) => onFavorite(event, session.id)}
+                    disabled={!session.isFavorite && favoriteCount >= MAX_FAVORITE_SESSIONS}
+                    className="shrink-0 rounded p-1 transition-transform hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-25"
+                    aria-label={session.isFavorite ? `取消收藏${session.title}` : `收藏${session.title}`}
+                    title={
+                        !session.isFavorite && favoriteCount >= MAX_FAVORITE_SESSIONS
+                            ? `收藏夹最多 ${MAX_FAVORITE_SESSIONS} 条`
+                            : session.isFavorite ? "取消收藏" : "收藏"
+                    }
+                >
+                    <Star
+                        className="h-3.5 w-3.5"
+                        fill={session.isFavorite ? "var(--qp-2)" : "none"}
+                        style={{ color: session.isFavorite ? "var(--qp-2)" : "var(--fb-inactive-text)" }}
+                    />
+                </button>
+                <button
+                    type="button"
+                    onClick={(event) => onDelete(event, session.id)}
+                    className="m-1 shrink-0 rounded p-1 transition-all hover:-translate-y-0.5 hover:brightness-90"
+                    style={{
+                        backgroundColor: confirmDeleteId === session.id ? "var(--hot-badge-bg)" : "transparent",
+                    }}
+                    aria-label={confirmDeleteId === session.id ? `确认删除${session.title}` : `删除${session.title}`}
+                    title={confirmDeleteId === session.id ? "再次点击确认删除" : "删除"}
+                >
+                    <Trash2
+                        className="h-3 w-3"
+                        style={{
+                            color: confirmDeleteId === session.id ? "#fff" : "var(--fb-inactive-text)",
+                        }}
+                    />
+                </button>
+            </div>
+        </div>
+    );
+}
+
 export function ChatHistory({
     sessions,
     currentSessionId,
@@ -46,6 +151,8 @@ export function ChatHistory({
     const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
     const [filter, setFilter] = useState<"all" | "favorites">("all");
     const favoriteCount = sessions.filter((session) => session.isFavorite).length;
+    const favoriteSessions = sessions.filter((session) => session.isFavorite);
+    const historySessions = sessions.filter((session) => !session.isFavorite);
     const visibleSessions = filter === "favorites"
         ? sessions.filter((session) => session.isFavorite)
         : sessions;
@@ -100,129 +207,68 @@ export function ChatHistory({
     if (variant === "sidebar") {
         return (
             <div className="flex-1 min-h-0 flex flex-col">
-                <div className="mb-1.5 flex items-center justify-between gap-2 px-1">
-                    <p
-                        className="text-[10px] font-black uppercase tracking-wider"
-                        style={{ color: "var(--header-subtitle)" }}
-                    >
-                        历史记录
-                    </p>
-                    <div className="flex items-center gap-1">
-                        <button
-                            type="button"
-                            onClick={() => setFilter("all")}
-                            aria-pressed={filter === "all"}
-                            className="rounded px-1.5 py-0.5 text-[9px] font-black"
-                            style={{
-                                backgroundColor: filter === "all" ? "var(--header-bg)" : "transparent",
-                                color: filter === "all" ? "var(--header-text)" : "var(--header-subtitle)",
-                            }}
+                <div className="min-h-0 flex-1 overflow-y-auto pr-1">
+                    {favoriteSessions.length > 0 ? (
+                        <section className="mb-3" aria-labelledby="favorite-sessions-heading">
+                            <div className="mb-1.5 flex items-center px-1">
+                                <p
+                                    id="favorite-sessions-heading"
+                                    className="flex items-center gap-1 text-[10px] font-black uppercase tracking-wider"
+                                    style={{ color: "var(--header-subtitle)" }}
+                                >
+                                    <Star className="h-3 w-3" fill="currentColor" />
+                                    收藏
+                                </p>
+                            </div>
+                            <div className="space-y-1">
+                                {favoriteSessions.map((session) => (
+                                    <SidebarSessionRow
+                                        key={session.id}
+                                        session={session}
+                                        isActive={session.id === currentSessionId}
+                                        favoriteCount={favoriteCount}
+                                        confirmDeleteId={confirmDeleteId}
+                                        onSelect={onSelect}
+                                        onFavorite={handleFavorite}
+                                        onDelete={handleDelete}
+                                    />
+                                ))}
+                            </div>
+                        </section>
+                    ) : null}
+
+                    <section aria-labelledby="history-sessions-heading">
+                        <p
+                            id="history-sessions-heading"
+                            className="mb-1.5 px-1 text-[10px] font-black uppercase tracking-wider"
+                            style={{ color: "var(--header-subtitle)" }}
                         >
-                            全部
-                        </button>
-                        <button
-                            type="button"
-                            onClick={() => setFilter("favorites")}
-                            aria-pressed={filter === "favorites"}
-                            className="flex items-center gap-0.5 rounded px-1.5 py-0.5 text-[9px] font-black"
-                            style={{
-                                backgroundColor: filter === "favorites" ? "var(--qp-2)" : "transparent",
-                                color: filter === "favorites" ? "var(--prompt-card-text)" : "var(--header-subtitle)",
-                            }}
-                            title="收藏夹"
-                        >
-                            <Star className="h-2.5 w-2.5" fill={filter === "favorites" ? "currentColor" : "none"} />
-                            {favoriteCount}
-                        </button>
-                    </div>
-                </div>
-                <div className="flex-1 overflow-y-auto min-h-0 space-y-1">
-                    {visibleSessions.length === 0 ? (
+                            历史记录
+                        </p>
+                        {historySessions.length === 0 ? (
                         <p
                             className="text-xs font-bold px-1 py-2 opacity-40"
                             style={{ color: "var(--foreground)" }}
                         >
-                            {filter === "favorites" ? "暂无收藏" : "暂无历史记录"}
+                            {favoriteSessions.length > 0 ? "暂无其他历史记录" : "暂无历史记录"}
                         </p>
                     ) : (
-                        visibleSessions.map((session) => {
-                            const isActive = session.id === currentSessionId;
-                            return (
-                                <div
-                                    key={session.id}
-                                    className={cn(
-                                        "group/item relative flex items-center rounded-lg text-left transition-colors",
-                                        "hover:brightness-95",
-                                    )}
-                                    style={{
-                                        backgroundColor: isActive ? "var(--header-bg)" : "transparent",
-                                        color: isActive ? "var(--header-text)" : "var(--foreground)",
-                                    }}
-                                >
-                                    <button
-                                        type="button"
-                                        onClick={() => onSelect(session.id)}
-                                        className="flex min-w-0 flex-1 items-center gap-2 px-2 py-1.5 text-left"
-                                    >
-                                        <MessageSquare className="w-3 h-3 shrink-0 opacity-50" />
-                                        <span className="flex-1 min-w-0">
-                                            <span className="block text-xs font-bold truncate">{session.title}</span>
-                                            <span className="block text-[10px] opacity-50 truncate">
-                                                {sessionContext(session)} · {relativeTime(session.updatedAt)}
-                                            </span>
-                                        </span>
-                                    </button>
-                                    <div
-                                        className={cn(
-                                            "absolute right-1 top-1/2 flex -translate-y-1/2 items-center rounded-md pl-1 transition-opacity",
-                                            confirmDeleteId === session.id
-                                                ? "opacity-100"
-                                                : "opacity-0 group-hover/item:opacity-100 group-focus-within/item:opacity-100",
-                                        )}
-                                        style={{
-                                            backgroundColor: isActive ? "var(--header-bg)" : "var(--card-bg)",
-                                        }}
-                                    >
-                                        <button
-                                            type="button"
-                                            onClick={(event) => handleFavorite(event, session.id)}
-                                            disabled={!session.isFavorite && favoriteCount >= MAX_FAVORITE_SESSIONS}
-                                            className="shrink-0 rounded p-1 transition-transform hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-25"
-                                            aria-label={session.isFavorite ? `取消收藏${session.title}` : `收藏${session.title}`}
-                                            title={
-                                                !session.isFavorite && favoriteCount >= MAX_FAVORITE_SESSIONS
-                                                    ? `收藏夹最多 ${MAX_FAVORITE_SESSIONS} 条`
-                                                    : session.isFavorite ? "取消收藏" : "收藏"
-                                            }
-                                        >
-                                            <Star
-                                                className="h-3.5 w-3.5"
-                                                fill={session.isFavorite ? "var(--qp-2)" : "none"}
-                                                style={{ color: session.isFavorite ? "var(--qp-2)" : "var(--fb-inactive-text)" }}
-                                            />
-                                        </button>
-                                        <button
-                                            type="button"
-                                            onClick={(event) => handleDelete(event, session.id)}
-                                            className="m-1 shrink-0 rounded p-1 transition-all hover:-translate-y-0.5 hover:brightness-90"
-                                            style={{
-                                                backgroundColor: confirmDeleteId === session.id ? "var(--hot-badge-bg)" : "transparent",
-                                            }}
-                                            aria-label={confirmDeleteId === session.id ? `确认删除${session.title}` : `删除${session.title}`}
-                                            title={confirmDeleteId === session.id ? "再次点击确认删除" : "删除"}
-                                        >
-                                            <Trash2
-                                                className="w-3 h-3"
-                                                style={{
-                                                    color: confirmDeleteId === session.id ? "#fff" : "var(--fb-inactive-text)",
-                                                }}
-                                            />
-                                        </button>
-                                    </div>
-                                </div>
-                            );
-                        })
+                            <div className="space-y-1">
+                                {historySessions.map((session) => (
+                                    <SidebarSessionRow
+                                        key={session.id}
+                                        session={session}
+                                        isActive={session.id === currentSessionId}
+                                        favoriteCount={favoriteCount}
+                                        confirmDeleteId={confirmDeleteId}
+                                        onSelect={onSelect}
+                                        onFavorite={handleFavorite}
+                                        onDelete={handleDelete}
+                                    />
+                                ))}
+                            </div>
                     )}
+                    </section>
                 </div>
             </div>
         );

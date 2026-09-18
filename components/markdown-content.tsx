@@ -31,7 +31,9 @@ const QUOTE_PAIRS = [
 ] as const;
 
 export function normalizeMarkdown(text: string): string {
-  let result = text;
+  let result = text
+    .replace(/^\s*🔟\s+/gm, "10. ")
+    .replace(/^\s*([1-9])\uFE0F?\u20E3\s+/gm, "$1. ");
   for (const [open, close] of QUOTE_PAIRS) {
     const pattern = new RegExp(`\\*\\*${open}([^\\*]+?)${close}\\*\\*`, "g");
     result = result.replace(pattern, `${open}**$1**${close}`);
@@ -102,7 +104,7 @@ const MARKDOWN_COMPONENTS: Components = { code: MarkdownCode };
 
 export function MarkdownContent({ text }: { text: string }) {
   return (
-    <div className="prose prose-base max-w-none">
+    <div className="markdown-content prose prose-base max-w-none">
       <ReactMarkdown
         remarkPlugins={[remarkGfm, remarkMath]}
         rehypePlugins={[rehypeKatex]}

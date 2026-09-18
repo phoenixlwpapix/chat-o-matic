@@ -297,6 +297,63 @@ body {
     "Microsoft YaHei", sans-serif;
 }
 
+/* ── Markdown ordered lists ── */
+.markdown-content ol {
+  list-style: none;
+  counter-reset: markdown-step;
+  padding-inline-start: 0;
+}
+
+.markdown-content ol > li {
+  position: relative;
+  counter-increment: markdown-step;
+  min-height: 1.75rem;
+  padding-inline-start: 2.35rem;
+}
+
+.markdown-content ol > li::before {
+  position: absolute;
+  top: 0.12em;
+  left: 0;
+  display: inline-grid;
+  min-width: 1.55rem;
+  height: 1.55rem;
+  padding: 0 0.25rem;
+  place-items: center;
+  content: counter(markdown-step);
+  color: var(--header-text);
+  font-family: var(--font-geist-mono), ui-monospace, monospace;
+  font-size: 0.72rem;
+  font-weight: 900;
+  line-height: 1;
+  background: var(--header-bg);
+  border: 2px solid var(--border-color);
+  border-radius: 0.45rem;
+  box-shadow: 2px 2px 0 rgba(var(--shadow-color), 1);
+}
+
+.markdown-content ol > li::after {
+  position: absolute;
+  top: 1.95rem;
+  bottom: -0.5rem;
+  left: 0.72rem;
+  width: 2px;
+  content: "";
+  background: var(--fb-inactive-border);
+}
+
+.markdown-content ol > li:last-child::after {
+  display: none;
+}
+
+.markdown-content ol > li > p:first-child {
+  margin-top: 0;
+}
+
+.markdown-content ol > li > p:last-child {
+  margin-bottom: 0;
+}
+
 /* ── Animations ── */
 @keyframes float {
 
@@ -332,6 +389,64 @@ body {
 
 .float-6 {
   animation: float 3.6s ease-in-out infinite 1.2s;
+}
+
+@keyframes status-search-sweep {
+  0% { transform: translate(-11px, 9px) rotate(-18deg); }
+  50% { transform: translate(10px, -8px) rotate(10deg); }
+  100% { transform: translate(-11px, 9px) rotate(-18deg); }
+}
+
+@keyframes status-think-breathe {
+  0%, 100% { transform: scale(0.92); opacity: 0.72; }
+  50% { transform: scale(1.08); opacity: 1; }
+}
+
+@keyframes status-dot-hop {
+  0%, 60%, 100% { transform: translateY(0); opacity: 0.35; }
+  30% { transform: translateY(-3px); opacity: 1; }
+}
+
+.status-icon-search svg {
+  animation: status-search-sweep 1.45s ease-in-out infinite;
+}
+
+.status-icon-search::after {
+  position: absolute;
+  width: 22px;
+  height: 2px;
+  content: "";
+  background: rgba(255, 255, 255, 0.42);
+  box-shadow: 0 6px 0 rgba(255, 255, 255, 0.2);
+  transform: rotate(-35deg);
+}
+
+.status-icon-thinking svg {
+  animation: status-think-breathe 1.25s ease-in-out infinite;
+}
+
+.status-dots {
+  display: inline-flex;
+  gap: 3px;
+}
+
+.status-dots > span {
+  width: 4px;
+  height: 4px;
+  border-radius: 999px;
+  background: currentColor;
+  animation: status-dot-hop 1.05s ease-in-out infinite;
+}
+
+.status-dots > span:nth-child(2) { animation-delay: 120ms; }
+.status-dots > span:nth-child(3) { animation-delay: 240ms; }
+
+@media (prefers-reduced-motion: reduce) {
+  .status-icon-search svg,
+  .status-icon-thinking svg,
+  .status-dots > span {
+    animation: none;
+  }
 }
 
 /* ── Custom Scrollbar (neo-brutalism) ── */

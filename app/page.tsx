@@ -21,6 +21,7 @@ import {
   Mic,
   MicOff,
   Search,
+  BrainCircuit,
   AlertTriangle,
   PanelLeftOpen,
   PanelLeftClose,
@@ -131,6 +132,7 @@ export default function Home() {
   const [pendingImages, setPendingImages] = useState<string[]>([]);
   // API 错误提示
   const [apiError, setApiError] = useState<string | null>(null);
+  const [activeRequestSearchMode, setActiveRequestSearchMode] = useState<SearchMode | null>(null);
 
   // 侧边栏
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -432,6 +434,7 @@ export default function Home() {
 
   // 处理快捷提示词点击
   const handleQuickPrompt = (prompt: string) => {
+    setActiveRequestSearchMode(searchMode);
     sendMessage(
       { text: prompt },
       {
@@ -445,6 +448,7 @@ export default function Home() {
       const action = RESPONSE_ACTIONS.find((item) => item.id === actionId);
       if (!action) return;
       const requestSearchMode = actionId === "verify" ? "always" : searchMode;
+      setActiveRequestSearchMode(requestSearchMode);
       sendMessage(
         { text: action.prompt },
         {
@@ -525,6 +529,7 @@ export default function Home() {
     if (!lastAssistant) return;
 
     // AI SDK 会复用原始用户消息，包含其中的图片 parts。
+    setActiveRequestSearchMode(searchMode);
     regenerate({
       messageId: lastAssistant.id,
       body: createChatRequestBody(personaId, searchMode),
@@ -548,6 +553,7 @@ export default function Home() {
       url: dataUrl,
     }));
 
+    setActiveRequestSearchMode(searchMode);
     sendMessage(
       {
         text: inputValue || "请看这张图片，帮我解决问题",
@@ -992,7 +998,7 @@ export default function Home() {
           {isLoading &&
             (() => {
               const lastMsg = messages[messages.length - 1];
-              const isSearching =
+              const isToolSearching =
                 lastMsg?.role === "assistant" &&
                 lastMsg.parts.some(
                   (p) =>
@@ -1007,6 +1013,9 @@ export default function Home() {
                 !lastMsg.parts.some(
                   (p) => p.type === "text" && p.text.length > 0,
                 );
+              const isSearching =
+                isToolSearching ||
+                (hasNoText && activeRequestSearchMode === "always");
 
               if (!isSearching && !hasNoText) return null;
 
@@ -1014,7 +1023,10 @@ export default function Home() {
                 <div className="flex justify-start w-full">
                   <div className="flex items-center gap-2">
                     <div
-                      className="w-8 h-8 rounded-full border-2 flex items-center justify-center"
+                      className={cn(
+                        "relative flex h-8 w-8 items-center justify-center overflow-hidden rounded-full border-2",
+                        isSearching ? "status-icon-search" : "status-icon-thinking",
+                      )}
                       style={{
                         borderColor: "var(--border-color)",
                         backgroundColor: isSearching
@@ -1025,9 +1037,9 @@ export default function Home() {
                       }}
                     >
                       {isSearching ? (
-                        <Search className="w-5 h-5 text-white animate-pulse" />
+                        <Search className="relative z-10 h-4.5 w-4.5 text-white" />
                       ) : (
-                        <Bot className="w-5 h-5 text-white animate-pulse" />
+                        <BrainCircuit className="relative z-10 h-4.5 w-4.5 text-white" />
                       )}
                     </div>
                     <div
@@ -1041,8 +1053,13 @@ export default function Home() {
                           "4px 4px 0px 0px rgba(var(--shadow-color), 1)",
                       }}
                     >
-                      <span className="text-base font-bold animate-pulse">
-                        {isSearching ? "联网搜索中..." : "思考中..."}
+                      <span className="inline-flex items-center gap-2 text-base font-bold" role="status" aria-live="polite">
+                        {isSearching ? "联网搜索中" : "思考中"}
+                        <span className="status-dots" aria-hidden="true">
+                          <span />
+                          <span />
+                          <span />
+                        </span>
                       </span>
                     </div>
                   </div>
