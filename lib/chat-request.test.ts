@@ -44,6 +44,31 @@ describe("parseChatRequest", () => {
     expect(result.searchMode).toBe("always");
   });
 
+  it("accepts a valid userName", async () => {
+    const result = await parseChatRequest(
+      createRequest({
+        ...validBody(),
+        userName: "阿荒",
+      }),
+    );
+
+    expect(result.userName).toBe("阿荒");
+  });
+
+  it("rejects an oversized userName", async () => {
+    await expect(
+      parseChatRequest(
+        createRequest({
+          ...validBody(),
+          userName: "a".repeat(11),
+        }),
+      ),
+    ).rejects.toMatchObject({
+      message: "请求参数不正确",
+      status: 400,
+    });
+  });
+
   it("rejects an invalid search mode", async () => {
     await expect(
       parseChatRequest(createRequest({ ...validBody(), searchMode: "sometimes" })),

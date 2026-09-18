@@ -8,6 +8,7 @@ import {
   MAX_IMAGE_BYTES,
   MAX_IMAGES_PER_MESSAGE,
   MAX_INPUT_LENGTH,
+  MAX_USER_NAME_LENGTH,
 } from "./constants";
 import { PERSONAS } from "./personas";
 import { SEARCH_MODE_IDS, type SearchMode } from "./search-modes";
@@ -21,6 +22,7 @@ const requestEnvelopeSchema = z
     messageId: z.string().max(200).optional(),
     personaId: z.string().max(50).optional(),
     searchMode: z.enum(SEARCH_MODE_IDS).default("auto"),
+    userName: z.string().max(MAX_USER_NAME_LENGTH).optional(),
   })
   .strict();
 
@@ -39,6 +41,7 @@ export interface ValidatedChatRequest {
   messages: UIMessage[];
   personaId: string;
   searchMode: SearchMode;
+  userName?: string;
 }
 
 export class ChatRequestError extends Error {
@@ -172,5 +175,6 @@ export async function parseChatRequest(req: Request): Promise<ValidatedChatReque
     messages: messageResult.data,
     personaId,
     searchMode: envelopeResult.data.searchMode,
+    userName: envelopeResult.data.userName,
   };
 }

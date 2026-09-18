@@ -107,10 +107,12 @@ function getMessageText(parts: UIMessage["parts"]): string {
 function createChatRequestBody(
   personaId: string,
   searchMode: SearchMode,
+  userName?: string,
 ) {
   return {
     personaId,
     searchMode,
+    ...(userName?.trim() ? { userName: userName.trim() } : {}),
   };
 }
 
@@ -120,9 +122,11 @@ export default function Home() {
     personaId,
     searchMode,
     userAvatar,
+    userName,
     setPersonaId,
     setSearchMode,
     setUserAvatar,
+    setUserName,
   } = useChatPreferences();
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -438,7 +442,7 @@ export default function Home() {
     sendMessage(
       { text: prompt },
       {
-        body: createChatRequestBody(personaId, searchMode),
+        body: createChatRequestBody(personaId, searchMode, userName),
       },
     );
   };
@@ -455,11 +459,12 @@ export default function Home() {
           body: createChatRequestBody(
             personaId,
             requestSearchMode,
+            userName,
           ),
         },
       );
     },
-    [sendMessage, personaId, searchMode],
+    [sendMessage, personaId, searchMode, userName],
   );
 
   const scrollToBottom = () => {
@@ -532,9 +537,9 @@ export default function Home() {
     setActiveRequestSearchMode(searchMode);
     regenerate({
       messageId: lastAssistant.id,
-      body: createChatRequestBody(personaId, searchMode),
+      body: createChatRequestBody(personaId, searchMode, userName),
     });
-  }, [messages, personaId, searchMode, regenerate]);
+  }, [messages, personaId, searchMode, userName, regenerate]);
 
   useEffect(() => {
     scrollToBottom();
@@ -560,7 +565,7 @@ export default function Home() {
         files,
       },
       {
-        body: createChatRequestBody(personaId, searchMode),
+        body: createChatRequestBody(personaId, searchMode, userName),
       },
     );
 
@@ -1244,6 +1249,7 @@ export default function Home() {
         searchMode={searchMode}
         theme={theme}
         userAvatar={userAvatar}
+        userName={userName}
         hasActiveConversation={messages.length > 0}
         historyCount={history.sessions.length}
         onOpenChange={setSettingsOpen}
@@ -1251,6 +1257,7 @@ export default function Home() {
         onSearchModeChange={setSearchMode}
         onThemeChange={setTheme}
         onUserAvatarChange={setUserAvatar}
+        onUserNameChange={setUserName}
         onClearHistory={clearConversationHistory}
       />
       <PersonaSwitcher

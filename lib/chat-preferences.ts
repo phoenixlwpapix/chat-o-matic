@@ -1,18 +1,21 @@
+import { MAX_USER_NAME_LENGTH } from "./constants";
 import { getPersonaById } from "./personas";
 import { getSearchMode, type SearchMode } from "./search-modes";
 
 export interface ChatPreferences {
-  schemaVersion: 3;
+  schemaVersion: 4;
   personaId: string;
   searchMode: SearchMode;
   userAvatar: string | null;
+  userName: string;
 }
 
 export const DEFAULT_CHAT_PREFERENCES: ChatPreferences = {
-  schemaVersion: 3,
+  schemaVersion: 4,
   personaId: "default",
   searchMode: "auto",
   userAvatar: null,
+  userName: "",
 };
 
 const AVATAR_DATA_URL_PATTERN = /^data:image\/(?:jpeg|png|webp);base64,/;
@@ -26,7 +29,7 @@ export function normalizeChatPreferences(value: unknown): ChatPreferences {
   if (!isRecord(value)) return DEFAULT_CHAT_PREFERENCES;
 
   return {
-    schemaVersion: 3,
+    schemaVersion: 4,
     personaId: getPersonaById(
       typeof value.personaId === "string" ? value.personaId : "default",
     ).id,
@@ -39,5 +42,9 @@ export function normalizeChatPreferences(value: unknown): ChatPreferences {
       AVATAR_DATA_URL_PATTERN.test(value.userAvatar)
         ? value.userAvatar
         : null,
+    userName:
+      typeof value.userName === "string"
+        ? value.userName.trim().slice(0, MAX_USER_NAME_LENGTH)
+        : "",
   };
 }

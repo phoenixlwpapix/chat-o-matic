@@ -54,6 +54,14 @@ export function isSearchEnabled(mode: SearchMode): boolean {
 export function buildChatSystemPrompt(
   personaPrompt: string,
   searchPrompt: string,
+  userName?: string,
 ): string {
-  return [personaPrompt, searchPrompt].join("\n\n");
+  const parts = [personaPrompt, searchPrompt];
+  const trimmedName = userName?.trim();
+  if (trimmedName) {
+    parts.push(
+      `【用户称呼规范（严格遵守）】\n当前与你对话的用户名为："${trimmedName}"。\n无论你扮演何种性格角色，每次回答用户问题时，回答的第一句话必须直接以该用户名开头（例如："${trimmedName}，..." 或 "${trimmedName}："），不得省略。`,
+    );
+  }
+  return parts.join("\n\n");
 }

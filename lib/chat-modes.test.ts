@@ -17,6 +17,17 @@ describe("chat mode prompts", () => {
     expect(result).toContain("联网策略：自动");
   });
 
+  it("includes user name requirement when userName is provided", () => {
+    const result = buildChatSystemPrompt(
+      "PERSONA",
+      buildSearchPrompt("auto"),
+      "阿荒",
+    );
+
+    expect(result).toContain("阿荒");
+    expect(result).toContain("以该用户名开头");
+  });
+
   it("requires sources in always-search mode", () => {
     expect(buildSearchPrompt("always")).toContain("必须先使用 Google Search");
   });
@@ -26,7 +37,6 @@ describe("chat mode prompts", () => {
     expect(isSearchEnabled("off")).toBe(false);
     expect(isSearchEnabled("auto")).toBe(true);
   });
-
 });
 
 describe("chat preferences", () => {
@@ -38,10 +48,11 @@ describe("chat preferences", () => {
         searchMode: "off",
       }),
     ).toEqual({
-      schemaVersion: 3,
+      schemaVersion: 4,
       personaId: "philosophical-cat",
       searchMode: "off",
       userAvatar: null,
+      userName: "",
     });
   });
 
@@ -52,11 +63,21 @@ describe("chat preferences", () => {
         searchMode: 123,
       }),
     ).toEqual({
-      schemaVersion: 3,
+      schemaVersion: 4,
       personaId: "default",
       searchMode: "auto",
       userAvatar: null,
+      userName: "",
     });
+  });
+
+  it("keeps valid userName and clamps oversized userName", () => {
+    expect(
+      normalizeChatPreferences({ userName: "阿荒" }).userName,
+    ).toBe("阿荒");
+    expect(
+      normalizeChatPreferences({ userName: "a".repeat(30) }).userName,
+    ).toBe("a".repeat(10));
   });
 
   it("keeps supported local avatars and rejects remote images", () => {

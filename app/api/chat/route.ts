@@ -37,11 +37,12 @@ export async function POST(req: Request) {
     console.error("Failed to parse chat request", error);
     return Response.json({ error: "请求处理失败" }, { status: 400 });
   }
-  const { messages, personaId, searchMode } = chatRequest;
+  const { messages, personaId, searchMode, userName } = chatRequest;
   const persona = getPersonaById(personaId);
   const system = buildChatSystemPrompt(
     persona.systemPrompt,
     buildSearchPrompt(searchMode),
+    userName,
   );
 
   // 2. 调用 Gemini 模型（含 Google Search 联网搜索）

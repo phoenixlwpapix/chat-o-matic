@@ -69,7 +69,12 @@ function SidebarSessionRow({
             <button
                 type="button"
                 onClick={() => onSelect(session.id)}
-                className="flex min-w-0 flex-1 items-center gap-2 px-2 py-1.5 text-left"
+                className={cn(
+                    "flex min-w-0 flex-1 items-center gap-2 py-1.5 pl-2 text-left transition-all",
+                    isActive || confirmDeleteId === session.id
+                        ? "pr-16"
+                        : "pr-2 group-hover/item:pr-16",
+                )}
             >
                 {session.isFavorite ? (
                     <Star
@@ -90,7 +95,7 @@ function SidebarSessionRow({
             <div
                 className={cn(
                     "absolute right-1 top-1/2 flex -translate-y-1/2 items-center rounded-md pl-1 transition-opacity",
-                    confirmDeleteId === session.id
+                    isActive || confirmDeleteId === session.id
                         ? "opacity-100"
                         : "opacity-0 group-hover/item:opacity-100 group-focus-within/item:opacity-100",
                 )}
@@ -368,7 +373,12 @@ export function ChatHistory({
                                         <button
                                             type="button"
                                             onClick={() => handleSelect(session.id)}
-                                            className="flex-1 min-w-0 px-3 py-2.5 text-left"
+                                            className={cn(
+                                                "flex-1 min-w-0 py-2.5 pl-3 text-left transition-all",
+                                                isActive || confirmDeleteId === session.id
+                                                    ? "pr-18"
+                                                    : "pr-3 group-hover/item:pr-18",
+                                            )}
                                         >
                                             <p className="text-sm font-bold truncate">
                                                 {session.title}
@@ -383,7 +393,7 @@ export function ChatHistory({
                                         <div
                                             className={cn(
                                                 "absolute right-3 top-1/2 flex -translate-y-1/2 items-center gap-1 rounded-md p-1 transition-opacity",
-                                                confirmDeleteId === session.id
+                                                isActive || confirmDeleteId === session.id
                                                     ? "opacity-100"
                                                     : "opacity-0 group-hover/item:opacity-100 group-focus-within/item:opacity-100",
                                             )}

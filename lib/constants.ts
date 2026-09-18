@@ -1,6 +1,9 @@
 /** 用户单条消息最大字符数 */
 export const MAX_INPUT_LENGTH = 3000;
 
+/** 用户名最大字符数 */
+export const MAX_USER_NAME_LENGTH = 10;
+
 /** 聊天接口请求体最大 4 MiB */
 export const MAX_CHAT_REQUEST_BYTES = 4 * 1024 * 1024;
 
