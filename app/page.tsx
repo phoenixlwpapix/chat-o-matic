@@ -15,7 +15,6 @@ import {
   Send,
   Bot,
   User as UserIcon,
-  Zap,
   Plus,
   ImagePlus,
   X,
@@ -600,15 +599,17 @@ export default function Home() {
         >
           {/* Logo */}
           <div className="flex items-center gap-2 px-1 pb-2 border-b-2" style={{ borderColor: "var(--border-color)" }}>
-            <div
-              className="p-1.5 rounded-lg -rotate-3"
+            <Image
+              src="/icon-192.png"
+              alt="聊聊机"
+              width={36}
+              height={36}
+              className="size-9 rounded-lg border-2 object-cover -rotate-3"
               style={{
-                backgroundColor: "var(--logo-bg)",
+                borderColor: "var(--border-color)",
                 boxShadow: "2px 2px 0px 0px var(--logo-shadow)",
               }}
-            >
-              <Zap className="w-5 h-5" style={{ color: "var(--logo-icon)", fill: "var(--logo-icon)" }} />
-            </div>
+            />
             <div>
               <p className="text-lg font-black tracking-tighter leading-none" style={{ color: "var(--foreground)" }}>聊聊机</p>
               <p className="text-[9px] font-black uppercase tracking-[0.2em]" style={{ color: "var(--header-subtitle)" }}>Chat-O-Matic</p>

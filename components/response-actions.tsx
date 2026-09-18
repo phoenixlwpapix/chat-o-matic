@@ -4,7 +4,6 @@ import {
   BookOpenCheck,
   Check,
   Copy,
-  ListChecks,
   RefreshCw,
   ScanSearch,
   Sparkles,
@@ -16,7 +15,6 @@ import { cn } from "@/lib/utils";
 export const RESPONSE_ACTION_IDS = [
   "simplify",
   "example",
-  "summary",
   "quiz",
   "verify",
 ] as const;
@@ -42,12 +40,6 @@ export const RESPONSE_ACTIONS: ResponseActionDefinition[] = [
     label: "举个例子",
     prompt: "请针对刚才的回答，举一个贴近日常生活的具体例子。",
     icon: Waypoints,
-  },
-  {
-    id: "summary",
-    label: "总结",
-    prompt: "请把刚才的回答总结成不超过 3 个要点。",
-    icon: ListChecks,
   },
   {
     id: "quiz",
@@ -82,94 +74,71 @@ export function ResponseActions({
   onCopy,
   onRegenerate,
 }: ResponseActionsProps) {
+  const chipClassName = cn(
+    "inline-flex items-center gap-1 rounded-md border px-2 py-1 text-[11px] font-bold transition-all",
+    "hover:-translate-y-0.5 hover:brightness-95 active:translate-x-0.5 active:translate-y-0.5",
+    "disabled:cursor-not-allowed disabled:opacity-50",
+  );
+
+  const chipStyle = {
+    borderColor: "var(--fb-inactive-border)",
+    backgroundColor: "var(--fb-inactive-bg)",
+    color: "var(--fb-inactive-text)",
+  };
+
   return (
     <div
-      className="mt-2 flex flex-wrap items-center justify-between gap-2"
+      className="mt-2 flex flex-wrap items-center gap-1.5"
       aria-label="回复操作"
     >
-      <div className="flex flex-wrap gap-1.5">
-        {showLearningActions
-          ? RESPONSE_ACTIONS.map((action) => {
-              const Icon = action.icon;
-              return (
-                <button
-                  key={action.id}
-                  type="button"
-                  onClick={() => onAction(action.id)}
-                  disabled={disabled}
-                  className={cn(
-                    "inline-flex items-center gap-1 rounded-md border px-2 py-1 text-[11px] font-bold transition-all",
-                    "hover:-translate-y-0.5 hover:brightness-95 active:translate-x-0.5 active:translate-y-0.5",
-                    "disabled:cursor-not-allowed disabled:opacity-50",
-                  )}
-                  style={{
-                    borderColor: "var(--fb-inactive-border)",
-                    backgroundColor: "var(--fb-inactive-bg)",
-                    color: "var(--fb-inactive-text)",
-                  }}
-                >
-                  <Icon className="h-3 w-3" />
-                  {action.label}
-                </button>
-              );
-            })
-          : null}
-      </div>
+      {showLearningActions
+        ? RESPONSE_ACTIONS.map((action) => {
+            const Icon = action.icon;
+            return (
+              <button
+                key={action.id}
+                type="button"
+                onClick={() => onAction(action.id)}
+                disabled={disabled}
+                className={chipClassName}
+                style={chipStyle}
+              >
+                <Icon className="h-3 w-3" />
+                {action.label}
+              </button>
+            );
+          })
+        : null}
 
-      <div className="ml-auto flex items-center gap-1.5">
-        {showLearningActions ? (
-          <button
-            type="button"
-            onClick={onRegenerate}
-            disabled={disabled}
-            className={cn(
-              "rounded-lg border-2 p-1.5 transition-all hover:-translate-y-0.5",
-              "active:translate-x-0.5 active:translate-y-0.5",
-              "disabled:cursor-not-allowed disabled:opacity-50",
-            )}
-            style={{
-              borderColor: "var(--border-color)",
-              backgroundColor: "var(--fb-inactive-bg)",
-              boxShadow: "2px 2px 0px 0px rgba(var(--shadow-color), 1)",
-            }}
-            aria-label="重新生成"
-            title="重新生成"
-          >
-            <RefreshCw
-              className={cn("h-4 w-4", isRegenerating && "animate-spin")}
-              style={{ color: "var(--fb-inactive-text)" }}
-            />
-          </button>
-        ) : null}
-
+      {showLearningActions ? (
         <button
           type="button"
-          onClick={onCopy}
-          className={cn(
-            "rounded-lg border-2 p-1.5 transition-all hover:-translate-y-0.5",
-            "active:translate-x-0.5 active:translate-y-0.5",
-          )}
-          style={{
-            borderColor: "var(--border-color)",
-            backgroundColor: "var(--fb-inactive-bg)",
-            boxShadow: "2px 2px 0px 0px rgba(var(--shadow-color), 1)",
-          }}
-          aria-label={isCopied ? "回复已复制" : "复制回复"}
-          title={isCopied ? "回复已复制" : "复制回复"}
+          onClick={onRegenerate}
+          disabled={disabled}
+          className={chipClassName}
+          style={chipStyle}
         >
-          {isCopied ? (
-            <Check
-              className="h-4 w-4"
-              style={{ color: "var(--fb-helpful-bg)" }}
-            />
-          ) : (
-            <Copy
-              className="h-4 w-4"
-              style={{ color: "var(--fb-inactive-text)" }}
-            />
-          )}
+          <RefreshCw
+            className={cn("h-3 w-3", isRegenerating && "animate-spin")}
+          />
+          重新生成
         </button>
-      </div>
+      ) : null}
+
+      <button
+        type="button"
+        onClick={onCopy}
+        className={chipClassName}
+        style={chipStyle}
+        aria-label={isCopied ? "回复已复制" : "复制回复"}
+      >
+        {isCopied ? (
+          <Check className="h-3 w-3" style={{ color: "var(--fb-helpful-bg)" }} />
+        ) : (
+          <Copy className="h-3 w-3" />
+        )}
+        {isCopied ? "已复制" : "复制"}
+      </button>
     </div>
   );
 }
