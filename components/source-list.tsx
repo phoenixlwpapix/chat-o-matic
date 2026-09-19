@@ -1,6 +1,6 @@
 "use client";
 
-import { Globe, WifiOff } from "lucide-react";
+import { Globe } from "lucide-react";
 import type { UIMessage } from "ai";
 
 interface SourceListProps {
@@ -23,6 +23,7 @@ export function SourceList({
         part.type === "dynamic-tool",
     );
 
+  if (!usedSearch) return null;
   if (!isComplete && sources.length === 0) return null;
 
   return (
@@ -31,20 +32,16 @@ export function SourceList({
       style={{ borderColor: "var(--fb-inactive-border)" }}
     >
       <div className="mb-2 flex items-center gap-1.5">
-        {usedSearch ? (
-          <Globe className="h-3.5 w-3.5" style={{ color: "var(--source-text)" }} />
-        ) : (
-          <WifiOff className="h-3.5 w-3.5" style={{ color: "var(--fb-inactive-text)" }} />
-        )}
+        <Globe
+          aria-hidden="true"
+          className="h-3.5 w-3.5"
+          style={{ color: "var(--source-text)" }}
+        />
         <span
           className="text-[10px] font-black uppercase tracking-wide"
-          style={{
-            color: usedSearch
-              ? "var(--source-text)"
-              : "var(--fb-inactive-text)",
-          }}
+          style={{ color: "var(--source-text)" }}
         >
-          {usedSearch ? "已联网参考" : "未使用联网"}
+          已联网参考
         </span>
       </div>
 
@@ -72,7 +69,7 @@ export function SourceList({
                 }}
                 title={part.title ?? part.url}
               >
-                <Globe className="h-3 w-3 shrink-0" />
+                <Globe aria-hidden="true" className="h-3 w-3 shrink-0" />
                 <span className="max-w-[150px] truncate">
                   {part.title ?? hostname}
                 </span>

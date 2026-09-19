@@ -86,6 +86,11 @@ export function ResponseActions({
     color: "var(--fb-inactive-text)",
   };
 
+  const iconButtonClassName = cn(
+    chipClassName,
+    "h-7 w-7 justify-center gap-0 p-0",
+  );
+
   return (
     <div
       className="mt-2 flex flex-wrap items-center gap-1.5"
@@ -103,7 +108,7 @@ export function ResponseActions({
                 className={chipClassName}
                 style={chipStyle}
               >
-                <Icon className="h-3 w-3" />
+                <Icon aria-hidden="true" className="h-3 w-3" />
                 {action.label}
               </button>
             );
@@ -115,29 +120,38 @@ export function ResponseActions({
           type="button"
           onClick={onRegenerate}
           disabled={disabled}
-          className={chipClassName}
+          className={iconButtonClassName}
           style={chipStyle}
+          aria-label="重新生成回复"
+          title="重新生成"
         >
           <RefreshCw
-            className={cn("h-3 w-3", isRegenerating && "animate-spin")}
+            aria-hidden="true"
+            className={cn(
+              "h-3.5 w-3.5",
+              isRegenerating && "animate-spin motion-reduce:animate-none",
+            )}
           />
-          重新生成
         </button>
       ) : null}
 
       <button
         type="button"
         onClick={onCopy}
-        className={chipClassName}
+        className={iconButtonClassName}
         style={chipStyle}
         aria-label={isCopied ? "回复已复制" : "复制回复"}
+        title={isCopied ? "已复制" : "复制"}
       >
         {isCopied ? (
-          <Check className="h-3 w-3" style={{ color: "var(--fb-helpful-bg)" }} />
+          <Check
+            aria-hidden="true"
+            className="h-3.5 w-3.5"
+            style={{ color: "var(--fb-helpful-bg)" }}
+          />
         ) : (
-          <Copy className="h-3 w-3" />
+          <Copy aria-hidden="true" className="h-3.5 w-3.5" />
         )}
-        {isCopied ? "已复制" : "复制"}
       </button>
     </div>
   );
