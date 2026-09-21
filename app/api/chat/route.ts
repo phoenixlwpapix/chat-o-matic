@@ -3,6 +3,7 @@ import { streamText, convertToModelMessages } from "ai";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { ChatRequestError, parseChatRequest } from "@/lib/chat-request";
 import { getPersonaById } from "@/lib/personas";
+import { getPublicChatErrorMessage } from "@/lib/chat-errors";
 import {
   buildChatSystemPrompt,
   buildSearchPrompt,
@@ -46,19 +47,37 @@ export async function POST(req: Request) {
   );
 
   // 2. 调用 Gemini 模型（含 Google Search 联网搜索）
-  const result = streamText({
-    model: google("gemini-3.5-flash-lite"),
-    tools:
-      isSearchEnabled(searchMode)
-        ? { google_search: google.tools.googleSearch({}) }
-        : undefined,
-    system,
-    // 3. 将 UI 消息格式转换为模型能理解的格式
-    messages: await convertToModelMessages(messages),
-  });
+  try {
+    const result = streamText({
+      model: google("gemini-3.5-flash-lite"),
+      tools:
+        isSearchEnabled(searchMode)
+          ? { google_search: google.tools.googleSearch({}) }
+          : undefined,
+      system,
+      // 3. 将 UI 消息格式转换为模型能理解的格式
+      messages: await convertToModelMessages(messages),
+    });
 
-  // 4. 返回流式响应（含搜索来源）
-  return result.toUIMessageStreamResponse({
-    sendSources: true,
-  });
+    // 4. 把流中途发生的供应商错误转换为安全、可读的消息。
+    return result.toUIMessageStreamResponse({
+      sendSources: true,
+      onError: (error) => {
+        console.error(
+          "Chat provider stream failed",
+          error instanceof Error ? error.message : "Unknown provider error",
+        );
+        return getPublicChatErrorMessage(error);
+      },
+    });
+  } catch (error) {
+    console.error(
+      "Chat provider request failed",
+      error instanceof Error ? error.message : "Unknown provider error",
+    );
+    return Response.json(
+      { error: getPublicChatErrorMessage(error) },
+      { status: 503 },
+    );
+  }
 }

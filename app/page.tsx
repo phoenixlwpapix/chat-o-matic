@@ -58,6 +58,7 @@ import { SourceList } from "@/components/source-list";
 import { useChatHistory, toStoredMessages } from "@/lib/use-chat-history";
 import { MAX_FAVORITE_SESSIONS } from "@/lib/chat-history";
 import type { SearchMode } from "@/lib/search-modes";
+import { getClientChatErrorMessage } from "@/lib/chat-errors";
 import "katex/dist/katex.min.css";
 
 // SpeechRecognition 类型声明
@@ -89,7 +90,23 @@ declare global {
   }
 }
 
-const chatTransport = new DefaultChatTransport();
+const chatTransport = new DefaultChatTransport({
+  fetch: async (input, init) => {
+    const response = await fetch(input, init);
+    if (response.ok) return response;
+
+    const rawMessage = await response.clone().text();
+    const message = getClientChatErrorMessage(rawMessage, response.status);
+    const headers = new Headers(response.headers);
+    headers.set("Content-Type", "application/json; charset=utf-8");
+
+    return new Response(JSON.stringify({ error: message }), {
+      status: response.status,
+      statusText: response.statusText,
+      headers,
+    });
+  },
+});
 const subscribeToBrowserCapability = () => () => undefined;
 const getSpeechSupportSnapshot = () =>
   "SpeechRecognition" in window || "webkitSpeechRecognition" in window;
@@ -150,14 +167,7 @@ export default function Home() {
   const { messages, sendMessage, regenerate, status, setMessages } = useChat({
     transport: chatTransport,
     onError: (error) => {
-      // useChat 的 error 对象中 message 可能包含 JSON body
-      try {
-        const body = JSON.parse(error.message);
-        setApiError(body.error ?? "出了点小问题，请稍后再试");
-      } catch {
-        setApiError("出了点小问题，请稍后再试");
-      }
-      setTimeout(() => setApiError(null), 5000);
+      setApiError(getClientChatErrorMessage(error.message));
     },
   });
 
@@ -438,6 +448,7 @@ export default function Home() {
 
   // 处理快捷提示词点击
   const handleQuickPrompt = (prompt: string) => {
+    setApiError(null);
     setActiveRequestSearchMode(searchMode);
     sendMessage(
       { text: prompt },
@@ -452,6 +463,7 @@ export default function Home() {
       const action = RESPONSE_ACTIONS.find((item) => item.id === actionId);
       if (!action) return;
       const requestSearchMode = actionId === "verify" ? "always" : searchMode;
+      setApiError(null);
       setActiveRequestSearchMode(requestSearchMode);
       sendMessage(
         { text: action.prompt },
@@ -534,6 +546,7 @@ export default function Home() {
     if (!lastAssistant) return;
 
     // AI SDK 会复用原始用户消息，包含其中的图片 parts。
+    setApiError(null);
     setActiveRequestSearchMode(searchMode);
     regenerate({
       messageId: lastAssistant.id,
@@ -543,7 +556,7 @@ export default function Home() {
 
   useEffect(() => {
     scrollToBottom();
-  }, [messages]);
+  }, [messages, apiError]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -558,6 +571,7 @@ export default function Home() {
       url: dataUrl,
     }));
 
+    setApiError(null);
     setActiveRequestSearchMode(searchMode);
     sendMessage(
       {
@@ -1078,6 +1092,47 @@ export default function Home() {
                 </div>
               );
             })()}
+          {apiError ? (
+            <div className="flex w-full justify-start" role="alert" aria-live="assertive">
+              <div className="flex w-full max-w-xl items-start gap-2">
+                <div
+                  className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border-2"
+                  style={{
+                    backgroundColor: "var(--hot-badge-bg)",
+                    borderColor: "var(--border-color)",
+                    color: "var(--hot-badge-text)",
+                    boxShadow: "2px 2px 0px 0px rgba(var(--shadow-color), 1)",
+                  }}
+                >
+                  <AlertTriangle aria-hidden="true" className="h-4 w-4" />
+                </div>
+                <div
+                  className="relative flex-1 rounded-lg rounded-tl-none border-2 py-3 pl-3 pr-11"
+                  style={{
+                    backgroundColor: "var(--ai-bubble-bg)",
+                    borderColor: "var(--hot-badge-bg)",
+                    color: "var(--ai-bubble-text)",
+                    boxShadow: "4px 4px 0px 0px rgba(var(--shadow-color), 1)",
+                  }}
+                >
+                  <p className="text-sm font-black">这次没有回复成功</p>
+                  <p className="mt-1 text-sm font-medium leading-6">{apiError}</p>
+                  <button
+                    type="button"
+                    onClick={() => setApiError(null)}
+                    className="absolute right-2 top-2 flex h-7 w-7 items-center justify-center rounded-md border-2 transition-transform hover:-translate-y-0.5 active:translate-y-0"
+                    style={{
+                      backgroundColor: "var(--card-footer-bg)",
+                      borderColor: "var(--border-color)",
+                    }}
+                    aria-label="关闭错误提示"
+                  >
+                    <X aria-hidden="true" className="h-4 w-4" />
+                  </button>
+                </div>
+              </div>
+            </div>
+          ) : null}
           <div ref={messagesEndRef} />
         </CardContent>
 
@@ -1257,17 +1312,6 @@ export default function Home() {
               </Button>
             </form>
 
-            {apiError ? (
-              <span
-                className="flex items-center gap-1 px-1 text-xs font-bold"
-                style={{ color: "var(--hot-badge-bg)" }}
-                role="status"
-                aria-live="polite"
-              >
-                <AlertTriangle aria-hidden="true" className="h-3.5 w-3.5" />
-                {apiError}
-              </span>
-            ) : null}
           </div>
         </CardFooter>
       </Card>
