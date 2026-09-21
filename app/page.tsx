@@ -1209,10 +1209,11 @@ export default function Home() {
                 variant="ghost"
                 onClick={() => fileInputRef.current?.click()}
                 aria-label="上传图片"
-                className="h-11 w-11 shrink-0 touch-manipulation rounded-xl border-0"
+                className="h-11 w-11 shrink-0 touch-manipulation rounded-xl border"
                 style={{
                   backgroundColor: "var(--btn-image-bg)",
                   color: "var(--btn-action-text)",
+                  borderColor: "var(--border-color)",
                 }}
                 disabled={isLoading || pendingImages.length >= 4}
                 title="上传图片（最多 4 张）"
@@ -1273,7 +1274,7 @@ export default function Home() {
                   onClick={toggleVoiceInput}
                   aria-label={isListening ? "停止语音输入" : "开始语音输入"}
                   className={cn(
-                    "h-11 w-11 shrink-0 touch-manipulation rounded-xl border-0 transition-[background-color,transform]",
+                    "h-11 w-11 shrink-0 touch-manipulation rounded-xl border transition-[background-color,transform]",
                     isListening && "animate-pulse motion-reduce:animate-none",
                   )}
                   style={{
@@ -1281,6 +1282,7 @@ export default function Home() {
                       ? "var(--hot-badge-bg)"
                       : "var(--btn-voice-bg)",
                     color: "var(--btn-action-text)",
+                    borderColor: "var(--border-color)",
                   }}
                   disabled={isLoading}
                   title={isListening ? "停止语音输入" : "语音输入"}
@@ -1298,10 +1300,11 @@ export default function Home() {
                 size="icon"
                 variant="ghost"
                 aria-label="发送消息"
-                className="h-11 w-11 shrink-0 touch-manipulation rounded-xl border-0"
+                className="h-11 w-11 shrink-0 touch-manipulation rounded-xl border"
                 style={{
                   backgroundColor: "var(--btn-send-bg)",
                   color: "var(--btn-action-text)",
+                  borderColor: "var(--border-color)",
                 }}
                 disabled={
                   isLoading ||
