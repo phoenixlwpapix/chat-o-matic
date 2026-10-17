@@ -1,9 +1,8 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef } from "react";
 import { Check, RefreshCw, Sparkles, X } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { PERSONAS, getPersonaById, type Persona } from "@/lib/personas";
+import { PERSONAS, type Persona } from "@/lib/personas";
 import { cn } from "@/lib/utils";
 
 interface PersonaSwitcherProps {
@@ -22,13 +21,7 @@ export function PersonaSwitcher({
   onPersonaChange,
 }: PersonaSwitcherProps) {
   const closeButtonRef = useRef<HTMLButtonElement>(null);
-  const [pendingPersonaId, setPendingPersonaId] = useState<string | null>(null);
-  const pendingPersona = pendingPersonaId
-    ? getPersonaById(pendingPersonaId)
-    : null;
-
   const closeDialog = useCallback(() => {
-    setPendingPersonaId(null);
     onOpenChange(false);
   }, [onOpenChange]);
 
@@ -51,21 +44,7 @@ export function PersonaSwitcher({
   if (!open) return null;
 
   const selectPersona = (persona: Persona) => {
-    if (persona.id === personaId) {
-      setPendingPersonaId(null);
-      return;
-    }
-    if (hasActiveConversation) {
-      setPendingPersonaId(persona.id);
-      return;
-    }
-    onPersonaChange(persona);
-    closeDialog();
-  };
-
-  const confirmPersonaChange = () => {
-    if (!pendingPersona) return;
-    onPersonaChange(pendingPersona);
+    if (persona.id !== personaId) onPersonaChange(persona);
     closeDialog();
   };
 
@@ -111,7 +90,7 @@ export function PersonaSwitcher({
               <h2 id="persona-switcher-title" className="text-sm font-black">
                 快速切换人设
               </h2>
-              <p className="text-[9px] font-bold opacity-60">选择新的聊天伙伴</p>
+              <p className="text-[9px] font-bold opacity-60">{hasActiveConversation ? "点击即切换，当前对话自动保存并新建" : "选择即生效"}</p>
             </div>
           </div>
           <button
@@ -134,8 +113,7 @@ export function PersonaSwitcher({
           {PERSONAS.map((persona) => {
             const Icon = persona.icon;
             const isCurrent = persona.id === personaId;
-            const isPending = persona.id === pendingPersonaId;
-            const isSelected = isPending || (!pendingPersonaId && isCurrent);
+            const isSelected = isCurrent;
             return (
               <button
                 key={persona.id}
@@ -148,13 +126,13 @@ export function PersonaSwitcher({
                 )}
                 style={{
                   borderColor: "var(--border-color)",
-                  backgroundColor: isPending
+                  backgroundColor: isSelected
                     ? `var(${persona.colorVar})`
                     : "var(--settings-option-bg)",
-                  color: isPending
+                  color: isSelected
                     ? "var(--prompt-card-text)"
                     : "var(--settings-option-text)",
-                  boxShadow: isPending
+                  boxShadow: isSelected
                     ? "3px 3px 0px 0px rgba(var(--shadow-color), 1)"
                     : "none",
                 }}
@@ -213,41 +191,6 @@ export function PersonaSwitcher({
           </div>
         </div>
 
-        {pendingPersona ? (
-          <footer
-            className="flex items-center justify-between gap-3 border-t-2 px-4 py-3"
-            style={{
-              borderColor: "var(--border-color)",
-              backgroundColor: "var(--card-footer-bg)",
-            }}
-          >
-            <p className="text-[10px] font-bold">
-              切换到 <span className="font-black">{pendingPersona.name}</span>
-            </p>
-            <div className="flex gap-2">
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={() => setPendingPersonaId(null)}
-              >
-                取消
-              </Button>
-              <Button
-                type="button"
-                size="sm"
-                onClick={confirmPersonaChange}
-                style={{
-                  backgroundColor: "var(--header-bg)",
-                  color: "var(--header-text)",
-                  borderColor: "var(--border-color)",
-                }}
-              >
-                确认并新建对话
-              </Button>
-            </div>
-          </footer>
-        ) : null}
       </section>
     </div>
   );

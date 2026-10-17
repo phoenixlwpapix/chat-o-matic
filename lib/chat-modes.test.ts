@@ -48,6 +48,19 @@ describe("chat mode prompts", () => {
 });
 
 describe("chat preferences", () => {
+  it("persists supported reading preferences and migrates older preferences", () => {
+    const preferences = normalizeChatPreferences({ chatFont: "serif", chatFontSize: 20 });
+    expect(normalizeChatPreferences(JSON.parse(JSON.stringify(preferences)))).toMatchObject({
+      chatFont: "serif", chatFontSize: 20,
+    });
+    expect(normalizeChatPreferences({ chatFont: "invalid", chatFontSize: 200 })).toMatchObject({
+      chatFont: "default", chatFontSize: 16,
+    });
+    expect(normalizeChatPreferences({ personaId: "default" })).toMatchObject({
+      chatFont: "default", chatFontSize: 16,
+    });
+  });
+
   it("keeps valid locally stored defaults", () => {
     expect(
       normalizeChatPreferences({
@@ -61,6 +74,8 @@ describe("chat preferences", () => {
       searchMode: "off",
       userAvatar: null,
       userName: "",
+      chatFont: "default",
+      chatFontSize: 16,
     });
   });
 
@@ -76,6 +91,8 @@ describe("chat preferences", () => {
       searchMode: "auto",
       userAvatar: null,
       userName: "",
+      chatFont: "default",
+      chatFontSize: 16,
     });
   });
 

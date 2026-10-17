@@ -7,6 +7,7 @@ import {
   type ChatPreferences,
 } from "./chat-preferences";
 import type { SearchMode } from "./search-modes";
+import type { ChatFont, ChatFontSize } from "./chat-typography";
 
 const STORAGE_KEY = "chat-o-matic-preferences";
 const PREFERENCES_CHANGE_EVENT = "chat-o-matic-preferences-change";
@@ -76,11 +77,23 @@ export function useChatPreferences() {
     writePreferences({ ...readPreferences(), userName });
   }, []);
 
+  const setChatFont = useCallback((chatFont: ChatFont) => {
+    writePreferences({ ...readPreferences(), chatFont });
+  }, []);
+
+  const setChatFontSize = useCallback((chatFontSize: ChatFontSize) => {
+    writePreferences({ ...readPreferences(), chatFontSize });
+  }, []);
+
   return {
     personaId: preferences.personaId,
     searchMode: preferences.searchMode,
     userAvatar: preferences.userAvatar,
     userName: preferences.userName,
+    chatFont: preferences.chatFont,
+    chatFontSize: preferences.chatFontSize,
+    setChatFont,
+    setChatFontSize,
     setPersonaId,
     setSearchMode,
     setUserAvatar,

@@ -6,6 +6,7 @@ import {
   useState,
   useCallback,
   useSyncExternalStore,
+  type CSSProperties,
 } from "react";
 import Image from "next/image";
 import { useChat } from "@ai-sdk/react";
@@ -13,7 +14,8 @@ import { DefaultChatTransport, type UIMessage } from "ai";
 import { MAX_INPUT_LENGTH } from "@/lib/constants";
 import {
   Send,
-  Bot,
+  Copy,
+  Check,
   User as UserIcon,
   Plus,
   ImagePlus,
@@ -49,13 +51,15 @@ import { MarkdownContent } from "@/components/markdown-content";
 import { AppSettings } from "@/components/app-settings";
 import { PersonaSwitcher } from "@/components/persona-switcher";
 import {
-  RESPONSE_ACTIONS,
   ResponseActions,
   type ResponseAction,
 } from "@/components/response-actions";
 import { SourceList } from "@/components/source-list";
 import { useChatHistory, toStoredMessages } from "@/lib/use-chat-history";
 import { MAX_FAVORITE_SESSIONS } from "@/lib/chat-history";
+import { CHAT_FONTS } from "@/lib/chat-typography";
+import { parseQuiz, readQuizAnswers, type QuizAnswer } from "@/lib/quizzes";
+import { getResponseActionContext, getResponseActions } from "@/lib/response-actions";
 import type { SearchMode } from "@/lib/search-modes";
 import { getClientChatErrorMessage } from "@/lib/chat-errors";
 import "katex/dist/katex.min.css";
@@ -139,6 +143,10 @@ export default function Home() {
     searchMode,
     userAvatar,
     userName,
+    chatFont,
+    chatFontSize,
+    setChatFont,
+    setChatFontSize,
     setPersonaId,
     setSearchMode,
     setUserAvatar,
@@ -164,7 +172,7 @@ export default function Home() {
   const CurrentPersonaIcon = currentPersona.icon;
 
   // AI SDK 6 useChat - 默认连接到 /api/chat
-  const { messages, sendMessage, regenerate, status, setMessages } = useChat({
+  const { messages, sendMessage, regenerate, status, setMessages, stop } = useChat({
     transport: chatTransport,
     onError: (error) => {
       setApiError(getClientChatErrorMessage(error.message));
@@ -422,8 +430,7 @@ export default function Home() {
   const handlePersonaSelect = useCallback(
     (persona: Persona) => {
       if (persona.id === personaId) return;
-      setPersonaId(persona.id);
-      // 切换人设时清空对话
+      // 切换人设前保存当前对话
       if (messages.length > 0) {
         history.saveSession(
           sessionIdRef.current,
@@ -437,13 +444,29 @@ export default function Home() {
         setInputValue("");
         setPendingImages([]);
       }
+      setPersonaId(persona.id);
     },
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [messages, personaId, searchMode, setMessages],
   );
 
   // 处理快捷提示词点击
+  const handleQuizSubmit = (messageId: string, answer: QuizAnswer) => {
+    if (isLoading) return;
+    const quiz = parseQuiz(answer.raw);
+    if (!quiz || readQuizAnswers({ quizAnswers: [answer] }).length !== 1) return;
+    setMessages((current) => {
+      const message = current.find((item) => item.id === messageId);
+      if (!message || message.role !== "assistant") return current;
+      const answers = readQuizAnswers(message.metadata);
+      if (answers.length >= 8 || answers.some((item) => item.key === answer.key && item.raw === answer.raw)) return current;
+      const metadata = typeof message.metadata === "object" && message.metadata !== null ? message.metadata : {};
+      return current.map((item) => item.id === messageId ? { ...item, metadata: { ...metadata, quizAnswers: [...answers.filter((item) => item.key !== answer.key), answer] } } : item);
+    });
+  };
+
   const handleQuickPrompt = (prompt: string) => {
+    if (isLoading) return;
     setApiError(null);
     setActiveRequestSearchMode(searchMode);
     sendMessage(
@@ -456,7 +479,9 @@ export default function Home() {
 
   const handleResponseAction = useCallback(
     (actionId: ResponseAction) => {
-      const action = RESPONSE_ACTIONS.find((item) => item.id === actionId);
+      if (isLoading) return;
+      const context = getResponseActionContext(messages, lastAssistantId ?? "");
+      const action = getResponseActions(context).find((item) => item.id === actionId);
       if (!action) return;
       const requestSearchMode = actionId === "verify" ? "always" : searchMode;
       setApiError(null);
@@ -472,7 +497,7 @@ export default function Home() {
         },
       );
     },
-    [sendMessage, personaId, searchMode, userName],
+    [sendMessage, personaId, searchMode, userName, messages, lastAssistantId, isLoading],
   );
 
   const scrollToBottom = () => {
@@ -495,6 +520,22 @@ export default function Home() {
     setMessages([]);
     setInputValue("");
     setPendingImages([]);
+  };
+
+  const handleDeleteSession = (id: string) => {
+    history.deleteSession(id);
+    if (sessionIdRef.current !== id) return;
+
+    // Discard the active conversation without running resetConversation's save.
+    void stop();
+    const newId = crypto.randomUUID();
+    sessionIdRef.current = newId;
+    history.setCurrentSessionId(newId);
+    setMessages([]);
+    setInputValue("");
+    setPendingImages([]);
+    setApiError(null);
+    setActiveRequestSearchMode(null);
   };
 
   // Restore a conversation from history
@@ -626,7 +667,7 @@ export default function Home() {
 
           {/* 新对话按钮 */}
           <Button
-            onClick={() => { resetConversation(); setSidebarOpen(false); }}
+            onClick={() => { resetConversation(); setSidebarOpen(false); setSettingsOpen(false); }}
             className="w-full justify-start gap-2 transition-all active:translate-x-0.5 active:translate-y-0.5"
             style={{
               backgroundColor: "var(--header-bg)",
@@ -675,8 +716,8 @@ export default function Home() {
               sessions={history.sessions}
               searchQuery={historySearch}
               currentSessionId={history.currentSessionId}
-              onSelect={(id) => { handleRestoreSession(id); setSidebarOpen(false); }}
-              onDelete={history.deleteSession}
+              onSelect={(id) => { handleRestoreSession(id); setSidebarOpen(false); setSettingsOpen(false); }}
+              onDelete={handleDeleteSession}
               onToggleFavorite={history.toggleFavorite}
               variant="sidebar"
             />
@@ -701,9 +742,29 @@ export default function Home() {
         </aside>
 
         {/* ── 主聊天区域 ── */}
+        {settingsOpen ? (
+          <AppSettings
+            open={settingsOpen}
+            personaId={personaId}
+            searchMode={searchMode}
+            theme={theme}
+            userAvatar={userAvatar}
+            userName={userName}
+            chatFont={chatFont}
+            chatFontSize={chatFontSize}
+            onChatFontChange={setChatFont}
+            onChatFontSizeChange={setChatFontSize}
+            onOpenChange={setSettingsOpen}
+            onPersonaChange={handlePersonaSelect}
+            onSearchModeChange={setSearchMode}
+            onThemeChange={setTheme}
+            onUserAvatarChange={setUserAvatar}
+            onUserNameChange={setUserName}
+          />
+        ) : (
         <Card
           className="chat-shell flex h-full min-w-0 flex-1 flex-col rounded-none border-0 md:rounded-lg md:border-4"
-          style={{ boxShadow: "var(--chat-shell-shadow)" }}
+          style={{ boxShadow: "var(--chat-shell-shadow)", "--chat-font": CHAT_FONTS[chatFont].family, "--chat-font-size": `${chatFontSize}px` } as CSSProperties}
         >
           {/* 精简 Header：汉堡菜单 + 当前人设标签 */}
           <CardHeader
@@ -895,7 +956,7 @@ export default function Home() {
               >
                 <div
                   role="img"
-                  aria-label={message.role === "user" ? "用户头像" : "AI 头像"}
+                  aria-label={message.role === "user" ? "用户头像" : "聊聊机头像"}
                   className="flex h-7 w-7 shrink-0 items-center justify-center overflow-hidden rounded-full border-2 bg-cover bg-center md:h-8 md:w-8"
                   style={{
                     borderColor: "var(--border-color)",
@@ -913,7 +974,13 @@ export default function Home() {
                   {message.role === "user" ? (
                     userAvatar ? null : <UserIcon className="w-5 h-5 text-white" />
                   ) : (
-                    <Bot className="w-5 h-5 text-white" />
+                    <Image
+                      src="/icon-192.png"
+                      alt=""
+                      width={32}
+                      height={32}
+                      className="h-full w-full object-cover"
+                    />
                   )}
                 </div>
                 <div
@@ -924,7 +991,7 @@ export default function Home() {
                 >
                   <div
                     className={cn(
-                      "break-words rounded-lg border-2 p-3 text-base font-medium",
+                      "chat-message break-words rounded-lg border-2 p-3 text-base font-medium",
                       message.role === "user"
                         ? "rounded-tr-none"
                         : "w-full rounded-tl-none md:w-auto",
@@ -950,7 +1017,17 @@ export default function Home() {
                           return message.role === "user" ? (
                             <span key={key}>{part.text}</span>
                           ) : (
-                            <MarkdownContent key={key} text={part.text} />
+                            <MarkdownContent
+                              key={key}
+                              text={part.text}
+                              isStreaming={isLoading && message.id === lastAssistantId}
+                              quizPrefix={String(partIndex)}
+                              quizControls={{
+                                answers: readQuizAnswers(message.metadata),
+                                disabled: isLoading,
+                                onSubmit: (answer) => handleQuizSubmit(message.id, answer),
+                              }}
+                            />
                           );
                         case "file":
                           // 渲染用户上传的图片
@@ -995,11 +1072,33 @@ export default function Home() {
                         isLoading && message.id === lastAssistantId
                       }
                       onAction={handleResponseAction}
+                      context={getResponseActionContext(messages, message.id)}
                       onRegenerate={handleRegenerate}
                       onCopy={() =>
                         handleCopy(getMessageText(message.parts), message.id)
                       }
                     />
+                  ) : message.role === "user" && getMessageText(message.parts).trim() ? (
+                    <div className="mt-2 flex justify-end">
+                      <button
+                        type="button"
+                        onClick={() => handleCopy(getMessageText(message.parts), message.id)}
+                        className="user-message-copy inline-flex h-9 w-9 items-center justify-center rounded-md border transition-opacity hover:brightness-95 focus-visible:outline-2 focus-visible:outline-offset-2"
+                        style={{
+                          borderColor: "var(--fb-inactive-border)",
+                          backgroundColor: "var(--fb-inactive-bg)",
+                          color: "var(--fb-inactive-text)",
+                        }}
+                        aria-label={copiedId === message.id ? "消息已复制" : "复制消息"}
+                        title={copiedId === message.id ? "已复制" : "复制"}
+                      >
+                        {copiedId === message.id ? (
+                          <Check aria-hidden="true" className="h-3.5 w-3.5" />
+                        ) : (
+                          <Copy aria-hidden="true" className="h-3.5 w-3.5" />
+                        )}
+                      </button>
+                    </div>
                   ) : null}
                 </div>
               </div>
@@ -1211,7 +1310,7 @@ export default function Home() {
                   aria-label="消息内容"
                   name="message"
                   autoComplete="off"
-                  className="block min-h-11 max-h-32 w-full resize-none overflow-y-auto border-0 bg-transparent px-2 py-2.5 pr-11 text-base font-medium leading-6 placeholder:text-transparent focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-50 md:placeholder:text-[var(--input-placeholder)]"
+                  className="chat-input block min-h-11 max-h-32 w-full resize-none overflow-y-auto border-0 bg-transparent px-2 py-2.5 pr-11 text-base font-medium leading-6 placeholder:text-transparent focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-50 md:placeholder:text-[var(--input-placeholder)]"
                   style={{ color: "var(--input-text)" }}
                   rows={1}
                   value={inputValue}
@@ -1302,22 +1401,8 @@ export default function Home() {
           </div>
         </CardFooter>
       </Card>
+        )}
       </div>
-      <AppSettings
-        open={settingsOpen}
-        personaId={personaId}
-        searchMode={searchMode}
-        theme={theme}
-        userAvatar={userAvatar}
-        userName={userName}
-        hasActiveConversation={messages.length > 0}
-        onOpenChange={setSettingsOpen}
-        onPersonaChange={handlePersonaSelect}
-        onSearchModeChange={setSearchMode}
-        onThemeChange={setTheme}
-        onUserAvatarChange={setUserAvatar}
-        onUserNameChange={setUserName}
-      />
       <PersonaSwitcher
         open={personaSwitcherOpen}
         personaId={personaId}

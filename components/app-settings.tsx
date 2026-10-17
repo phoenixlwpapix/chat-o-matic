@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
   AlertTriangle,
+  ArrowLeft,
   Camera,
   Check,
   Globe2,
@@ -13,16 +14,16 @@ import {
   Settings2,
   UserRound,
   WifiOff,
-  X,
   type LucideIcon,
 } from "lucide-react";
 import { AvatarCropper } from "@/components/avatar-cropper";
 import { Button } from "@/components/ui/button";
 import { ThemeSwitcher } from "@/components/theme-switcher";
 import { MAX_USER_NAME_LENGTH } from "@/lib/constants";
-import { PERSONAS, getPersonaById, type Persona } from "@/lib/personas";
+import { PERSONAS, type Persona } from "@/lib/personas";
 import { SEARCH_MODES, type SearchMode } from "@/lib/search-modes";
 import { type Theme } from "@/lib/use-theme";
+import { CHAT_FONTS, CHAT_FONT_SIZES, type ChatFont, type ChatFontSize } from "@/lib/chat-typography";
 import { cn } from "@/lib/utils";
 
 const SEARCH_MODE_ICONS: Record<SearchMode, LucideIcon> = {
@@ -38,7 +39,10 @@ interface AppSettingsProps {
   theme: Theme;
   userAvatar: string | null;
   userName: string;
-  hasActiveConversation: boolean;
+  chatFont: ChatFont;
+  chatFontSize: ChatFontSize;
+  onChatFontChange: (font: ChatFont) => void;
+  onChatFontSizeChange: (size: ChatFontSize) => void;
   onOpenChange: (open: boolean) => void;
   onPersonaChange: (persona: Persona) => void;
   onSearchModeChange: (mode: SearchMode) => void;
@@ -54,7 +58,10 @@ export function AppSettings({
   theme,
   userAvatar,
   userName,
-  hasActiveConversation,
+  chatFont,
+  chatFontSize,
+  onChatFontChange,
+  onChatFontSizeChange,
   onOpenChange,
   onPersonaChange,
   onSearchModeChange,
@@ -73,14 +80,8 @@ export function AppSettings({
   const [userNameSuccess, setUserNameSuccess] = useState<string | null>(null);
   const [lengthWarning, setLengthWarning] = useState(false);
 
-  const [pendingPersonaId, setPendingPersonaId] = useState<string | null>(null);
   const [avatarCropUrl, setAvatarCropUrl] = useState<string | null>(null);
   const [avatarError, setAvatarError] = useState<string | null>(null);
-
-  const selectedPersonaId = pendingPersonaId ?? personaId;
-  const pendingPersona = pendingPersonaId
-    ? getPersonaById(pendingPersonaId)
-    : null;
 
   const closeDialog = useCallback(() => {
     if (avatarCropUrlRef.current) URL.revokeObjectURL(avatarCropUrlRef.current);
@@ -91,7 +92,6 @@ export function AppSettings({
     setUserNameSuccess(null);
     setLengthWarning(false);
     setIsEditingUserName(false);
-    setPendingPersonaId(null);
     onOpenChange(false);
   }, [onOpenChange]);
 
@@ -105,18 +105,15 @@ export function AppSettings({
   useEffect(() => {
     if (!open) return;
 
-    const previousOverflow = document.body.style.overflow;
     const previousFocus = document.activeElement as HTMLElement | null;
     const focusFrame = requestAnimationFrame(() => closeButtonRef.current?.focus());
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.key === "Escape" && !avatarCropUrlRef.current) closeDialog();
     };
 
-    document.body.style.overflow = "hidden";
     document.addEventListener("keydown", handleKeyDown);
     return () => {
       cancelAnimationFrame(focusFrame);
-      document.body.style.overflow = previousOverflow;
       document.removeEventListener("keydown", handleKeyDown);
       previousFocus?.focus();
     };
@@ -190,16 +187,6 @@ export function AppSettings({
     }
   };
 
-  const selectPersona = (persona: Persona) => {
-    setPendingPersonaId(persona.id === personaId ? null : persona.id);
-  };
-
-  const confirmPersonaChange = () => {
-    if (!pendingPersona) return;
-    onPersonaChange(pendingPersona);
-    closeDialog();
-  };
-
   const selectAvatarFile = (file: File | undefined) => {
     setAvatarError(null);
     if (!file) return;
@@ -226,26 +213,19 @@ export function AppSettings({
 
   return (
     <>
-      <div
-        className="fixed inset-0 z-[70] flex items-center justify-center bg-black/45 p-3 backdrop-blur-[2px] sm:p-6"
-        onMouseDown={(event) => {
-          if (event.target === event.currentTarget) closeDialog();
-        }}
-      >
+      <div className="flex h-full min-w-0 flex-1 flex-col">
         <section
-          role="dialog"
-          aria-modal="true"
           aria-labelledby="app-settings-title"
-          className="flex max-h-[86vh] w-full max-w-[620px] flex-col overflow-hidden rounded-2xl border-[3px]"
+          className="chat-shell flex h-full min-h-0 w-full flex-col overflow-hidden border-0 md:rounded-lg md:border-4"
           style={{
             borderColor: "var(--border-color)",
             backgroundColor: "var(--settings-panel-bg)",
             color: "var(--settings-option-text)",
-            boxShadow: "8px 8px 0px 0px rgba(var(--shadow-color), 1)",
+            boxShadow: "var(--chat-shell-shadow)",
           }}
         >
           <header
-            className="flex items-center justify-between gap-4 border-b-2 px-5 py-4"
+            className="flex items-center justify-between gap-3 border-b-2 px-4 py-3"
             style={{
               borderColor: "var(--border-color)",
               backgroundColor: "var(--header-bg)",
@@ -272,20 +252,21 @@ export function AppSettings({
               ref={closeButtonRef}
               type="button"
               onClick={closeDialog}
-              className="grid h-9 w-9 place-items-center rounded-lg border-2 transition-transform hover:-translate-y-0.5"
+              className="inline-flex h-9 shrink-0 items-center justify-center gap-1.5 rounded-lg border-2 px-2.5 text-xs font-bold transition-transform hover:-translate-y-0.5"
               style={{
                 borderColor: "var(--border-color)",
                 backgroundColor: "var(--btn-new-bg)",
                 color: "var(--btn-new-text)",
                 boxShadow: "2px 2px 0px 0px rgba(var(--shadow-color), 1)",
               }}
-              aria-label="关闭设置"
+              aria-label="返回聊天"
             >
-              <X className="h-5 w-5" />
+              <ArrowLeft className="h-4 w-4" />
+              返回聊天
             </button>
           </header>
 
-          <div className="overflow-y-auto px-5 py-6 sm:px-6 space-y-6">
+          <div className="min-h-0 flex-1 space-y-4 overflow-y-auto p-4">
             {/* ── 1. 上方区域：用户资料（单栏：头像 + 用户名展示/编辑态） ── */}
             <div>
               <div className="mb-2">
@@ -528,14 +509,14 @@ export function AppSettings({
 
             {/* ── 2. 上方区域：系统偏好（联网设置 + 主题配色） ── */}
             <div
-              className="grid gap-6 border-t pt-6 sm:grid-cols-2"
+              className="grid gap-4 border-t pt-3 sm:grid-cols-2"
               style={{
                 borderColor:
                   "color-mix(in srgb, var(--settings-option-muted) 35%, transparent)",
               }}
             >
               <fieldset>
-                <legend className="mb-3 text-xs font-black uppercase tracking-[0.16em]">
+                <legend className="mb-2 text-xs font-black uppercase tracking-[0.16em]">
                   联网模式
                 </legend>
                 <div className="grid grid-cols-3 gap-2">
@@ -548,7 +529,7 @@ export function AppSettings({
                         type="button"
                         onClick={() => onSearchModeChange(mode.id)}
                         aria-pressed={isActive}
-                        className="flex h-14 flex-col items-center justify-center gap-1 rounded-lg border-2 px-2 transition-all hover:-translate-y-0.5"
+                        className="flex h-10 items-center justify-center gap-1.5 rounded-lg border-2 px-2 transition-all hover:-translate-y-0.5"
                         style={{
                           borderColor: isActive
                             ? "var(--settings-selected-border)"
@@ -573,36 +554,89 @@ export function AppSettings({
               </fieldset>
 
               <fieldset>
-                <legend className="mb-3 text-xs font-black uppercase tracking-[0.16em]">
+                <legend className="mb-2 text-xs font-black uppercase tracking-[0.16em]">
                   主题配色
                 </legend>
                 <ThemeSwitcher theme={theme} setTheme={onThemeChange} variant="inline" />
               </fieldset>
             </div>
 
+            <fieldset className="border-t pt-3" style={{ borderColor: "var(--fb-inactive-border)" }}>
+              <legend className="mb-2 text-xs font-black uppercase tracking-[0.16em]">阅读设置</legend>
+
+              <div className="grid gap-3 sm:grid-cols-2">
+                <div className="min-w-0">
+                  <p id="chat-font-label" className="mb-2 text-xs font-bold">字体</p>
+                  <div role="group" aria-labelledby="chat-font-label" className="grid grid-cols-3 gap-2">
+                    {(Object.keys(CHAT_FONTS) as ChatFont[]).map((font) => (
+                      <button
+                        key={font}
+                        type="button"
+                        aria-pressed={chatFont === font}
+                        onClick={() => onChatFontChange(font)}
+                        className="min-h-9 rounded-lg border-2 px-1.5 py-1.5 text-xs transition-colors focus-visible:outline-2 focus-visible:outline-offset-2"
+                        style={{
+                          fontFamily: CHAT_FONTS[font].family,
+                          borderColor: chatFont === font ? "var(--border-color)" : "var(--fb-inactive-border)",
+                          backgroundColor: chatFont === font ? "var(--header-bg)" : "var(--settings-option-bg)",
+                          color: chatFont === font ? "var(--header-text)" : "var(--settings-option-text)",
+                        }}
+                      >{CHAT_FONTS[font].label}</button>
+                    ))}
+                  </div>
+                </div>
+                <div>
+                  <p id="chat-font-size-label" className="mb-2 text-xs font-bold">字号 · 默认 16</p>
+                  <div role="group" aria-labelledby="chat-font-size-label" className="grid grid-cols-4 gap-2">
+                    {CHAT_FONT_SIZES.map((size) => (
+                      <button
+                        key={size}
+                        type="button"
+                        aria-pressed={chatFontSize === size}
+                        onClick={() => onChatFontSizeChange(size)}
+                        className="min-h-9 rounded-lg border-2 px-1.5 py-1.5 text-xs font-bold transition-colors focus-visible:outline-2 focus-visible:outline-offset-2"
+                        style={{
+                          borderColor: chatFontSize === size ? "var(--border-color)" : "var(--fb-inactive-border)",
+                          backgroundColor: chatFontSize === size ? "var(--header-bg)" : "var(--settings-option-bg)",
+                          color: chatFontSize === size ? "var(--header-text)" : "var(--settings-option-text)",
+                        }}
+                      >{size}</button>
+                    ))}
+                  </div>
+                </div>
+                <div className="rounded-lg border-2 px-3 py-2 sm:col-span-2" style={{ borderColor: "var(--fb-inactive-border)", backgroundColor: "var(--settings-option-bg)" }}>
+                  <p className="mb-1 text-[10px] font-bold opacity-55">即时预览 · 自动保存</p>
+                  <div className="flex h-8 items-center overflow-hidden">
+                    <p className="truncate" style={{ fontFamily: CHAT_FONTS[chatFont].family, fontSize: chatFontSize, lineHeight: 1.6 }}>把复杂问题讲清楚。</p>
+                  </div>
+                </div>
+              </div>
+            </fieldset>
+
             {/* ── 3. 下方区域：性格选择 ── */}
             <fieldset
-              className="border-t pt-6"
+              className="border-t pt-3"
               style={{
                 borderColor:
                   "color-mix(in srgb, var(--settings-option-muted) 35%, transparent)",
               }}
             >
-              <legend className="mb-3 text-xs font-black uppercase tracking-[0.16em]">
+              <legend className="mb-2 text-xs font-black uppercase tracking-[0.16em]">
                 性格选择
               </legend>
-              <div className="grid grid-cols-3 gap-2.5 sm:grid-cols-5">
+              <p className="mb-2 text-[11px] opacity-65">点击即切换，已有对话自动保存并新建。</p>
+              <div className="grid grid-cols-3 gap-2 sm:grid-cols-5">
                 {PERSONAS.map((persona) => {
                   const Icon = persona.icon;
-                  const isSelected = persona.id === selectedPersonaId;
+                  const isSelected = persona.id === personaId;
                   return (
                     <button
                       key={persona.id}
                       type="button"
-                      onClick={() => selectPersona(persona)}
+                      onClick={() => onPersonaChange(persona)}
                       aria-pressed={isSelected}
                       className={cn(
-                        "relative flex min-h-22 flex-col items-center justify-center gap-2 rounded-xl border-2 px-2 py-3 text-center transition-all",
+                        "relative flex min-h-16 flex-col items-center justify-center gap-1.5 rounded-lg border-2 px-1.5 py-2 text-center transition-all",
                         "hover:-translate-y-0.5 active:translate-x-0.5 active:translate-y-0.5",
                       )}
                       style={{
@@ -620,7 +654,7 @@ export function AppSettings({
                       title={persona.subtitle}
                     >
                       <span
-                        className="grid h-9 w-9 place-items-center rounded-lg border-2"
+                        className="grid h-7 w-7 place-items-center rounded-md border-2"
                         style={{
                           borderColor: "var(--border-color)",
                           backgroundColor: "var(--prompt-card-icon-bg)",
@@ -654,42 +688,6 @@ export function AppSettings({
 
           </div>
 
-          {pendingPersona ? (
-            <footer
-              className="flex flex-col gap-3 border-t-2 px-5 py-3.5 sm:flex-row sm:items-center sm:justify-between sm:px-6"
-              style={{
-                borderColor: "var(--border-color)",
-                backgroundColor: "var(--card-footer-bg)",
-              }}
-            >
-              <p className="text-xs font-bold">
-                切换为 <span className="font-black">{pendingPersona.name}</span>
-                {hasActiveConversation ? "，当前对话会自动保存" : ""}
-              </p>
-              <div className="flex justify-end gap-2">
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setPendingPersonaId(null)}
-                >
-                  取消
-                </Button>
-                <Button
-                  type="button"
-                  size="sm"
-                  onClick={confirmPersonaChange}
-                  style={{
-                    backgroundColor: "var(--header-bg)",
-                    color: "var(--header-text)",
-                    borderColor: "var(--border-color)",
-                  }}
-                >
-                  {hasActiveConversation ? "确认并新建对话" : "确认切换"}
-                </Button>
-              </div>
-            </footer>
-          ) : null}
         </section>
       </div>
       {avatarCropUrl ? (

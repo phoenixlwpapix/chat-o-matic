@@ -1,4 +1,5 @@
 import { MAX_USER_NAME_LENGTH } from "./constants";
+import { normalizeChatFont, normalizeChatFontSize, type ChatFont, type ChatFontSize } from "./chat-typography";
 import { getPersonaById } from "./personas";
 import { getSearchMode, type SearchMode } from "./search-modes";
 
@@ -8,6 +9,8 @@ export interface ChatPreferences {
   searchMode: SearchMode;
   userAvatar: string | null;
   userName: string;
+  chatFont: ChatFont;
+  chatFontSize: ChatFontSize;
 }
 
 export const DEFAULT_CHAT_PREFERENCES: ChatPreferences = {
@@ -16,6 +19,8 @@ export const DEFAULT_CHAT_PREFERENCES: ChatPreferences = {
   searchMode: "auto",
   userAvatar: null,
   userName: "",
+  chatFont: "default",
+  chatFontSize: 16,
 };
 
 const AVATAR_DATA_URL_PATTERN = /^data:image\/(?:jpeg|png|webp);base64,/;
@@ -30,6 +35,8 @@ export function normalizeChatPreferences(value: unknown): ChatPreferences {
 
   return {
     schemaVersion: 4,
+    chatFont: normalizeChatFont(value.chatFont),
+    chatFontSize: normalizeChatFontSize(value.chatFontSize),
     personaId: getPersonaById(
       typeof value.personaId === "string" ? value.personaId : "default",
     ).id,

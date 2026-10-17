@@ -57,7 +57,7 @@ export function ThemeSwitcher({
                             type="button"
                             onClick={() => setTheme(t)}
                             className={cn(
-                                "flex flex-col items-center gap-1 p-2 rounded-lg border-2 transition-all flex-1",
+                                "flex h-10 flex-1 items-center justify-center gap-1.5 rounded-lg border-2 px-2 transition-all",
                                 "hover:-translate-y-0.5 active:translate-x-0.5 active:translate-y-0.5",
                                 isActive
                                     ? "shadow-[2px_2px_0px_0px_rgba(var(--shadow-color),1)]"
@@ -70,7 +70,7 @@ export function ThemeSwitcher({
                             title={meta.label}
                         >
                             <div
-                                className="w-5 h-5 rounded-full border-2"
+                                className="h-4 w-4 shrink-0 rounded-full border-2"
                                 style={{ backgroundColor: meta.colors[0], borderColor: "var(--border-color)" }}
                             />
                             <span className="text-[10px] font-bold" style={{ color: "var(--foreground)" }}>

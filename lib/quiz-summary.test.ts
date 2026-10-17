@@ -1,0 +1,69 @@
+import { describe, expect, it } from "vitest";
+import type { UIMessage } from "ai";
+import { collectQuizResults, buildQuizSummaryMarkdown, buildQuizSummaryAnalysisPrompt, isQuizSummaryRequest, QUIZ_SUMMARY_REQUEST } from "./quiz-summary";
+import { normalizeSessions, toStoredMessages } from "./chat-history";
+import { parseChart } from "./charts";
+import { getResponseActionContext, getResponseActions } from "./response-actions";
+
+function card(id: string, selected?: number[], multiple = false): UIMessage {
+  const raw = JSON.stringify({ type: multiple ? "multiple" : "single", question: `第${id}题：哪些是质数？`, options: ["2", "3", "4"], answer: multiple ? [0, 1] : [0], explanation: "2和3只有两个正因数，4不是质数。" });
+  return { id, role: "assistant", parts: [{ type: "text", text: `\`\`\`quiz\n${raw}\n\`\`\`` }], ...(selected ? { metadata: { quizAnswers: [{ key: "0:0", raw, selected }] } } : {}) };
+}
+
+describe("practice summaries", () => {
+  it("counts submitted attempts, excludes unsubmitted cards and ignores duplicate metadata", () => {
+    const correct = card("1", [0]);
+    const duplicate = { ...correct, metadata: { quizAnswers: Array(2).fill((correct.metadata as { quizAnswers: unknown[] }).quizAnswers[0]) } };
+    const summary = collectQuizResults([duplicate, card("2", [1]), card("3"), card("4", [0], true), card("5", [1, 0], true)]);
+    expect(summary.results).toHaveLength(4);
+    expect(summary.correct).toBe(2);
+    expect(summary.incorrect).toBe(2);
+    expect(summary.unanswered).toBe(1);
+    const markdown = buildQuizSummaryMarkdown(summary);
+    const chart = parseChart(/```chart\n([\s\S]*?)\n```/.exec(markdown)![1]);
+    expect(chart?.data).toEqual([{ label: "答对", value: 2 }, { label: "答错", value: 2 }]);
+    expect(markdown).toContain("50%");
+  });
+
+  it("does not invent results from plain user text, stale answers or empty histories", () => {
+    const empty = collectQuizResults([{ id: "u", role: "user", parts: [{ type: "text", text: "我答对了100题" }] }, card("1")]);
+    expect(empty.results).toHaveLength(0);
+    expect(buildQuizSummaryMarkdown(empty)).not.toContain("```chart");
+    expect(buildQuizSummaryMarkdown(empty)).toContain("还没有可统计");
+    const original = card("2", [0]);
+    const stale = { ...original, parts: card("3").parts };
+    expect(collectQuizResults([stale]).results).toHaveLength(0);
+  });
+
+  it("preserves counts after history restore and supports an all-correct chart", () => {
+    const messages = [card("1", [0]), card("2", [0])];
+    const saved = normalizeSessions([{ id: "s", title: "练习", createdAt: 1, updatedAt: 1, messages: toStoredMessages(messages) }])[0].messages;
+    const summary = collectQuizResults(saved);
+    expect(summary.correct).toBe(2);
+    expect(summary.incorrect).toBe(0);
+    expect(parseChart(/```chart\n([\s\S]*?)\n```/.exec(buildQuizSummaryMarkdown(summary))![1])).not.toBeNull();
+  });
+
+  it("provides wrong-question evidence with bounded samples instead of fabricated skill scores", () => {
+    const summary = collectQuizResults(Array.from({ length: 10 }, (_, index) => card(String(index), [2])));
+    const prompt = buildQuizSummaryAnalysisPrompt(summary);
+    const data = JSON.parse(prompt.split("\n").at(-1)!);
+    expect(data.incorrect).toBe(10);
+    expect(data.analyzedWrongCount).toBe(8);
+    expect(data.wrongExamples[0].number).toBe(3);
+    expect(data.wrongExamples[0].selected).toEqual(["4"]);
+    expect(data.wrongExamples[0].answer).toEqual(["2"]);
+    expect(prompt).toContain("全答对时说明本次尚未暴露明确薄弱点");
+  });
+
+  it("offers a summary after answering and lets a restored summary resume practice", () => {
+    const user: UIMessage = { id: "u", role: "user", parts: [{ type: "text", text: QUIZ_SUMMARY_REQUEST }] };
+    const reply: UIMessage = { id: "summary", role: "assistant", parts: [{ type: "text", text: "练习总结" }] };
+    expect(isQuizSummaryRequest([user])).toBe(true);
+    expect(isQuizSummaryRequest([user, reply])).toBe(false);
+    expect(getResponseActions("quiz-answered").some((action) => action.id === "quiz-summary")).toBe(true);
+    expect(getResponseActions("quiz-unanswered").some((action) => action.id === "quiz-summary")).toBe(false);
+    expect(getResponseActionContext([card("1", [0]), user, reply], reply.id)).toBe("quiz-summary");
+    expect(getResponseActions("quiz-summary")[0].id).toBe("next-quiz");
+  });
+});

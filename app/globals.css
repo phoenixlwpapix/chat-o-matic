@@ -365,6 +365,19 @@ body {
   margin-bottom: 0;
 }
 
+.chat-message,
+.chat-message .markdown-content {
+  font-family: var(--chat-font);
+  font-size: var(--chat-font-size);
+}
+
+.chat-input {
+  font-family: var(--chat-font);
+  /* Keep iOS from zooming the page when the input receives focus. */
+  font-size: max(16px, var(--chat-font-size));
+  line-height: 1.6;
+}
+
 /* Keep short inline math in the reading flow; give tall symbols breathing room. */
 .markdown-content :is(p, li):has(> .katex) {
   line-height: 1.9;
@@ -394,6 +407,15 @@ body {
     font-size: 1.25em;
   }
 }
+
+/* Align the option badge and the first text line at every reading size. */
+.quiz-text > :first-child { margin-top: 0; }
+.quiz-text > :last-child { margin-bottom: 0; }
+.quiz-option { font-size: var(--chat-font-size, 16px); }
+.quiz-option .quiz-text { line-height: 1.75; }
+.quiz-option .quiz-text > p { margin-block: 0; }
+.quiz-option-letter { width: 1.75em; height: 1.75em; line-height: 1; }
+.quiz-option-status { min-height: 2.8em; }
 
 /* ── Animations ── */
 @keyframes float {
@@ -506,6 +528,21 @@ body {
     &.history-row-dropdown .history-select {
       padding-right: 0.75rem;
     }
+  }
+}
+
+/* Keep message copy available on touch screens and when using a keyboard. */
+@media (hover: hover) and (pointer: fine) {
+  .group:not(:hover):not(:focus-within) .user-message-copy {
+    opacity: 0;
+    pointer-events: none;
+  }
+}
+
+@media (any-pointer: coarse) {
+  .group:not(:hover):not(:focus-within) .user-message-copy {
+    opacity: 1;
+    pointer-events: auto;
   }
 }
 

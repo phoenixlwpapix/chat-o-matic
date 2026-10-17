@@ -8,53 +8,23 @@ import {
   ScanSearch,
   Sparkles,
   Waypoints,
+  ArrowRight,
+  ArrowDown,
+  ArrowUp,
+  CircleHelp,
+  ChartPie,
   type LucideIcon,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
-export const RESPONSE_ACTION_IDS = [
-  "simplify",
-  "example",
-  "quiz",
-  "verify",
-] as const;
+import { getResponseActions, type ResponseAction, type ResponseActionContext } from "@/lib/response-actions";
+export { RESPONSE_ACTIONS, type ResponseAction } from "@/lib/response-actions";
 
-export type ResponseAction = (typeof RESPONSE_ACTION_IDS)[number];
-
-interface ResponseActionDefinition {
-  id: ResponseAction;
-  label: string;
-  prompt: string;
-  icon: LucideIcon;
-}
-
-export const RESPONSE_ACTIONS: ResponseActionDefinition[] = [
-  {
-    id: "simplify",
-    label: "更简单",
-    prompt: "请把刚才的回答讲得更简单一些，一次只讲一个重点。",
-    icon: Sparkles,
-  },
-  {
-    id: "example",
-    label: "举个例子",
-    prompt: "请针对刚才的回答，举一个贴近日常生活的具体例子。",
-    icon: Waypoints,
-  },
-  {
-    id: "quiz",
-    label: "出道题",
-    prompt: "请根据刚才讲解的知识出一道题，先不要公布答案，等我回答后再讲解。",
-    icon: BookOpenCheck,
-  },
-  {
-    id: "verify",
-    label: "检查事实",
-    prompt: "请联网核查刚才回答中的关键事实，指出哪些得到来源支持，哪些仍不确定。",
-    icon: ScanSearch,
-  },
-];
-
+const ACTION_ICONS: Record<ResponseAction, LucideIcon> = {
+  simplify: Sparkles, example: Waypoints, quiz: BookOpenCheck, verify: ScanSearch,
+  "next-quiz": ArrowRight, "easier-quiz": ArrowDown, "harder-quiz": ArrowUp, "explain-quiz": CircleHelp,
+  "quiz-summary": ChartPie,
+};
 interface ResponseActionsProps {
   disabled: boolean;
   showLearningActions: boolean;
@@ -62,6 +32,7 @@ interface ResponseActionsProps {
   isRegenerating: boolean;
   onAction: (action: ResponseAction) => void;
   onCopy: () => void;
+  context?: ResponseActionContext;
   onRegenerate: () => void;
 }
 
@@ -72,6 +43,7 @@ export function ResponseActions({
   isRegenerating,
   onAction,
   onCopy,
+  context = "answer",
   onRegenerate,
 }: ResponseActionsProps) {
   const chipClassName = cn(
@@ -97,16 +69,17 @@ export function ResponseActions({
       aria-label="回复操作"
     >
       {showLearningActions
-        ? RESPONSE_ACTIONS.map((action) => {
-            const Icon = action.icon;
+        ? getResponseActions(context).map((action) => {
+            const Icon = ACTION_ICONS[action.id];
+            const primary = action.id === "next-quiz" && action.label === "再来一题";
             return (
               <button
                 key={action.id}
                 type="button"
                 onClick={() => onAction(action.id)}
                 disabled={disabled}
-                className={chipClassName}
-                style={chipStyle}
+                className={cn(chipClassName, primary && "border-2 px-3 py-1.5 text-xs font-black")}
+                style={primary ? { ...chipStyle, backgroundColor: "var(--header-bg)", color: "var(--header-text)", borderColor: "var(--border-color)", boxShadow: "2px 2px 0 rgba(var(--shadow-color), 1)" } : chipStyle}
               >
                 <Icon aria-hidden="true" className="h-3 w-3" />
                 {action.label}
@@ -115,7 +88,7 @@ export function ResponseActions({
           })
         : null}
 
-      {showLearningActions ? (
+      {showLearningActions && context !== "quiz-unanswered" && context !== "quiz-answered" ? (
         <button
           type="button"
           onClick={onRegenerate}

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { createContext, isValidElement, useContext, useState, type ComponentProps } from "react";
 import dynamic from "next/dynamic";
 import { Check, Copy } from "lucide-react";
 import ReactMarkdown, { type Components } from "react-markdown";
@@ -8,6 +8,8 @@ import remarkGfm from "remark-gfm";
 import remarkMath from "remark-math";
 import rehypeKatex from "rehype-katex";
 import { normalizeMarkdown } from "@/lib/markdown";
+import { ChatChart } from "@/components/chat-chart";
+import { ChatQuiz, type QuizControls } from "@/components/chat-quiz";
 
 export { normalizeMarkdown } from "@/lib/markdown";
 
@@ -83,18 +85,46 @@ function MarkdownCode({ className, children, ...props }: React.ComponentProps<"c
   );
 }
 
-const MARKDOWN_COMPONENTS: Components = { code: MarkdownCode };
+const MarkdownStreamContext = createContext({ text: "", isStreaming: false });
+const QuizContext = createContext<QuizControls & { prefix: string }>({ answers: [], disabled: true, prefix: "" });
 
-export function MarkdownContent({ text }: { text: string }) {
+const MarkdownPre: NonNullable<Components["pre"]> = ({ children, node, ...props }) => {
+  const { text, isStreaming } = useContext(MarkdownStreamContext);
+  const controls = useContext(QuizContext);
+  if (isValidElement<ComponentProps<"code">>(children) && (children.props.className === "language-chart" || children.props.className === "language-quiz")) {
+    const language = children.props.className === "language-quiz" ? "quiz" : "chart";
+    const raw = String(children.props.children).replace(/\n$/, "");
+    const block = text.slice(node?.position?.start.offset, node?.position?.end.offset);
+    const lines = block.trimEnd().split("\n");
+    const opening = /^\s*(`{3,}|~{3,})(?:chart|quiz)\s*$/.exec(lines[0] ?? "");
+    const closing = /^\s*(`{3,}|~{3,})\s*$/.exec(lines.at(-1) ?? "");
+    const closed = Boolean(opening && closing && lines.length > 1 && opening[1][0] === closing[1][0] && closing[1].length >= opening[1].length);
+    if (language === "quiz") {
+      const quizKey = `${controls.prefix}:${node?.position?.start.offset ?? 0}`;
+      return <ChatQuiz key={`${quizKey}:${raw}`} {...controls} quizKey={quizKey} raw={raw} pending={isStreaming && !closed} />;
+    }
+    return <ChatChart raw={raw} pending={isStreaming && !closed} />;
+  }
+  return <pre {...props}>{children}</pre>;
+};
+
+const MARKDOWN_COMPONENTS: Components = { code: MarkdownCode, pre: MarkdownPre };
+
+export function MarkdownContent({ text, isStreaming = false, quizControls, quizPrefix = "" }: { text: string; isStreaming?: boolean; quizControls?: QuizControls; quizPrefix?: string }) {
+  const normalized = normalizeMarkdown(text);
   return (
+    <MarkdownStreamContext.Provider value={{ text: normalized, isStreaming }}>
+    <QuizContext.Provider value={{ answers: [], disabled: true, ...quizControls, prefix: quizPrefix }}>
     <div className="markdown-content prose prose-base max-w-none">
       <ReactMarkdown
         remarkPlugins={[remarkGfm, remarkMath]}
         rehypePlugins={[rehypeKatex]}
         components={MARKDOWN_COMPONENTS}
       >
-        {normalizeMarkdown(text)}
+        {normalized}
       </ReactMarkdown>
     </div>
+    </QuizContext.Provider>
+    </MarkdownStreamContext.Provider>
   );
 }

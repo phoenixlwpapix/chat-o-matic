@@ -1,6 +1,7 @@
 import type { TextUIPart, UIMessage } from "ai";
 import { getSearchMode, type SearchMode } from "./search-modes";
 import { getSearchSummary, readSearchSummary, type SearchSummary } from "./search-sources";
+import { readQuizAnswers, type QuizAnswer } from "./quizzes";
 
 const MAX_SESSIONS = 100;
 export const MAX_FAVORITE_SESSIONS = 10;
@@ -14,7 +15,7 @@ export interface StoredMessage {
   id: string;
   role: "user" | "assistant";
   parts: StoredTextPart[];
-  metadata?: { search: SearchSummary };
+  metadata?: { search?: SearchSummary; quizAnswers?: QuizAnswer[] };
 }
 
 export interface ChatSession {
@@ -65,7 +66,8 @@ function normalizeMessages(value: unknown): StoredMessage[] {
     });
 
     const search = message.role === "assistant" ? readSearchSummary(message.metadata) : undefined;
-    return [{ id: message.id, role: message.role, parts, ...(search ? { metadata: { search } } : {}) }];
+    const quizAnswers = message.role === "assistant" ? readQuizAnswers(message.metadata) : [];
+    return [{ id: message.id, role: message.role, parts, ...((search || quizAnswers.length) ? { metadata: { ...(search ? { search } : {}), ...(quizAnswers.length ? { quizAnswers } : {}) } } : {}) }];
   });
 }
 
@@ -157,7 +159,8 @@ export function toStoredMessages(messages: UIMessage[]): StoredMessage[] {
       .filter((part): part is TextUIPart => part.type === "text")
       .map((part) => ({ type: "text" as const, text: part.text }));
     const search = message.role === "assistant" ? getSearchSummary(message.parts, message.metadata) : undefined;
-    return [{ id: message.id, role: message.role, parts, ...(search ? { metadata: { search } } : {}) }];
+    const quizAnswers = message.role === "assistant" ? readQuizAnswers(message.metadata) : [];
+    return [{ id: message.id, role: message.role, parts, ...((search || quizAnswers.length) ? { metadata: { ...(search ? { search } : {}), ...(quizAnswers.length ? { quizAnswers } : {}) } } : {}) }];
   });
 }
 
@@ -172,7 +175,8 @@ function messagesAreEqual(
     if (
       message.id !== otherMessage.id ||
       message.role !== otherMessage.role ||
-      message.metadata?.search.sourceCount !== otherMessage.metadata?.search.sourceCount ||
+      message.metadata?.search?.sourceCount !== otherMessage.metadata?.search?.sourceCount ||
+      JSON.stringify(message.metadata?.quizAnswers) !== JSON.stringify(otherMessage.metadata?.quizAnswers) ||
       message.parts.length !== otherMessage.parts.length
     ) {
       return false;
