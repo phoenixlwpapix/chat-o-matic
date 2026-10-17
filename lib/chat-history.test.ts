@@ -133,7 +133,7 @@ describe("chat history", () => {
   it("keeps favorite sessions when the history limit is exceeded", () => {
     const existingSessions: ChatSession[] = Array.from(
       { length: 20 },
-      (_, index) => ({
+      (_, index): ChatSession => ({
         schemaVersion: 4,
         id: `session-${index}`,
         title: `对话 ${index}`,
