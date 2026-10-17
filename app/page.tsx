@@ -35,7 +35,6 @@ import {
   Card,
   CardContent,
   CardHeader,
-  CardTitle,
   CardFooter,
 } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
@@ -157,6 +156,7 @@ export default function Home() {
 
   // 侧边栏
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [historySearch, setHistorySearch] = useState("");
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [personaSwitcherOpen, setPersonaSwitcherOpen] = useState(false);
 
@@ -197,18 +197,15 @@ export default function Home() {
   }, []);
 
   // Auto-save whenever messages change (only when not streaming)
-  const lastSavedSignatureRef = useRef("");
   useEffect(() => {
     if (isLoading) return;
     if (messages.length === 0) return;
-    const signature = `${messages.length}:${personaId}:${searchMode}`;
-    if (signature === lastSavedSignatureRef.current) return;
-    lastSavedSignatureRef.current = signature;
     history.saveSession(
       sessionIdRef.current,
       toStoredMessages(messages),
       { personaId, searchMode },
     );
+    void history.summarizeSession(sessionIdRef.current);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [messages, isLoading, personaId, searchMode]);
 
@@ -436,7 +433,6 @@ export default function Home() {
         const newId = crypto.randomUUID();
         sessionIdRef.current = newId;
         history.setCurrentSessionId(newId);
-        lastSavedSignatureRef.current = "";
         setMessages([]);
         setInputValue("");
         setPendingImages([]);
@@ -496,22 +492,10 @@ export default function Home() {
     const newId = crypto.randomUUID();
     sessionIdRef.current = newId;
     history.setCurrentSessionId(newId);
-    lastSavedSignatureRef.current = "";
     setMessages([]);
     setInputValue("");
     setPendingImages([]);
   };
-
-  const clearConversationHistory = useCallback(() => {
-    history.clearSessions();
-    const newId = crypto.randomUUID();
-    sessionIdRef.current = newId;
-    history.setCurrentSessionId(newId);
-    lastSavedSignatureRef.current = "";
-    setMessages([]);
-    setInputValue("");
-    setPendingImages([]);
-  }, [history, setMessages]);
 
   // Restore a conversation from history
   const handleRestoreSession = useCallback(
@@ -529,7 +513,6 @@ export default function Home() {
       sessionIdRef.current = id;
       history.setCurrentSessionId(id);
       const restoredPersonaId = getPersonaById(restored.personaId).id;
-      lastSavedSignatureRef.current = `${restored.messages.length}:${restoredPersonaId}:${restored.searchMode}`;
       setPersonaId(restoredPersonaId);
       setSearchMode(restored.searchMode);
       setMessages(restored.messages);
@@ -656,44 +639,41 @@ export default function Home() {
             <span className="font-bold text-sm">新对话</span>
           </Button>
 
-          {/* 当前人设 */}
-          <div>
-            <p className="text-[10px] font-black uppercase tracking-wider px-1 mb-1.5" style={{ color: "var(--header-subtitle)" }}>
-              当前人设
-            </p>
-            <button
-              type="button"
-              onClick={() => { setPersonaSwitcherOpen(true); setSidebarOpen(false); }}
-              disabled={isLoading}
-              className="group flex w-full items-center gap-2.5 rounded-xl border-2 px-2.5 py-2.5 text-left transition-all hover:-translate-y-0.5 active:translate-x-0.5 active:translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-50"
-              style={{
-                backgroundColor: `var(${currentPersona.colorVar})`,
-                borderColor: "var(--border-color)",
-                boxShadow: "3px 3px 0px 0px rgba(var(--shadow-color), 1)",
-                color: "var(--prompt-card-text)",
-              }}
-            >
-              <span
-                className="grid h-9 w-9 shrink-0 place-items-center rounded-lg border-2"
-                style={{
-                  backgroundColor: "var(--prompt-card-icon-bg)",
-                  borderColor: "var(--border-color)",
-                }}
+          {/* 搜索历史标题 */}
+          <div
+            className="flex items-center gap-2 rounded-lg border-2 px-2.5 focus-within:ring-2 focus-within:ring-[var(--header-bg)]"
+            style={{
+              backgroundColor: "var(--input-bg)",
+              borderColor: "var(--border-color)",
+              color: "var(--foreground)",
+            }}
+          >
+            <Search aria-hidden="true" className="h-4 w-4 shrink-0 opacity-60" />
+            <input
+              type="search"
+              aria-label="搜索历史标题"
+              placeholder="搜索历史标题"
+              value={historySearch}
+              onChange={(event) => setHistorySearch(event.target.value)}
+              className="h-10 min-w-0 flex-1 bg-transparent text-base font-semibold outline-none placeholder:opacity-50 md:text-sm [&::-webkit-search-cancel-button]:appearance-none"
+            />
+            {historySearch ? (
+              <button
+                type="button"
+                onClick={() => setHistorySearch("")}
+                aria-label="清除历史搜索"
+                className="grid h-8 w-6 shrink-0 place-items-center rounded transition-opacity hover:opacity-60 focus-visible:outline-2"
               >
-                <CurrentPersonaIcon className="h-4.5 w-4.5" />
-              </span>
-              <span className="min-w-0 flex-1">
-                <span className="block truncate text-sm font-black">{currentPersona.name}</span>
-                <span className="block truncate text-[10px] font-semibold opacity-65">{currentPersona.subtitle}</span>
-              </span>
-              <ChevronRight className="h-4 w-4 shrink-0 transition-transform group-hover:translate-x-0.5" />
-            </button>
+                <X className="h-3.5 w-3.5" />
+              </button>
+            ) : null}
           </div>
 
           {/* 历史记录 */}
           <div className="flex-1 min-h-0 flex flex-col">
             <ChatHistory
               sessions={history.sessions}
+              searchQuery={historySearch}
               currentSessionId={history.currentSessionId}
               onSelect={(id) => { handleRestoreSession(id); setSidebarOpen(false); }}
               onDelete={history.deleteSession}
@@ -735,7 +715,7 @@ export default function Home() {
             }}
           >
             <div className="flex items-center justify-between gap-3">
-              <div className="flex items-center gap-3">
+              <div className="flex min-w-0 items-center gap-3">
                 {/* 移动端汉堡按钮 */}
                 <Button
                   onClick={() => setSidebarOpen((v) => !v)}
@@ -751,34 +731,38 @@ export default function Home() {
                   {sidebarOpen ? <PanelLeftClose className="w-5 h-5" /> : <PanelLeftOpen className="w-5 h-5" />}
                 </Button>
 
-                <div className="flex items-center gap-2">
-                  {(() => {
-                    const Icon = currentPersona.icon;
-                    return (
-                      <div
-                        className="p-1.5 rounded-lg border-2"
-                        style={{
-                          backgroundColor: `var(${currentPersona.colorVar})`,
-                          borderColor: "var(--border-color)",
-                          boxShadow: "2px 2px 0px 0px rgba(var(--shadow-color), 1)",
-                        }}
-                      >
-                        <Icon className="w-4 h-4" style={{ color: "var(--prompt-card-text)" }} />
-                      </div>
-                    );
-                  })()}
-                  <div>
-                    <CardTitle
-                      className="text-base md:text-lg font-black leading-none"
+                <button
+                  type="button"
+                  onClick={() => setPersonaSwitcherOpen(true)}
+                  disabled={isLoading}
+                  aria-label={`切换人设，当前：${currentPersona.name}`}
+                  aria-haspopup="dialog"
+                  aria-expanded={personaSwitcherOpen}
+                  className="group flex min-w-0 items-center gap-2 rounded-lg p-1 text-left transition-transform hover:-translate-y-0.5 focus-visible:outline-2 focus-visible:outline-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  <span
+                    className="shrink-0 rounded-lg border-2 p-1.5"
+                    style={{
+                      backgroundColor: `var(${currentPersona.colorVar})`,
+                      borderColor: "var(--border-color)",
+                      boxShadow: "2px 2px 0px 0px rgba(var(--shadow-color), 1)",
+                    }}
+                  >
+                    <CurrentPersonaIcon className="h-4 w-4" style={{ color: "var(--prompt-card-text)" }} />
+                  </span>
+                  <span className="min-w-0">
+                    <span
+                      className="block truncate text-base font-black leading-none tracking-tight md:text-lg"
                       style={{ color: "var(--header-text)" }}
                     >
                       {currentPersona.name}
-                    </CardTitle>
-                    <span className="text-[10px] font-bold" style={{ color: "var(--header-subtitle)" }}>
+                    </span>
+                    <span className="block truncate text-[10px] font-bold" style={{ color: "var(--header-subtitle)" }}>
                       {currentPersona.subtitle}
                     </span>
-                  </div>
-                </div>
+                  </span>
+                  <ChevronRight aria-hidden="true" className="h-4 w-4 shrink-0 transition-transform group-hover:translate-x-0.5" />
+                </button>
               </div>
               <button
                 type="button"
@@ -1327,14 +1311,12 @@ export default function Home() {
         userAvatar={userAvatar}
         userName={userName}
         hasActiveConversation={messages.length > 0}
-        historyCount={history.sessions.length}
         onOpenChange={setSettingsOpen}
         onPersonaChange={handlePersonaSelect}
         onSearchModeChange={setSearchMode}
         onThemeChange={setTheme}
         onUserAvatarChange={setUserAvatar}
         onUserNameChange={setUserName}
-        onClearHistory={clearConversationHistory}
       />
       <PersonaSwitcher
         open={personaSwitcherOpen}

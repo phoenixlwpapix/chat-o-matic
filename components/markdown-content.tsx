@@ -7,6 +7,9 @@ import ReactMarkdown, { type Components } from "react-markdown";
 import remarkGfm from "remark-gfm";
 import remarkMath from "remark-math";
 import rehypeKatex from "rehype-katex";
+import { normalizeMarkdown } from "@/lib/markdown";
+
+export { normalizeMarkdown } from "@/lib/markdown";
 
 const LazySyntaxHighlight = dynamic(
   () =>
@@ -20,26 +23,6 @@ const LazySyntaxHighlight = dynamic(
     ),
   },
 );
-
-const QUOTE_PAIRS = [
-  ["\u201C", "\u201D"],
-  ["\u2018", "\u2019"],
-  ["\u300C", "\u300D"],
-  ["\u300E", "\u300F"],
-  ['"', '"'],
-  ["'", "'"],
-] as const;
-
-export function normalizeMarkdown(text: string): string {
-  let result = text
-    .replace(/^\s*🔟\s+/gm, "10. ")
-    .replace(/^\s*([1-9])\uFE0F?\u20E3\s+/gm, "$1. ");
-  for (const [open, close] of QUOTE_PAIRS) {
-    const pattern = new RegExp(`\\*\\*${open}([^\\*]+?)${close}\\*\\*`, "g");
-    result = result.replace(pattern, `${open}**$1**${close}`);
-  }
-  return result;
-}
 
 function MarkdownCode({ className, children, ...props }: React.ComponentProps<"code">) {
   const [copied, setCopied] = useState(false);

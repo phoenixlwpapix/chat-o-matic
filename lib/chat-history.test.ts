@@ -3,6 +3,8 @@ import {
   normalizeSessions,
   toggleSessionFavorite,
   upsertSession,
+  getFirstExchange,
+  updateSessionTitle,
   type ChatSession,
   type StoredMessage,
 } from "./chat-history";
@@ -16,6 +18,32 @@ const messages: StoredMessage[] = [
 ];
 
 describe("chat history", () => {
+  const answeredMessages: StoredMessage[] = [
+    ...messages,
+    { id: "answer-1", role: "assistant", parts: [{ type: "text", text: "黑洞是引力极强的天体。" }] },
+    { id: "question-2", role: "user", parts: [{ type: "text", text: "再讲讲太阳" }] },
+  ];
+
+  it("summarizes only a completed first exchange, including image-only questions", () => {
+    expect(getFirstExchange(messages)).toBeNull();
+    expect(getFirstExchange([...messages, { id: "empty", role: "assistant", parts: [] }])).toBeNull();
+    expect(getFirstExchange(answeredMessages)).toEqual({
+      question: "黑洞是什么？", answer: "黑洞是引力极强的天体。",
+    });
+    expect(getFirstExchange([{ ...messages[0], parts: [] }, answeredMessages[1]])?.question).toContain("图片");
+  });
+
+  it("keeps generated titles across later saves without reordering on title completion", () => {
+    const initial = upsertSession([], "session-1", messages, { personaId: "default", searchMode: "auto" }, 100);
+    const summarized = updateSessionTitle(initial, "session-1", "探索黑洞的奥秘");
+    expect(summarized[0].updatedAt).toBe(100);
+    const updated = upsertSession(summarized, "session-1", answeredMessages, { personaId: "default", searchMode: "auto" }, 200);
+    expect(updated[0].title).toBe("探索黑洞的奥秘");
+    expect(normalizeSessions(updated)[0].titleGenerated).toBe(true);
+    expect(updateSessionTitle(updated, "session-1", "覆盖标题")).toBe(updated);
+    expect(updateSessionTitle([], "deleted-session", "迟到的标题")).toEqual([]);
+  });
+
   it("migrates legacy sessions to schema v4 defaults", () => {
     const sessions = normalizeSessions([
       {
@@ -132,7 +160,7 @@ describe("chat history", () => {
 
   it("keeps favorite sessions when the history limit is exceeded", () => {
     const existingSessions: ChatSession[] = Array.from(
-      { length: 20 },
+      { length: 100 },
       (_, index): ChatSession => ({
         schemaVersion: 4,
         id: `session-${index}`,
@@ -155,7 +183,7 @@ describe("chat history", () => {
       100,
     );
 
-    expect(sessions).toHaveLength(20);
+    expect(sessions).toHaveLength(100);
     expect(sessions.some((session) => session.id === "session-0")).toBe(true);
     expect(sessions.some((session) => session.id === "session-1")).toBe(false);
   });

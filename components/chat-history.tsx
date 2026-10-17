@@ -9,6 +9,7 @@ import { MAX_FAVORITE_SESSIONS } from "@/lib/chat-history";
 
 interface ChatHistoryProps {
     sessions: ChatSession[];
+    searchQuery?: string;
     currentSessionId: string | null;
     onSelect: (id: string) => void;
     onDelete: (id: string) => void;
@@ -33,6 +34,33 @@ function sessionContext(session: ChatSession): string {
     return getPersonaById(session.personaId).name;
 }
 
+function SessionTitle({ title, className }: { title: string; className: string }) {
+    const titleRef = useRef<HTMLSpanElement>(null);
+
+    useEffect(() => {
+        const element = titleRef.current;
+        if (!element) return;
+        const desktopPointer = window.matchMedia("(hover: hover) and (pointer: fine)");
+        const updateTooltip = () => {
+            if (desktopPointer.matches && element.scrollWidth > element.clientWidth) {
+                element.title = title;
+            } else {
+                element.removeAttribute("title");
+            }
+        };
+        const observer = new ResizeObserver(updateTooltip);
+        observer.observe(element);
+        desktopPointer.addEventListener("change", updateTooltip);
+        updateTooltip();
+        return () => {
+            observer.disconnect();
+            desktopPointer.removeEventListener("change", updateTooltip);
+        };
+    }, [title]);
+
+    return <span ref={titleRef} className={className}>{title}</span>;
+}
+
 interface SidebarSessionRowProps {
     session: ChatSession;
     isActive: boolean;
@@ -55,9 +83,11 @@ function SidebarSessionRow({
     return (
         <div
             className={cn(
-                "group/item relative flex items-center rounded-lg border text-left transition-all",
+                "history-row group/item relative flex items-center rounded-lg border text-left transition-all",
                 "hover:-translate-y-px hover:brightness-95",
             )}
+            data-active={isActive}
+            data-confirm-delete={confirmDeleteId === session.id}
             style={{
                 borderColor: session.isFavorite ? "var(--qp-2)" : "transparent",
                 backgroundColor: isActive
@@ -70,7 +100,7 @@ function SidebarSessionRow({
                 type="button"
                 onClick={() => onSelect(session.id)}
                 className={cn(
-                    "flex min-w-0 flex-1 items-center gap-2 py-1.5 pl-2 text-left transition-all",
+                    "history-select flex min-w-0 flex-1 items-center gap-2 py-1.5 pl-2 text-left transition-all",
                     isActive || confirmDeleteId === session.id
                         ? "pr-16"
                         : "pr-2 group-hover/item:pr-16",
@@ -82,11 +112,9 @@ function SidebarSessionRow({
                         fill="var(--qp-2)"
                         style={{ color: "var(--qp-2)" }}
                     />
-                ) : (
-                    <MessageSquare className="h-3 w-3 shrink-0 opacity-50" />
-                )}
+                ) : null}
                 <span className="min-w-0 flex-1">
-                    <span className="block truncate text-xs font-bold">{session.title}</span>
+                    <SessionTitle title={session.title} className="block truncate text-xs font-bold" />
                     <span className="block truncate text-[10px] opacity-50">
                         {sessionContext(session)} · {relativeTime(session.updatedAt)}
                     </span>
@@ -94,7 +122,7 @@ function SidebarSessionRow({
             </button>
             <div
                 className={cn(
-                    "absolute right-1 top-1/2 flex -translate-y-1/2 items-center rounded-md pl-1 transition-opacity",
+                    "history-actions absolute right-1 top-1/2 flex -translate-y-1/2 items-center rounded-md pl-1 transition-opacity",
                     isActive || confirmDeleteId === session.id
                         ? "opacity-100"
                         : "opacity-0 group-hover/item:opacity-100 group-focus-within/item:opacity-100",
@@ -145,6 +173,7 @@ function SidebarSessionRow({
 
 export function ChatHistory({
     sessions,
+    searchQuery = "",
     currentSessionId,
     onSelect,
     onDelete,
@@ -156,11 +185,54 @@ export function ChatHistory({
     const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
     const [filter, setFilter] = useState<"all" | "favorites">("all");
     const favoriteCount = sessions.filter((session) => session.isFavorite).length;
-    const favoriteSessions = sessions.filter((session) => session.isFavorite);
-    const historySessions = sessions.filter((session) => !session.isFavorite);
-    const visibleSessions = filter === "favorites"
-        ? sessions.filter((session) => session.isFavorite)
+    const query = searchQuery.trim().toLocaleLowerCase();
+    const matchingSessions = query
+        ? sessions.filter((session) => session.title.toLocaleLowerCase().includes(query))
         : sessions;
+    const favoriteSessions = matchingSessions.filter((session) => session.isFavorite);
+    const historySessions = matchingSessions.filter((session) => !session.isFavorite);
+    const visibleSessions = filter === "favorites"
+        ? favoriteSessions
+        : matchingSessions;
+
+    useEffect(() => {
+        if (!confirmDeleteId) return;
+        const cancelOutsideRow = (event: Event) => {
+            const row = panelRef.current?.querySelector('[data-confirm-delete="true"]');
+            if (!row || !(event.target instanceof Node) || !row.contains(event.target)) {
+                setConfirmDeleteId(null);
+            }
+        };
+        const cancel = () => setConfirmDeleteId(null);
+        const handleKeyDown = (event: KeyboardEvent) => {
+            if (event.key === "Escape") cancel();
+        };
+        document.addEventListener("pointerdown", cancelOutsideRow);
+        document.addEventListener("focusin", cancelOutsideRow);
+        document.addEventListener("keydown", handleKeyDown);
+        window.addEventListener("blur", cancel);
+        return () => {
+            document.removeEventListener("pointerdown", cancelOutsideRow);
+            document.removeEventListener("focusin", cancelOutsideRow);
+            document.removeEventListener("keydown", handleKeyDown);
+            window.removeEventListener("blur", cancel);
+        };
+    }, [confirmDeleteId]);
+
+    const handlePointerOut = (event: React.PointerEvent<HTMLDivElement>) => {
+        if (event.pointerType !== "mouse" || !(event.target instanceof Element)) return;
+        const row = event.target.closest('[data-confirm-delete="true"]');
+        if (row && (!(event.relatedTarget instanceof Node) || !row.contains(event.relatedTarget))) {
+            setConfirmDeleteId(null);
+        }
+    };
+
+    const handleBlur = (event: React.FocusEvent<HTMLDivElement>) => {
+        const row = panelRef.current?.querySelector('[data-confirm-delete="true"]');
+        if (row && (!(event.relatedTarget instanceof Node) || !row.contains(event.relatedTarget))) {
+            setConfirmDeleteId(null);
+        }
+    };
 
     // 点击外部关闭
     useEffect(() => {
@@ -203,6 +275,7 @@ export function ChatHistory({
     const handleFavorite = useCallback(
         (event: React.MouseEvent, id: string) => {
             event.stopPropagation();
+            setConfirmDeleteId(null);
             onToggleFavorite(id);
         },
         [onToggleFavorite],
@@ -211,7 +284,7 @@ export function ChatHistory({
     // ── Sidebar variant ──
     if (variant === "sidebar") {
         return (
-            <div className="flex-1 min-h-0 flex flex-col">
+            <div ref={panelRef} onPointerOut={handlePointerOut} onBlur={handleBlur} className="flex-1 min-h-0 flex flex-col">
                 <div className="min-h-0 flex-1 overflow-y-auto pr-1">
                     {favoriteSessions.length > 0 ? (
                         <section className="mb-3" aria-labelledby="favorite-sessions-heading">
@@ -233,7 +306,7 @@ export function ChatHistory({
                                         isActive={session.id === currentSessionId}
                                         favoriteCount={favoriteCount}
                                         confirmDeleteId={confirmDeleteId}
-                                        onSelect={onSelect}
+                                        onSelect={handleSelect}
                                         onFavorite={handleFavorite}
                                         onDelete={handleDelete}
                                     />
@@ -255,7 +328,9 @@ export function ChatHistory({
                             className="text-xs font-bold px-1 py-2 opacity-40"
                             style={{ color: "var(--foreground)" }}
                         >
-                            {favoriteSessions.length > 0 ? "暂无其他历史记录" : "暂无历史记录"}
+                            {query
+                                ? favoriteSessions.length > 0 ? "没有其他匹配的历史记录" : "没有匹配的历史标题"
+                                : favoriteSessions.length > 0 ? "暂无其他历史记录" : "暂无历史记录"}
                         </p>
                     ) : (
                             <div className="space-y-1">
@@ -266,7 +341,7 @@ export function ChatHistory({
                                         isActive={session.id === currentSessionId}
                                         favoriteCount={favoriteCount}
                                         confirmDeleteId={confirmDeleteId}
-                                        onSelect={onSelect}
+                                        onSelect={handleSelect}
                                         onFavorite={handleFavorite}
                                         onDelete={handleDelete}
                                     />
@@ -280,7 +355,7 @@ export function ChatHistory({
     }
 
     return (
-        <div ref={panelRef} className="relative">
+        <div ref={panelRef} onPointerOut={handlePointerOut} onBlur={handleBlur} className="relative">
             {/* Trigger button */}
             <button
                 onClick={() => {
@@ -347,7 +422,7 @@ export function ChatHistory({
                                     className="text-sm font-bold opacity-50"
                                     style={{ color: "var(--foreground)" }}
                                 >
-                                    {filter === "favorites" ? "暂无收藏" : "暂无历史记录"}
+                                    {query ? "没有匹配的历史标题" : filter === "favorites" ? "暂无收藏" : "暂无历史记录"}
                                 </p>
                             </div>
                         ) : (
@@ -357,9 +432,11 @@ export function ChatHistory({
                                     <div
                                         key={session.id}
                                         className={cn(
-                                            "group/item relative flex w-full items-center border-b text-left transition-colors last:border-b-0",
+                                            "history-row history-row-dropdown group/item relative flex w-full items-center border-b text-left transition-colors last:border-b-0",
                                             "hover:brightness-95",
                                         )}
+                                        data-active={isActive}
+                                        data-confirm-delete={confirmDeleteId === session.id}
                                         style={{
                                             borderColor: "var(--fb-inactive-border)",
                                             backgroundColor: isActive
@@ -374,15 +451,13 @@ export function ChatHistory({
                                             type="button"
                                             onClick={() => handleSelect(session.id)}
                                             className={cn(
-                                                "flex-1 min-w-0 py-2.5 pl-3 text-left transition-all",
+                                                "history-select flex-1 min-w-0 py-2.5 pl-3 text-left transition-all",
                                                 isActive || confirmDeleteId === session.id
                                                     ? "pr-18"
                                                     : "pr-3 group-hover/item:pr-18",
                                             )}
                                         >
-                                            <p className="text-sm font-bold truncate">
-                                                {session.title}
-                                            </p>
+                                            <SessionTitle title={session.title} className="block truncate text-sm font-bold" />
                                             <p className="text-xs opacity-60 mt-0.5">
                                                 {sessionContext(session)} ·{" "}
                                                 {relativeTime(session.updatedAt)} ·{" "}
@@ -392,7 +467,7 @@ export function ChatHistory({
 
                                         <div
                                             className={cn(
-                                                "absolute right-3 top-1/2 flex -translate-y-1/2 items-center gap-1 rounded-md p-1 transition-opacity",
+                                                "history-actions absolute right-3 top-1/2 flex -translate-y-1/2 items-center gap-1 rounded-md p-1 transition-opacity",
                                                 isActive || confirmDeleteId === session.id
                                                     ? "opacity-100"
                                                     : "opacity-0 group-hover/item:opacity-100 group-focus-within/item:opacity-100",

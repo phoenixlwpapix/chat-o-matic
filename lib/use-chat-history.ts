@@ -1,10 +1,12 @@
 "use client";
 
-import { useCallback, useState, useSyncExternalStore } from "react";
+import { useCallback, useRef, useState, useSyncExternalStore } from "react";
 import {
   normalizeSessions,
   toggleSessionFavorite,
   upsertSession,
+  getFirstExchange,
+  updateSessionTitle,
   type ChatSession,
   type SessionPreferences,
   type StoredMessage,
@@ -69,6 +71,37 @@ export function useChatHistory() {
     getServerSessions,
   );
   const [currentSessionId, setCurrentSessionId] = useState<string | null>(null);
+  const titleRequests = useRef(new Set<string>());
+
+  const summarizeSession = useCallback(async (id: string) => {
+    const session = readSessions().find((item) => item.id === id);
+    if (!session || session.titleGenerated || titleRequests.current.has(id)) return;
+    const exchange = getFirstExchange(session.messages);
+    if (!exchange) return;
+    titleRequests.current.add(id);
+
+    try {
+      const response = await fetch("/api/chat/title", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(exchange),
+        signal: AbortSignal.timeout(20_000),
+      });
+      if (!response.ok) return;
+      const data: unknown = await response.json();
+      if (
+        typeof data !== "object" || data === null ||
+        !("title" in data) || typeof data.title !== "string" ||
+        !data.title.trim() || data.title.length > 30
+      ) return;
+
+      const currentSessions = readSessions();
+      const nextSessions = updateSessionTitle(currentSessions, id, data.title.trim());
+      if (nextSessions !== currentSessions) writeSessions(nextSessions);
+    } catch {
+      // Keep the fallback title; a later visit may retry without interrupting chat.
+    }
+  }, []);
 
   const saveSession = useCallback(
     (id: string, messages: StoredMessage[], preferences: SessionPreferences) => {
@@ -96,11 +129,6 @@ export function useChatHistory() {
     [currentSessionId],
   );
 
-  const clearSessions = useCallback(() => {
-    writeSessions(EMPTY_SESSIONS);
-    setCurrentSessionId(null);
-  }, []);
-
   const toggleFavorite = useCallback((id: string) => {
     const currentSessions = readSessions();
     const nextSessions = toggleSessionFavorite(currentSessions, id);
@@ -112,9 +140,9 @@ export function useChatHistory() {
     currentSessionId,
     setCurrentSessionId,
     saveSession,
+    summarizeSession,
     loadSession,
     deleteSession,
     toggleFavorite,
-    clearSessions,
   };
 }

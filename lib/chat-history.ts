@@ -1,7 +1,7 @@
 import type { TextUIPart, UIMessage } from "ai";
 import { getSearchMode, type SearchMode } from "./search-modes";
 
-const MAX_SESSIONS = 20;
+const MAX_SESSIONS = 100;
 export const MAX_FAVORITE_SESSIONS = 10;
 
 export interface StoredTextPart {
@@ -19,6 +19,7 @@ export interface ChatSession {
   schemaVersion: 4;
   id: string;
   title: string;
+  titleGenerated?: boolean;
   personaId: string;
   searchMode: SearchMode;
   isFavorite: boolean;
@@ -87,6 +88,7 @@ export function normalizeSessions(value: unknown): ChatSession[] {
         schemaVersion: 4,
         id: session.id,
         title: session.title,
+        titleGenerated: session.titleGenerated === true,
         personaId,
         searchMode: getSearchMode(
           typeof session.searchMode === "string"
@@ -113,6 +115,35 @@ export function deriveTitle(messages: StoredMessage[]): string {
   const text = first.parts.map((part) => part.text).join("");
   if (!text.trim()) return "图片对话";
   return text.slice(0, 30).trim();
+}
+
+/** Only the first user turn and its answer determine the conversation topic. */
+export function getFirstExchange(messages: StoredMessage[]) {
+  const userIndex = messages.findIndex((message) => message.role === "user");
+  if (userIndex < 0) return null;
+  const user = messages[userIndex];
+  const assistant = messages[userIndex + 1];
+  if (assistant?.role !== "assistant") return null;
+  const answer = assistant.parts.map((part) => part.text).join("").trim();
+  if (!answer) return null;
+  return {
+    question: user.parts.map((part) => part.text).join("").trim() || "（用户发送了一张图片，请根据回答概括主题）",
+    answer: answer.slice(0, 6000),
+  };
+}
+
+/** A background title must not reorder history or resurrect a deleted session. */
+export function updateSessionTitle(
+  sessions: ChatSession[],
+  id: string,
+  title: string,
+): ChatSession[] {
+  if (!sessions.some((session) => session.id === id && !session.titleGenerated)) {
+    return sessions;
+  }
+  return sessions.map((session) =>
+    session.id === id ? { ...session, title, titleGenerated: true } : session,
+  );
 }
 
 /** Keep history small by omitting base64 image data. Active chats retain images. */
@@ -210,7 +241,8 @@ export function upsertSession(
   const nextSession: ChatSession = {
     schemaVersion: 4,
     id,
-    title: deriveTitle(messages),
+    title: existing?.titleGenerated ? existing.title : deriveTitle(messages),
+    titleGenerated: existing?.titleGenerated ?? false,
     ...preferences,
     messages,
     isFavorite: existing?.isFavorite ?? false,

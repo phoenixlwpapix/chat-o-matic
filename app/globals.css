@@ -365,6 +365,36 @@ body {
   margin-bottom: 0;
 }
 
+/* Keep short inline math in the reading flow; give tall symbols breathing room. */
+.markdown-content :is(p, li):has(> .katex) {
+  line-height: 1.9;
+}
+
+/* Center readable display math, letting long expressions scroll from their start. */
+.markdown-content .katex-display {
+  max-width: 100%;
+  margin-block: 1.35em;
+  padding: 0.65em 0.25em;
+  overflow-x: auto;
+  overflow-y: hidden;
+}
+
+.markdown-content .katex-display > .katex {
+  min-width: max-content;
+  font-size: 1.35em;
+  text-align: center;
+}
+
+@media (max-width: 767px) {
+  .markdown-content .katex-display {
+    margin-block: 1.1em;
+  }
+
+  .markdown-content .katex-display > .katex {
+    font-size: 1.25em;
+  }
+}
+
 /* ── Animations ── */
 @keyframes float {
 
@@ -457,6 +487,25 @@ body {
   .status-icon-thinking svg,
   .status-dots > span {
     animation: none;
+  }
+}
+
+/* Mouse users reveal active-row actions on hover or action-button focus.
+   Touch devices keep persistent actions; deletion confirmation stays visible. */
+@media (hover: hover) and (pointer: fine) {
+  .history-row[data-active="true"][data-confirm-delete="false"]:not(:hover):not(:has(.history-actions:focus-within)) {
+    .history-actions {
+      opacity: 0;
+      pointer-events: none;
+    }
+
+    .history-select {
+      padding-right: 0.5rem;
+    }
+
+    &.history-row-dropdown .history-select {
+      padding-right: 0.75rem;
+    }
   }
 }
 

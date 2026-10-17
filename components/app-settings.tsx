@@ -11,7 +11,6 @@ import {
   Radio,
   RotateCcw,
   Settings2,
-  Trash2,
   UserRound,
   WifiOff,
   X,
@@ -40,14 +39,12 @@ interface AppSettingsProps {
   userAvatar: string | null;
   userName: string;
   hasActiveConversation: boolean;
-  historyCount: number;
   onOpenChange: (open: boolean) => void;
   onPersonaChange: (persona: Persona) => void;
   onSearchModeChange: (mode: SearchMode) => void;
   onThemeChange: (theme: Theme) => void;
   onUserAvatarChange: (avatar: string | null) => void;
   onUserNameChange: (userName: string) => void;
-  onClearHistory: () => void;
 }
 
 export function AppSettings({
@@ -58,14 +55,12 @@ export function AppSettings({
   userAvatar,
   userName,
   hasActiveConversation,
-  historyCount,
   onOpenChange,
   onPersonaChange,
   onSearchModeChange,
   onThemeChange,
   onUserAvatarChange,
   onUserNameChange,
-  onClearHistory,
 }: AppSettingsProps) {
   const closeButtonRef = useRef<HTMLButtonElement>(null);
   const avatarInputRef = useRef<HTMLInputElement>(null);
@@ -79,7 +74,6 @@ export function AppSettings({
   const [lengthWarning, setLengthWarning] = useState(false);
 
   const [pendingPersonaId, setPendingPersonaId] = useState<string | null>(null);
-  const [confirmClearHistory, setConfirmClearHistory] = useState(false);
   const [avatarCropUrl, setAvatarCropUrl] = useState<string | null>(null);
   const [avatarError, setAvatarError] = useState<string | null>(null);
 
@@ -87,17 +81,6 @@ export function AppSettings({
   const pendingPersona = pendingPersonaId
     ? getPersonaById(pendingPersonaId)
     : null;
-
-  // 当弹窗打开时，同步外部的用户名状态并重置编辑态
-  useEffect(() => {
-    if (open) {
-      setInputUserName(userName);
-      setIsEditingUserName(false);
-      setUserNameError(null);
-      setUserNameSuccess(null);
-      setLengthWarning(false);
-    }
-  }, [open, userName]);
 
   const closeDialog = useCallback(() => {
     if (avatarCropUrlRef.current) URL.revokeObjectURL(avatarCropUrlRef.current);
@@ -109,7 +92,6 @@ export function AppSettings({
     setLengthWarning(false);
     setIsEditingUserName(false);
     setPendingPersonaId(null);
-    setConfirmClearHistory(false);
     onOpenChange(false);
   }, [onOpenChange]);
 
@@ -209,18 +191,12 @@ export function AppSettings({
   };
 
   const selectPersona = (persona: Persona) => {
-    setConfirmClearHistory(false);
     setPendingPersonaId(persona.id === personaId ? null : persona.id);
   };
 
   const confirmPersonaChange = () => {
     if (!pendingPersona) return;
     onPersonaChange(pendingPersona);
-    closeDialog();
-  };
-
-  const clearHistory = () => {
-    onClearHistory();
     closeDialog();
   };
 
@@ -675,70 +651,7 @@ export function AppSettings({
               </div>
             </fieldset>
 
-            {/* ── 4. 下方区域：清理记录 ── */}
-            <div
-              className="border-t pt-6"
-              style={{
-                borderColor:
-                  "color-mix(in srgb, var(--settings-option-muted) 35%, transparent)",
-              }}
-            >
-              <div className="flex items-center justify-between gap-4">
-                <div className="min-w-0">
-                  <p className="text-xs font-black uppercase tracking-[0.16em]">
-                    清理记录
-                  </p>
-                  {confirmClearHistory ? (
-                    <p className="mt-1 text-[10px] font-semibold text-red-500">
-                      清空后无法恢复，当前对话也会重置
-                    </p>
-                  ) : null}
-                </div>
 
-                {confirmClearHistory ? (
-                  <div className="flex shrink-0 gap-2">
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      onClick={() => setConfirmClearHistory(false)}
-                    >
-                      取消
-                    </Button>
-                    <Button
-                      type="button"
-                      size="sm"
-                      onClick={clearHistory}
-                      style={{
-                        backgroundColor: "var(--hot-badge-bg)",
-                        color: "var(--hot-badge-text)",
-                        borderColor: "var(--border-color)",
-                      }}
-                    >
-                      确认清空
-                    </Button>
-                  </div>
-                ) : (
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setPendingPersonaId(null);
-                      setConfirmClearHistory(true);
-                    }}
-                    disabled={historyCount === 0}
-                    className="inline-flex shrink-0 items-center gap-1.5 rounded-lg border-2 px-3 py-2 text-[11px] font-black transition-all hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-30"
-                    style={{
-                      borderColor: "var(--border-color)",
-                      backgroundColor: "var(--settings-option-bg)",
-                      color: "var(--hot-badge-bg)",
-                    }}
-                  >
-                    <Trash2 className="h-3.5 w-3.5" />
-                    清空记录
-                  </button>
-                )}
-              </div>
-            </div>
           </div>
 
           {pendingPersona ? (
