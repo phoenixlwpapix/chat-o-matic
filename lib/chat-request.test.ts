@@ -25,6 +25,18 @@ function validBody() {
 }
 
 describe("parseChatRequest", () => {
+  it("accepts a restored assistant search summary when continuing a conversation", async () => {
+    const result = await parseChatRequest(createRequest({
+      ...validBody(),
+      messages: [
+        ...validBody().messages,
+        { id: "answer", role: "assistant", parts: [{ type: "text", text: "回答" }], metadata: { search: { sourceCount: 2 } } },
+        { id: "next", role: "user", parts: [{ type: "text", text: "继续" }] },
+      ],
+    }));
+    expect(result.messages).toHaveLength(3);
+  });
+
   it("accepts the AI SDK request envelope", async () => {
     const result = await parseChatRequest(createRequest(validBody()));
 

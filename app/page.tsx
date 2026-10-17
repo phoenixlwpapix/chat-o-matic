@@ -980,8 +980,8 @@ export default function Home() {
 
                     {message.role === "assistant" ? (
                       <SourceList
-                        messageId={message.id}
                         parts={message.parts}
+                        metadata={message.metadata}
                         isComplete={!isLoading || message.id !== lastAssistantId}
                       />
                     ) : null}
@@ -1117,7 +1117,7 @@ export default function Home() {
               </div>
             </div>
           ) : null}
-          <div ref={messagesEndRef} />
+          {messages.length > 0 ? <div ref={messagesEndRef} /> : null}
         </CardContent>
 
         <CardFooter

@@ -84,7 +84,8 @@ function SidebarSessionRow({
         <div
             className={cn(
                 "history-row group/item relative flex items-center rounded-lg border text-left transition-all",
-                "hover:-translate-y-px hover:brightness-95",
+                "hover:-translate-y-px",
+                confirmDeleteId !== session.id && "hover:brightness-95",
             )}
             data-active={isActive}
             data-confirm-delete={confirmDeleteId === session.id}
@@ -122,7 +123,7 @@ function SidebarSessionRow({
             </button>
             <div
                 className={cn(
-                    "history-actions absolute right-1 top-1/2 flex -translate-y-1/2 items-center rounded-md pl-1 transition-opacity",
+                    "history-actions absolute right-1 top-1/2 flex h-8 w-16 -translate-y-1/2 items-center justify-end rounded-md pl-1 transition-opacity",
                     isActive || confirmDeleteId === session.id
                         ? "opacity-100"
                         : "opacity-0 group-hover/item:opacity-100 group-focus-within/item:opacity-100",
@@ -135,7 +136,10 @@ function SidebarSessionRow({
                     type="button"
                     onClick={(event) => onFavorite(event, session.id)}
                     disabled={!session.isFavorite && favoriteCount >= MAX_FAVORITE_SESSIONS}
-                    className="shrink-0 rounded p-1 transition-transform hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-25"
+                    className={cn(
+                        "shrink-0 rounded p-1 transition-transform hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-25",
+                        confirmDeleteId === session.id && "invisible",
+                    )}
                     aria-label={session.isFavorite ? `取消收藏${session.title}` : `收藏${session.title}`}
                     title={
                         !session.isFavorite && favoriteCount >= MAX_FAVORITE_SESSIONS
@@ -152,19 +156,20 @@ function SidebarSessionRow({
                 <button
                     type="button"
                     onClick={(event) => onDelete(event, session.id)}
-                    className="m-1 shrink-0 rounded p-1 transition-all hover:-translate-y-0.5 hover:brightness-90"
+                    className={cn(
+                        "shrink-0 transition-colors focus-visible:outline-2 focus-visible:outline-offset-2",
+                        confirmDeleteId === session.id
+                            ? "absolute inset-0 flex items-center justify-center rounded-md text-xs font-black"
+                            : "m-1 rounded p-1 hover:brightness-90",
+                    )}
                     style={{
                         backgroundColor: confirmDeleteId === session.id ? "var(--hot-badge-bg)" : "transparent",
+                        color: confirmDeleteId === session.id ? "var(--hot-badge-text)" : "var(--fb-inactive-text)",
                     }}
                     aria-label={confirmDeleteId === session.id ? `确认删除${session.title}` : `删除${session.title}`}
                     title={confirmDeleteId === session.id ? "再次点击确认删除" : "删除"}
                 >
-                    <Trash2
-                        className="h-3 w-3"
-                        style={{
-                            color: confirmDeleteId === session.id ? "#fff" : "var(--fb-inactive-text)",
-                        }}
-                    />
+                    {confirmDeleteId === session.id ? "删除" : <Trash2 className="h-3 w-3" />}
                 </button>
             </div>
         </div>

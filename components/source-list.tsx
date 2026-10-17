@@ -2,36 +2,29 @@
 
 import { Globe } from "lucide-react";
 import type { UIMessage } from "ai";
+import { getSearchSummary } from "@/lib/search-sources";
 
 interface SourceListProps {
-  messageId: string;
   parts: UIMessage["parts"];
+  metadata?: unknown;
   isComplete: boolean;
 }
 
 export function SourceList({
-  messageId,
   parts,
+  metadata,
   isComplete,
 }: SourceListProps) {
-  const sources = parts.filter((part) => part.type === "source-url");
-  const usedSearch =
-    sources.length > 0 ||
-    parts.some(
-      (part) =>
-        part.type === "tool-google_search" ||
-        part.type === "dynamic-tool",
-    );
-
-  if (!usedSearch) return null;
-  if (!isComplete && sources.length === 0) return null;
+  const summary = getSearchSummary(parts, metadata);
+  if (!summary || (!isComplete && summary.sourceCount === 0)) return null;
+  const { sourceCount } = summary;
 
   return (
     <div
       className="mt-3 border-t-2 border-dashed pt-2"
       style={{ borderColor: "var(--fb-inactive-border)" }}
     >
-      <div className="mb-2 flex items-center gap-1.5">
+      <div className="flex items-center gap-1.5">
         <Globe
           aria-hidden="true"
           className="h-3.5 w-3.5"
@@ -41,43 +34,10 @@ export function SourceList({
           className="text-[10px] font-black uppercase tracking-wide"
           style={{ color: "var(--source-text)" }}
         >
-          已联网参考
+          {sourceCount > 0 ? `已联网 · 参考 ${sourceCount} 个来源` : "已联网"}
         </span>
       </div>
 
-      {sources.length > 0 ? (
-        <div className="flex flex-wrap gap-1.5">
-          {sources.map((part, index) => {
-            let hostname = part.url;
-            try {
-              hostname = new URL(part.url).hostname.replace(/^www\./, "");
-            } catch {
-              // Keep the URL as the fallback label.
-            }
-
-            return (
-              <a
-                key={`${messageId}-source-${index}`}
-                href={part.url}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-flex items-center gap-1 rounded-md border px-2 py-1 text-xs font-medium transition-colors hover:brightness-95"
-                style={{
-                  backgroundColor: "var(--source-bg)",
-                  color: "var(--source-text)",
-                  borderColor: "var(--source-border)",
-                }}
-                title={part.title ?? part.url}
-              >
-                <Globe aria-hidden="true" className="h-3 w-3 shrink-0" />
-                <span className="max-w-[150px] truncate">
-                  {part.title ?? hostname}
-                </span>
-              </a>
-            );
-          })}
-        </div>
-      ) : null}
     </div>
   );
 }

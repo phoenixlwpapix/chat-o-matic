@@ -1,5 +1,6 @@
 import type { TextUIPart, UIMessage } from "ai";
 import { getSearchMode, type SearchMode } from "./search-modes";
+import { getSearchSummary, readSearchSummary, type SearchSummary } from "./search-sources";
 
 const MAX_SESSIONS = 100;
 export const MAX_FAVORITE_SESSIONS = 10;
@@ -13,6 +14,7 @@ export interface StoredMessage {
   id: string;
   role: "user" | "assistant";
   parts: StoredTextPart[];
+  metadata?: { search: SearchSummary };
 }
 
 export interface ChatSession {
@@ -62,7 +64,8 @@ function normalizeMessages(value: unknown): StoredMessage[] {
       return [{ type: "text", text: part.text }];
     });
 
-    return [{ id: message.id, role: message.role, parts }];
+    const search = message.role === "assistant" ? readSearchSummary(message.metadata) : undefined;
+    return [{ id: message.id, role: message.role, parts, ...(search ? { metadata: { search } } : {}) }];
   });
 }
 
@@ -153,7 +156,8 @@ export function toStoredMessages(messages: UIMessage[]): StoredMessage[] {
     const parts = message.parts
       .filter((part): part is TextUIPart => part.type === "text")
       .map((part) => ({ type: "text" as const, text: part.text }));
-    return [{ id: message.id, role: message.role, parts }];
+    const search = message.role === "assistant" ? getSearchSummary(message.parts, message.metadata) : undefined;
+    return [{ id: message.id, role: message.role, parts, ...(search ? { metadata: { search } } : {}) }];
   });
 }
 
@@ -168,6 +172,7 @@ function messagesAreEqual(
     if (
       message.id !== otherMessage.id ||
       message.role !== otherMessage.role ||
+      message.metadata?.search.sourceCount !== otherMessage.metadata?.search.sourceCount ||
       message.parts.length !== otherMessage.parts.length
     ) {
       return false;
