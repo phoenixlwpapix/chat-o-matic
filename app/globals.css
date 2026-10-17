@@ -532,17 +532,10 @@ body {
 }
 
 /* Keep message copy available on touch screens and when using a keyboard. */
-@media (hover: hover) and (pointer: fine) {
+@media (min-width: 1024px) and (hover: hover) and (pointer: fine) {
   .group:not(:hover):not(:focus-within) .user-message-copy {
     opacity: 0;
     pointer-events: none;
-  }
-}
-
-@media (any-pointer: coarse) {
-  .group:not(:hover):not(:focus-within) .user-message-copy {
-    opacity: 1;
-    pointer-events: auto;
   }
 }
 

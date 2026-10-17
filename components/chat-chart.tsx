@@ -1,7 +1,7 @@
 "use client";
 
 import { useId, useState } from "react";
-import { BarChart3, ExternalLink, Table2 } from "lucide-react";
+import { BarChart3, LineChart, ExternalLink, Table2 } from "lucide-react";
 import { parseChart, type ChartSpec } from "@/lib/charts";
 
 const COLORS = ["var(--qp-1)", "var(--qp-2)", "var(--qp-3)", "var(--qp-4)"];
@@ -83,17 +83,33 @@ export function ChatChart({ raw, pending }: { raw: string; pending: boolean }) {
     {pending ? "图表生成中…" : "这张图的数据格式不完整或不支持，请让助手重新生成图表。"}
   </div>;
 
+  return <ChartCard key={raw} chart={chart} />;
+}
+
+function ChartCard({ chart }: { chart: ChartSpec }) {
+  const [type, setType] = useState(chart.type);
+  const displayedChart = { ...chart, type };
+
   return <section className="not-prose my-4 min-w-0 overflow-hidden rounded-xl border-2" aria-label={chart.title} style={{ borderColor: "var(--border-color)", background: "var(--card-bg)", color: "var(--ai-bubble-text)", boxShadow: "3px 3px 0 rgba(var(--shadow-color), 1)" }}>
-    <div className="flex items-start justify-between gap-3 border-b-2 px-3 py-3" style={{ borderColor: "var(--border-color)", background: "var(--card-footer-bg)" }}>
-      <div className="flex min-w-0 items-start gap-2"><BarChart3 aria-hidden="true" className="mt-0.5 h-4 w-4 shrink-0" /><span className="break-words text-sm font-black">{chart.title}</span></div>
-      <span className="shrink-0 rounded border px-1.5 py-0.5 text-[10px] font-bold">{KINDS[chart.dataKind]}</span>
+    <div className="flex flex-wrap items-start justify-between gap-3 border-b-2 px-3 py-3" style={{ borderColor: "var(--border-color)", background: "var(--card-footer-bg)" }}>
+      <div className="flex min-w-0 flex-1 items-start gap-2"><BarChart3 aria-hidden="true" className="mt-0.5 h-4 w-4 shrink-0" /><span className="break-words text-sm font-black">{chart.title}</span></div>
+      {chart.type !== "donut" ? <div role="group" aria-label="图表类型" className="flex shrink-0 overflow-hidden rounded-md border-2" style={{ borderColor: "var(--border-color)" }}>
+        {(["line", "bar"] as const).map((option) => {
+          const selected = type === option;
+          const Icon = option === "line" ? LineChart : BarChart3;
+          return <button key={option} type="button" aria-label={option === "line" ? "折线图" : "柱状图"} aria-pressed={selected} onClick={() => setType(option)} className="inline-flex min-h-8 items-center justify-center gap-1 px-2 text-[11px] font-bold transition-colors hover:brightness-95 focus-visible:relative focus-visible:z-10 focus-visible:outline-2 focus-visible:-outline-offset-2" style={{ background: selected ? "var(--header-bg)" : "var(--card-bg)", color: selected ? "var(--header-text)" : "var(--ai-bubble-text)" }}>
+            <Icon aria-hidden="true" className="h-3.5 w-3.5" />{option === "line" ? "折线" : "柱状"}
+          </button>;
+        })}
+      </div> : null}
     </div>
     <div className="p-3">
       {chart.unit && chart.type !== "donut" && <div className="text-xs opacity-75">单位：{chart.unit}</div>}
-      <ChartView chart={chart} />
+      <ChartView chart={displayedChart} />
       {chart.source && <a href={chart.source.url} target="_blank" rel="noopener noreferrer" className="mt-3 flex items-center gap-1 break-all text-xs underline" style={{ color: "var(--source-text)" }}>来源：{chart.source.title}<ExternalLink aria-hidden="true" className="h-3 w-3 shrink-0" /></a>}
       <details className="mt-3 border-t pt-2" style={{ borderColor: "var(--fb-inactive-border)" }}>
         <summary className="cursor-pointer text-xs font-bold"><Table2 aria-hidden="true" className="mr-1 inline h-3.5 w-3.5" />查看数据</summary>
+        <p className="mb-0 mt-2 text-xs opacity-75">数据类型：{KINDS[chart.dataKind]}</p>
         <div className="mt-2 overflow-x-auto"><table className="w-full text-left text-xs"><caption className="sr-only">{chart.title}的数据</caption><thead><tr><th scope="col" className="p-2">项目</th><th scope="col" className="p-2 text-right">数值{chart.unit ? `（${chart.unit}）` : ""}</th></tr></thead><tbody>{chart.data.map((point) => <tr key={point.label} className="border-t" style={{ borderColor: "var(--fb-inactive-border)" }}><th scope="row" className="break-all p-2 font-medium">{point.label}</th><td className="p-2 text-right tabular-nums">{format(point.value)}</td></tr>)}</tbody></table></div>
       </details>
     </div>
