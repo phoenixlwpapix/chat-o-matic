@@ -17,7 +17,7 @@ describe("contextual reply actions", () => {
     for (const id of ["easier-quiz", "harder-quiz"] as const) {
       const action = actions.find((item) => item.id === id)!;
       expect(action.prompt).toBe(QUIZ_FOLLOW_UP_PROMPTS[id === "easier-quiz" ? "easier" : "harder"]);
-      expect(buildQuizContinuationPrompt([card, { id: "u", role: "user", parts: [{ type: "text", text: action.prompt }] }])).toContain("词义理解");
+      expect(buildQuizContinuationPrompt([card, { id: "u", role: "user", parts: [{ type: "text", text: action.prompt }] }])).toContain("默认一篇材料配3道小题");
     }
   });
 

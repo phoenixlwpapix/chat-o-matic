@@ -4,6 +4,8 @@ import { collectQuizResults, buildQuizSummaryMarkdown, buildQuizSummaryAnalysisP
 import { normalizeSessions, toStoredMessages } from "./chat-history";
 import { parseChart } from "./charts";
 import { getResponseActionContext, getResponseActions } from "./response-actions";
+import { normalizeMarkdown } from "./markdown";
+import { getMessageQuizzes, withQuizAnswerContext } from "./quizzes";
 
 function card(id: string, selected?: number[], multiple = false): UIMessage {
   const raw = JSON.stringify({ type: multiple ? "multiple" : "single", question: `第${id}题：哪些是质数？`, options: ["2", "3", "4"], answer: multiple ? [0, 1] : [0], explanation: "2和3只有两个正因数，4不是质数。" });
@@ -11,6 +13,28 @@ function card(id: string, selected?: number[], multiple = false): UIMessage {
 }
 
 describe("practice summaries", () => {
+  it("keeps rendered submissions in summaries and explanation context after history restore", () => {
+    const raw = JSON.stringify({ type: "single", question: "下面哪个是 **“质数”**？", options: ["9", "11"], answer: [1], explanation: "**“11”** 只有两个正因数。" });
+    const text = `\`\`\`quiz\n${raw}\n\`\`\``;
+    // MarkdownContent renders normalized text; submissions store that code block's raw JSON.
+    const renderedRaw = /```quiz\n([\s\S]*?)\n```/.exec(normalizeMarkdown(text))![1];
+    expect(renderedRaw).not.toBe(raw);
+    const message: UIMessage = { id: "quoted", role: "assistant", parts: [{ type: "text", text }], metadata: { quizAnswers: [{ key: "0:0", raw: renderedRaw, selected: [1] }] } };
+    const restored = normalizeSessions([{ id: "s", title: "练习", createdAt: 1, updatedAt: 1, messages: toStoredMessages([message]) }])[0].messages;
+    for (const messages of [[message], restored]) {
+      expect(getMessageQuizzes(messages[0])[0].raw).toBe(renderedRaw);
+      expect(collectQuizResults(messages)).toMatchObject({ correct: 1, incorrect: 0, unanswered: 0 });
+      expect(getResponseActionContext(messages, message.id)).toBe("quiz-answered");
+      expect(withQuizAnswerContext(messages)).toHaveLength(2);
+      expect(withQuizAnswerContext(messages)[1].parts).toEqual([expect.objectContaining({ text: expect.stringContaining("我的选择：B. 11") })]);
+      expect(messages[0].parts).toEqual([{ type: "text", text }]);
+    }
+    // A saved answer for a genuinely different card must still be ignored.
+    const stale = { ...message, parts: [{ type: "text" as const, text: text.replace("质数", "合数") }] };
+    expect(collectQuizResults([stale]).results).toHaveLength(0);
+    expect(withQuizAnswerContext([stale])).toHaveLength(1);
+  });
+
   it("counts submitted attempts, excludes unsubmitted cards and ignores duplicate metadata", () => {
     const correct = card("1", [0]);
     const duplicate = { ...correct, metadata: { quizAnswers: Array(2).fill((correct.metadata as { quizAnswers: unknown[] }).quizAnswers[0]) } };

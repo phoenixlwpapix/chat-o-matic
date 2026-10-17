@@ -1,11 +1,11 @@
 import { google } from "@ai-sdk/google";
-import { streamText, convertToModelMessages, createUIMessageStream, createUIMessageStreamResponse } from "ai";
+import { streamText, convertToModelMessages } from "ai";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { ChatRequestError, parseChatRequest } from "@/lib/chat-request";
 import { getPersonaById } from "@/lib/personas";
 import { getPublicChatErrorMessage } from "@/lib/chat-errors";
 import { withQuizAnswerContext, buildQuizContinuationPrompt } from "@/lib/quizzes";
-import { collectQuizResults, isQuizSummaryRequest, buildQuizSummaryMarkdown, buildQuizSummaryAnalysisPrompt } from "@/lib/quiz-summary";
+import { createQuizPracticeResponse } from "@/lib/quiz-response";
 import {
   buildChatSystemPrompt,
   buildSearchPrompt,
@@ -50,32 +50,12 @@ export async function POST(req: Request) {
 
   // 2. 调用 Gemini 模型（含 Google Search 联网搜索）
   try {
-    if (isQuizSummaryRequest(messages)) {
-      const summary = collectQuizResults(messages);
-      const stream = createUIMessageStream({
-        execute: ({ writer }) => {
-          writer.write({ type: "start" });
-          writer.write({ type: "text-start", id: "quiz-summary-overview" });
-          writer.write({ type: "text-delta", id: "quiz-summary-overview", delta: buildQuizSummaryMarkdown(summary) });
-          writer.write({ type: "text-end", id: "quiz-summary-overview" });
-          if (!summary.results.length) {
-            writer.write({ type: "finish" });
-            return;
-          }
-          const analysis = streamText({
-            model: google("gemini-3.5-flash-lite"),
-            system: `${persona.systemPrompt}\n\n${buildQuizSummaryAnalysisPrompt(summary)}`,
-            prompt: "请基于给出的本次作答数据，分析待加强的知识点并提出具体建议。",
-          });
-          writer.merge(analysis.toUIMessageStream({ sendStart: false, onError: getPublicChatErrorMessage }));
-        },
-        onError: (error) => {
-          console.error("Quiz summary analysis failed", error instanceof Error ? error.message : "Unknown error");
-          return getPublicChatErrorMessage(error);
-        },
-      });
-      return createUIMessageStreamResponse({ stream });
-    }
+    const practiceResponse = await createQuizPracticeResponse({
+      model: google("gemini-3.5-flash-lite"),
+      messages,
+      personaPrompt: persona.systemPrompt,
+    });
+    if (practiceResponse) return practiceResponse;
 
     const result = streamText({
       model: google("gemini-3.5-flash-lite"),

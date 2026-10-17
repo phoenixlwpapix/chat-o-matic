@@ -58,8 +58,8 @@ import { SourceList } from "@/components/source-list";
 import { useChatHistory, toStoredMessages } from "@/lib/use-chat-history";
 import { MAX_FAVORITE_SESSIONS } from "@/lib/chat-history";
 import { CHAT_FONTS } from "@/lib/chat-typography";
-import { parseQuiz, readQuizAnswers, type QuizAnswer } from "@/lib/quizzes";
-import { getResponseActionContext, getResponseActions } from "@/lib/response-actions";
+import { parseQuizCard, readQuizAnswers, type QuizAnswer } from "@/lib/quizzes";
+import { getResponseActionContext, getResponseActions, isQuizGroupContext } from "@/lib/response-actions";
 import type { SearchMode } from "@/lib/search-modes";
 import { getClientChatErrorMessage } from "@/lib/chat-errors";
 import "katex/dist/katex.min.css";
@@ -453,7 +453,7 @@ export default function Home() {
   // 处理快捷提示词点击
   const handleQuizSubmit = (messageId: string, answer: QuizAnswer) => {
     if (isLoading) return;
-    const quiz = parseQuiz(answer.raw);
+    const quiz = parseQuizCard(answer.raw);
     if (!quiz || readQuizAnswers({ quizAnswers: [answer] }).length !== 1) return;
     setMessages((current) => {
       const message = current.find((item) => item.id === messageId);
@@ -481,7 +481,7 @@ export default function Home() {
     (actionId: ResponseAction) => {
       if (isLoading) return;
       const context = getResponseActionContext(messages, lastAssistantId ?? "");
-      const action = getResponseActions(context).find((item) => item.id === actionId);
+      const action = getResponseActions(context, isQuizGroupContext(messages, lastAssistantId ?? "")).find((item) => item.id === actionId);
       if (!action) return;
       const requestSearchMode = actionId === "verify" ? "always" : searchMode;
       setApiError(null);
@@ -1073,6 +1073,7 @@ export default function Home() {
                       }
                       onAction={handleResponseAction}
                       context={getResponseActionContext(messages, message.id)}
+                      grouped={isQuizGroupContext(messages, message.id)}
                       onRegenerate={handleRegenerate}
                       onCopy={() =>
                         handleCopy(getMessageText(message.parts), message.id)

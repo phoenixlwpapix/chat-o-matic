@@ -11,12 +11,12 @@ const raw = JSON.stringify(question);
 const response = { key: "0:0", raw, selected: [1] };
 
 describe("interactive quizzes", () => {
-  it("rotates concrete reading skills only for reading-card continuations", () => {
+  it("continues reading as shared-passage groups rather than rotating isolated questions", () => {
     const card = (id: string, questionText: string): UIMessage => ({ id, role: "assistant", parts: [{ type: "text", text: `\`\`\`quiz\n${JSON.stringify({ ...question, question: questionText })}\n\`\`\`` }] });
     const next: UIMessage = { id: "next", role: "user", parts: [{ type: "text", text: QUIZ_FOLLOW_UP_PROMPTS.next }] };
     const reading = card("a", "Read the passage: A short story. What is the character preparing to do?");
-    expect(buildQuizContinuationPrompt([reading, next])).toContain("词义理解");
-    expect(buildQuizContinuationPrompt([reading, card("b", "Read the passage: A new story."), next])).toContain("明确细节");
+    expect(buildQuizContinuationPrompt([reading, next])).toContain("默认一篇材料配3道小题");
+    expect(buildQuizContinuationPrompt([reading, card("b", "Read the passage: A new story."), next])).toContain("组内必须共用文章");
     expect(buildQuizContinuationPrompt([reading, card("math", "三角形内角和是多少？"), next])).toBe("");
     expect(buildQuizContinuationPrompt([reading, { ...next, parts: [{ type: "text", text: QUIZ_FOLLOW_UP_PROMPTS.explain }] }])).toBe("");
     expect(buildQuizContinuationPrompt([card("bad", "普通题目"), next])).toBe("");

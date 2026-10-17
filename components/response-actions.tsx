@@ -33,6 +33,7 @@ interface ResponseActionsProps {
   onAction: (action: ResponseAction) => void;
   onCopy: () => void;
   context?: ResponseActionContext;
+  grouped?: boolean;
   onRegenerate: () => void;
 }
 
@@ -44,6 +45,7 @@ export function ResponseActions({
   onAction,
   onCopy,
   context = "answer",
+  grouped = false,
   onRegenerate,
 }: ResponseActionsProps) {
   const chipClassName = cn(
@@ -69,9 +71,9 @@ export function ResponseActions({
       aria-label="回复操作"
     >
       {showLearningActions
-        ? getResponseActions(context).map((action) => {
+        ? getResponseActions(context, grouped).map((action) => {
             const Icon = ACTION_ICONS[action.id];
-            const primary = action.id === "next-quiz" && action.label === "再来一题";
+            const primary = action.id === "next-quiz" && context !== "quiz-unanswered";
             return (
               <button
                 key={action.id}
