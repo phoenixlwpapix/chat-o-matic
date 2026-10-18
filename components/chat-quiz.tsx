@@ -1,15 +1,28 @@
 "use client";
 
-import { useId, useState } from "react";
+import { createContext, useContext, useId, useState } from "react";
 import { BookOpenCheck, Check } from "lucide-react";
-import ReactMarkdown from "react-markdown";
+import ReactMarkdown, { type Components } from "react-markdown";
 import remarkMath from "remark-math";
 import rehypeKatex from "rehype-katex";
 import { getQuizItems, isCorrectAnswer, parseQuizCard, type QuizAnswer, type QuizSpec } from "@/lib/quizzes";
+import { ParagraphFollowUp } from "@/components/paragraph-follow-up";
 
-function QuizText({ text }: { text: string }) {
-  return <div className="quiz-text markdown-content min-w-0 break-words">
-    <ReactMarkdown remarkPlugins={[remarkMath]} rehypePlugins={[rehypeKatex]} disallowedElements={["img", "pre"]} unwrapDisallowed>{text}</ReactMarkdown>
+const QuizTextContext = createContext<{ text: string; context: string; onFollowUp?: (prompt: string) => void }>({ text: "", context: "" });
+const QuizParagraph: NonNullable<Components["p"]> = ({ children, node }) => {
+  const { text, context, onFollowUp } = useContext(QuizTextContext);
+  const start = node?.position?.start.offset;
+  const end = node?.position?.end.offset;
+  const quote = start !== undefined && end !== undefined ? text.slice(start, end) : text;
+  return <ParagraphFollowUp quote={context ? `${context}\n${quote}` : quote} onFollowUp={onFollowUp}>{children}</ParagraphFollowUp>;
+};
+const QUIZ_TEXT_COMPONENTS: Components = { p: QuizParagraph };
+
+function QuizText({ text, onFollowUp, context = "" }: { text: string; onFollowUp?: (prompt: string) => void; context?: string }) {
+  return <div className="quiz-text markdown-content min-w-0 max-w-[780px] break-words">
+    <QuizTextContext.Provider value={{ text, context, onFollowUp }}>
+    <ReactMarkdown remarkPlugins={[remarkMath]} rehypePlugins={[rehypeKatex]} disallowedElements={["img", "pre"]} unwrapDisallowed components={QUIZ_TEXT_COMPONENTS}>{text}</ReactMarkdown>
+    </QuizTextContext.Provider>
   </div>;
 }
 
@@ -20,8 +33,8 @@ export interface QuizControls {
   onFollowUp?: (text: string) => void;
 }
 
-function QuizQuestion({ quiz, selected, submitted, disabled, number, onChange }: {
-  quiz: QuizSpec; selected: number[]; submitted: boolean; disabled: boolean; number?: number; onChange: (index: number) => void;
+function QuizQuestion({ quiz, selected, submitted, disabled, number, onChange, onFollowUp }: {
+  quiz: QuizSpec; selected: number[]; submitted: boolean; disabled: boolean; number?: number; onChange: (index: number) => void; onFollowUp?: (prompt: string) => void;
 }) {
   const titleId = useId();
   const correct = isCorrectAnswer(quiz, selected);
@@ -44,13 +57,13 @@ function QuizQuestion({ quiz, selected, submitted, disabled, number, onChange }:
       {submitted ? <div role="status" className="space-y-2 border-t-2 border-dashed pt-3" style={{ borderColor: "var(--fb-inactive-border)" }}>
         <p className="m-0 text-sm font-black">{correct ? "答对了！" : "这次还差一点，看看解析"}</p>
         <p className="m-0 text-xs font-bold">正确答案：{quiz.answer.map((index) => String.fromCharCode(65 + index)).join("、")}</p>
-        <div className="text-sm leading-relaxed"><QuizText text={quiz.explanation} /></div>
+        <div className="text-sm leading-relaxed"><QuizText text={quiz.explanation} context={`对应题目：${quiz.question.slice(0, 400)}`} onFollowUp={onFollowUp} /></div>
 
       </div> : null}
   </div>;
 }
 
-export function ChatQuiz({ raw, pending, quizKey, answers, disabled, onSubmit }: QuizControls & { raw: string; pending: boolean; quizKey: string }) {
+export function ChatQuiz({ raw, pending, quizKey, answers, disabled, onSubmit, onFollowUp }: QuizControls & { raw: string; pending: boolean; quizKey: string }) {
   const [drafts, setDrafts] = useState<number[][]>([]);
   const titleId = useId();
   const card = pending ? null : parseQuizCard(raw);
@@ -72,11 +85,11 @@ export function ChatQuiz({ raw, pending, quizKey, answers, disabled, onSubmit }:
     <div className="flex flex-col gap-5 p-3">
       {grouped ? <div className="space-y-3 rounded-lg border p-3" style={{ borderColor: "var(--fb-inactive-border)", background: "var(--card-footer-bg)" }}>
         <p className="m-0 text-xs font-bold">{card.type === "cloze" ? "阅读文章，为每个编号空位选择答案" : "阅读文章，完成下面的问题"}</p>
-        <QuizText text={card.passage} />
+        <QuizText text={card.passage} onFollowUp={onFollowUp} />
       </div> : null}
       {grouped ? <p role="status" className="m-0 text-xs font-bold">{submitted ? `已提交 · 答对 ${correctCount}/${items.length} 题` : `已完成 ${completed}/${items.length} 题 · 整组提交后显示答案和解析`}</p> : null}
       {items.map((item, questionIndex) => <div key={questionIndex} className={questionIndex ? "border-t-2 border-dashed pt-5" : ""} style={{ borderColor: "var(--fb-inactive-border)" }}>
-        <QuizQuestion quiz={item} number={grouped ? questionIndex + 1 : undefined} selected={selections[questionIndex] ?? []} submitted={submitted} disabled={disabled || !onSubmit} onChange={(optionIndex) => setDrafts((current) => {
+        <QuizQuestion quiz={item} number={grouped ? questionIndex + 1 : undefined} selected={selections[questionIndex] ?? []} submitted={submitted} disabled={disabled || !onSubmit} onFollowUp={onFollowUp} onChange={(optionIndex) => setDrafts((current) => {
           const updated = items.map((_, index) => current[index] ?? []);
           const selected = updated[questionIndex];
           updated[questionIndex] = item.type === "multiple" ? selected.includes(optionIndex) ? selected.filter((value) => value !== optionIndex) : [...selected, optionIndex] : [optionIndex];

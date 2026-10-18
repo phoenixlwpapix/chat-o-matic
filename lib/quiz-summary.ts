@@ -1,6 +1,7 @@
 import type { UIMessage } from "ai";
 import type { ChartSpec } from "./charts";
 import { getMessageQuizzes, isCorrectAnswer, readQuizAnswers, QUIZ_FOLLOW_UP_PROMPTS, type QuizSpec } from "./quizzes";
+import { isParagraphFollowUpRequest } from "./paragraph-follow-up";
 
 export const QUIZ_SUMMARY_REQUEST = "请总结本次对话中已提交的练习结果，用图表和文字展示表现，指出需要加强的知识点并给出练习建议。暂时不要出新题。";
 
@@ -17,7 +18,7 @@ export function canFinishQuizPractice(messages: UIMessage[]): boolean {
   const last = messages.at(-1);
   if (last?.role !== "user") return false;
   const text = last.parts.filter((part) => part.type === "text").map((part) => part.text).join("").trim();
-  return !Object.values(QUIZ_FOLLOW_UP_PROMPTS).some((prompt) => prompt === text);
+  return !isParagraphFollowUpRequest(text) && !Object.values(QUIZ_FOLLOW_UP_PROMPTS).some((prompt) => prompt === text);
 }
 
 /** The server-generated overview also identifies automatic summaries after restore. */

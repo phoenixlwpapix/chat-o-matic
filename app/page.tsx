@@ -1,5 +1,7 @@
 "use client";
 
+import { getStoryChoiceReply } from "@/lib/story-choices";
+
 import {
   useRef,
   useEffect,
@@ -59,9 +61,11 @@ import { useChatHistory, toStoredMessages } from "@/lib/use-chat-history";
 import { MAX_FAVORITE_SESSIONS } from "@/lib/chat-history";
 import { CHAT_FONTS } from "@/lib/chat-typography";
 import { parseQuizCard, readQuizAnswers, type QuizAnswer } from "@/lib/quizzes";
-import { getResponseActionContext, getResponseActions, isQuizGroupContext } from "@/lib/response-actions";
+import { getResponseActionContext, getResponseActions, getMoreResponseActions, isSubstantiveReply, isQuizGroupContext } from "@/lib/response-actions";
 import type { SearchMode } from "@/lib/search-modes";
 import { getClientChatErrorMessage } from "@/lib/chat-errors";
+import { getMessageLayout } from "@/lib/message-layout";
+import { ReplyFollowUpProvider } from "@/components/reply-follow-up";
 import "katex/dist/katex.min.css";
 
 // SpeechRecognition 类型声明
@@ -164,6 +168,18 @@ export default function Home() {
 
   // 侧边栏
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [desktopSidebarCollapsed, setDesktopSidebarCollapsed] = useState(false);
+  const drawerTriggerRef = useRef<HTMLButtonElement>(null);
+  useEffect(() => {
+    if (!sidebarOpen) return;
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key !== "Escape") return;
+      setSidebarOpen(false);
+      drawerTriggerRef.current?.focus();
+    };
+    window.addEventListener("keydown", closeOnEscape);
+    return () => window.removeEventListener("keydown", closeOnEscape);
+  }, [sidebarOpen]);
   const [historySearch, setHistorySearch] = useState("");
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [personaSwitcherOpen, setPersonaSwitcherOpen] = useState(false);
@@ -481,7 +497,7 @@ export default function Home() {
     (actionId: ResponseAction) => {
       if (isLoading) return;
       const context = getResponseActionContext(messages, lastAssistantId ?? "");
-      const action = getResponseActions(context, isQuizGroupContext(messages, lastAssistantId ?? "")).find((item) => item.id === actionId);
+      const action = [...getResponseActions(context, isQuizGroupContext(messages, lastAssistantId ?? ""), personaId, isSubstantiveReply(messages.find((message) => message.id === lastAssistantId))), ...getMoreResponseActions(context, personaId)].find((item) => item.id === actionId);
       if (!action) return;
       const requestSearchMode = actionId === "verify" ? "always" : searchMode;
       setApiError(null);
@@ -621,24 +637,29 @@ export default function Home() {
 
   return (
     <main className="relative flex h-dvh min-h-dvh items-center justify-center overflow-hidden md:min-h-screen md:p-4">
-      <div className="flex h-dvh w-full max-w-6xl gap-0 md:h-[90vh] md:gap-4">
+      <div className="flex h-dvh w-full max-w-[1440px] gap-0 md:h-[90vh] xl:gap-4">
         {/* ── 左侧边栏 ── */}
 
         {/* 移动端遮罩 */}
         {sidebarOpen && (
-          <div
-            className="fixed inset-0 z-40 bg-black/30 md:hidden"
-            onClick={() => setSidebarOpen(false)}
+          <button
+            type="button"
+            aria-label="关闭侧边栏遮罩"
+            className="fixed inset-0 z-40 bg-black/30 xl:hidden"
+            onClick={() => { setSidebarOpen(false); drawerTriggerRef.current?.focus(); }}
           />
         )}
 
         <aside
+          id="chat-sidebar"
+          aria-label="对话导航"
           className={cn(
             // 移动端：固定定位浮层
             "fixed inset-y-0 left-0 z-50 w-64 p-3 flex flex-col gap-3 transition-transform duration-200",
-            "md:static md:z-auto md:w-56 md:shrink-0 md:translate-x-0",
-            "rounded-none md:rounded-2xl border-r-2 md:border-2",
-            sidebarOpen ? "translate-x-0" : "-translate-x-full",
+            "xl:static xl:z-auto xl:w-56 xl:shrink-0 xl:translate-x-0 xl:visible",
+            "rounded-none xl:rounded-2xl border-r-2 xl:border-2",
+            sidebarOpen ? "visible translate-x-0" : "invisible -translate-x-full",
+            desktopSidebarCollapsed && "xl:hidden",
           )}
           style={{
             backgroundColor: "var(--card-bg)",
@@ -663,6 +684,7 @@ export default function Home() {
               <p className="text-lg font-black tracking-tighter leading-none" style={{ color: "var(--foreground)" }}>聊聊机</p>
               <p className="text-[9px] font-black uppercase tracking-[0.2em]" style={{ color: "var(--header-subtitle)" }}>Chat-O-Matic</p>
             </div>
+            <button type="button" aria-label="关闭侧边栏" onClick={() => { setSidebarOpen(false); drawerTriggerRef.current?.focus(); }} className="ml-auto inline-flex h-9 w-9 items-center justify-center rounded-md focus-visible:outline-2 xl:hidden"><X aria-hidden="true" className="h-4 w-4" /></button>
           </div>
 
           {/* 新对话按钮 */}
@@ -777,11 +799,15 @@ export default function Home() {
           >
             <div className="flex items-center justify-between gap-3">
               <div className="flex min-w-0 items-center gap-3">
-                {/* 移动端汉堡按钮 */}
+                {/* 平板和手机使用抽屉；桌面可收起固定侧边栏。 */}
                 <Button
+                  ref={drawerTriggerRef}
                   onClick={() => setSidebarOpen((v) => !v)}
+                  aria-label={sidebarOpen ? "收起对话导航" : "打开对话导航"}
+                  aria-expanded={sidebarOpen}
+                  aria-controls="chat-sidebar"
                   size="icon"
-                  className="md:hidden transition-all active:translate-x-0.5 active:translate-y-0.5"
+                  className="xl:hidden transition-all active:translate-x-0.5 active:translate-y-0.5"
                   style={{
                     backgroundColor: "var(--btn-new-bg)",
                     color: "var(--btn-new-text)",
@@ -791,6 +817,7 @@ export default function Home() {
                 >
                   {sidebarOpen ? <PanelLeftClose className="w-5 h-5" /> : <PanelLeftOpen className="w-5 h-5" />}
                 </Button>
+                <Button type="button" size="icon" aria-label={desktopSidebarCollapsed ? "展开对话导航" : "收起对话导航"} aria-expanded={!desktopSidebarCollapsed} aria-controls="chat-sidebar" onClick={() => setDesktopSidebarCollapsed((value) => !value)} className="hidden transition-all active:translate-x-0.5 active:translate-y-0.5 xl:inline-flex" style={{ backgroundColor: "var(--btn-new-bg)", color: "var(--btn-new-text)", borderColor: "var(--border-color)", boxShadow: "3px 3px 0px 0px rgba(var(--shadow-color), 1)" }}>{desktopSidebarCollapsed ? <PanelLeftOpen aria-hidden="true" className="h-5 w-5" /> : <PanelLeftClose aria-hidden="true" className="h-5 w-5" />}</Button>
 
                 <button
                   type="button"
@@ -938,11 +965,14 @@ export default function Home() {
             </div>
           )}
 
-          {messages.map((message) => (
+          {messages.map((message) => {
+            const layout = getMessageLayout(message, isLoading && message.id === lastAssistantId);
+            const cardOnly = layout === "cards" || layout === "compact-cards";
+            return (
             <div
               key={message.id}
               className={cn(
-                "flex w-full",
+                "mx-auto flex w-full max-w-[1160px]",
                 message.role === "user" ? "justify-end" : "justify-start",
               )}
             >
@@ -951,7 +981,7 @@ export default function Home() {
                   "flex min-w-0 items-start",
                   message.role === "user"
                     ? "max-w-[94%] flex-row-reverse gap-2 md:max-w-[80%]"
-                    : "w-full flex-col gap-1.5 md:max-w-[80%] md:flex-row md:gap-2",
+                    : cn("w-full flex-col gap-1.5 md:flex-row md:gap-2", layout === "mixed" || layout === "cards" ? "max-w-[1160px]" : "max-w-[820px]"),
                 )}
               >
                 <div
@@ -983,6 +1013,7 @@ export default function Home() {
                     />
                   )}
                 </div>
+                <ReplyFollowUpProvider disabled={isLoading} allowEntry={layout !== "text" || getMessageText(message.parts).length >= 180}>
                 <div
                   className={cn(
                     "group relative min-w-0",
@@ -991,7 +1022,9 @@ export default function Home() {
                 >
                   <div
                     className={cn(
-                      "chat-message break-words rounded-lg border-2 p-3 text-base font-medium",
+                      "chat-message break-words text-base font-medium",
+                      cardOnly ? "chat-message-cards border-0 p-0" : "rounded-lg border-2 p-3",
+                      layout === "mixed" && "chat-message-wide",
                       message.role === "user"
                         ? "rounded-tr-none"
                         : "w-full rounded-tl-none md:w-auto",
@@ -1001,12 +1034,12 @@ export default function Home() {
                       backgroundColor:
                         message.role === "user"
                           ? "var(--user-bubble-bg)"
-                          : "var(--ai-bubble-bg)",
+                          : cardOnly ? "transparent" : "var(--ai-bubble-bg)",
                       color:
                         message.role === "user"
                           ? "var(--user-bubble-text)"
                           : "var(--ai-bubble-text)",
-                      boxShadow: "4px 4px 0px 0px rgba(var(--shadow-color), 1)",
+                      boxShadow: cardOnly ? "none" : "4px 4px 0px 0px rgba(var(--shadow-color), 1)",
                     }}
                   >
                     {/* AI SDK v6 官方推荐: 使用 switch/case 遍历 message.parts */}
@@ -1022,10 +1055,13 @@ export default function Home() {
                               text={part.text}
                               isStreaming={isLoading && message.id === lastAssistantId}
                               quizPrefix={String(partIndex)}
+                              storyControls={{ disabled: isLoading || messages.at(-1)?.id !== message.id, reply: getStoryChoiceReply(messages, message.id), onChoose: handleQuickPrompt }}
+                              onFollowUp={isLoading ? undefined : handleQuickPrompt}
                               quizControls={{
                                 answers: readQuizAnswers(message.metadata),
                                 disabled: isLoading,
                                 onSubmit: (answer) => handleQuizSubmit(message.id, answer),
+                                onFollowUp: isLoading ? undefined : handleQuickPrompt,
                               }}
                             />
                           );
@@ -1074,6 +1110,8 @@ export default function Home() {
                       onAction={handleResponseAction}
                       context={getResponseActionContext(messages, message.id)}
                       grouped={isQuizGroupContext(messages, message.id)}
+                      personaId={personaId}
+                      substantive={isSubstantiveReply(message)}
                       onRegenerate={handleRegenerate}
                       onCopy={() =>
                         handleCopy(getMessageText(message.parts), message.id)
@@ -1084,7 +1122,7 @@ export default function Home() {
                       <button
                         type="button"
                         onClick={() => handleCopy(getMessageText(message.parts), message.id)}
-                        className="user-message-copy inline-flex h-9 w-9 items-center justify-center rounded-md border transition-opacity hover:brightness-95 focus-visible:outline-2 focus-visible:outline-offset-2"
+                        className="user-message-copy inline-flex h-7 w-7 items-center justify-center gap-0 rounded-md border p-0 text-[11px] font-bold transition-all hover:-translate-y-0.5 hover:brightness-95 active:translate-x-0.5 active:translate-y-0.5 focus-visible:outline-2 focus-visible:outline-offset-2"
                         style={{
                           borderColor: "var(--fb-inactive-border)",
                           backgroundColor: "var(--fb-inactive-bg)",
@@ -1094,7 +1132,7 @@ export default function Home() {
                         title={copiedId === message.id ? "已复制" : "复制"}
                       >
                         {copiedId === message.id ? (
-                          <Check aria-hidden="true" className="h-3.5 w-3.5" />
+                          <Check aria-hidden="true" className="h-3.5 w-3.5" style={{ color: "var(--fb-helpful-bg)" }} />
                         ) : (
                           <Copy aria-hidden="true" className="h-3.5 w-3.5" />
                         )}
@@ -1102,9 +1140,10 @@ export default function Home() {
                     </div>
                   ) : null}
                 </div>
+                </ReplyFollowUpProvider>
               </div>
             </div>
-          ))}
+          ); })}
           {isLoading &&
             (() => {
               const lastMsg = messages[messages.length - 1];
@@ -1237,7 +1276,7 @@ export default function Home() {
             onChange={handleImageUpload}
           />
 
-          <div className="flex flex-col w-full gap-2">
+          <div className="mx-auto flex w-full max-w-[1160px] flex-col gap-2">
             {/* 图片预览区域 */}
             {pendingImages.length > 0 && (
               <div className="flex gap-2 flex-wrap">

@@ -13,17 +13,22 @@ import {
   ArrowUp,
   CircleHelp,
   ChartPie,
+  Ellipsis,
+  Lightbulb,
+  Shuffle,
   type LucideIcon,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { ReplyFollowUpButton } from "@/components/reply-follow-up";
 
-import { getResponseActions, type ResponseAction, type ResponseActionContext } from "@/lib/response-actions";
+import { getResponseActions, getMoreResponseActions, type ResponseAction, type ResponseActionContext } from "@/lib/response-actions";
 export { RESPONSE_ACTIONS, type ResponseAction } from "@/lib/response-actions";
 
 const ACTION_ICONS: Record<ResponseAction, LucideIcon> = {
   simplify: Sparkles, example: Waypoints, quiz: BookOpenCheck, verify: ScanSearch,
   "next-quiz": ArrowRight, "easier-quiz": ArrowDown, "harder-quiz": ArrowUp, "explain-quiz": CircleHelp,
   "quiz-summary": ChartPie,
+  principle: Lightbulb, perspective: Shuffle,
 };
 interface ResponseActionsProps {
   disabled: boolean;
@@ -34,6 +39,8 @@ interface ResponseActionsProps {
   onCopy: () => void;
   context?: ResponseActionContext;
   grouped?: boolean;
+  personaId?: string;
+  substantive?: boolean;
   onRegenerate: () => void;
 }
 
@@ -46,6 +53,8 @@ export function ResponseActions({
   onCopy,
   context = "answer",
   grouped = false,
+  personaId = "default",
+  substantive = false,
   onRegenerate,
 }: ResponseActionsProps) {
   const chipClassName = cn(
@@ -71,7 +80,7 @@ export function ResponseActions({
       aria-label="回复操作"
     >
       {showLearningActions
-        ? getResponseActions(context, grouped).map((action) => {
+        ? getResponseActions(context, grouped, personaId, substantive).map((action) => {
             const Icon = ACTION_ICONS[action.id];
             const primary = action.id === "next-quiz" && context !== "quiz-unanswered";
             return (
@@ -89,6 +98,17 @@ export function ResponseActions({
             );
           })
         : null}
+
+      <ReplyFollowUpButton disabled={disabled} className={chipClassName} style={chipStyle} />
+
+      {showLearningActions ? <details className="relative" onKeyDown={(event) => {
+        if (event.key === "Escape") { event.currentTarget.open = false; event.currentTarget.querySelector("summary")?.focus(); }
+      }}><summary aria-label="更多回复操作" title="更多操作" className={cn(iconButtonClassName, "list-none cursor-pointer [&::-webkit-details-marker]:hidden")} style={chipStyle}><Ellipsis aria-hidden="true" className="h-3.5 w-3.5" /></summary>
+        <div className="absolute bottom-full left-0 z-20 mb-2 grid min-w-32 gap-1 rounded-lg border-2 p-1.5 shadow-md" style={{ background: "var(--card-bg)", borderColor: "var(--border-color)" }}>{getMoreResponseActions(context, personaId).map((action) => {
+          const Icon = ACTION_ICONS[action.id];
+          return <button key={action.id} type="button" disabled={disabled} className={cn(chipClassName, "min-h-9 border-0")} style={chipStyle} onClick={(event) => { event.currentTarget.closest("details")?.removeAttribute("open"); onAction(action.id); }}><Icon aria-hidden="true" className="h-3.5 w-3.5" />{action.label}</button>;
+        })}</div>
+      </details> : null}
 
       {showLearningActions && context !== "quiz-unanswered" && context !== "quiz-answered" ? (
         <button

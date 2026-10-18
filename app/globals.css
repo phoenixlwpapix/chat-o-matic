@@ -302,6 +302,17 @@ body {
   --chat-shell-shadow: none;
 }
 
+/* Mixed replies give cards room without stretching prose across the full panel. */
+.chat-message-wide > .markdown-content > :is(p, .paragraph-follow-up, h1, h2, h3, h4, h5, h6, ul, ol, blockquote) {
+  max-width: 780px;
+}
+.chat-message-cards > .markdown-content > section:first-child {
+  margin-top: 0;
+}
+.chat-message-cards > .markdown-content > section:last-child {
+  margin-bottom: 0;
+}
+
 @media (min-width: 768px) {
   .chat-shell {
     --chat-shell-shadow: 8px 8px 0 0 rgba(var(--shadow-color), 1);

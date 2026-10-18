@@ -29,8 +29,8 @@ function ChartView({ chart }: { chart: ChartSpec }) {
 
   return (
     <>
-      <div className="overflow-x-auto" tabIndex={0} aria-label="图表，可横向滚动；使用 Tab 选择数据点">
-        <svg role="group" aria-labelledby={titleId} viewBox={chart.type === "donut" ? "0 0 420 260" : `0 0 ${width} 270`} className="block h-auto w-full" style={{ minWidth: chart.type === "donut" ? 240 : width }}>
+      <div className={chart.type === "donut" ? "mx-auto w-full max-w-[420px]" : "overflow-x-auto"} tabIndex={0} aria-label={chart.type === "donut" ? "环形图；使用 Tab 选择分类" : "图表，可横向滚动；使用 Tab 选择数据点"}>
+        <svg role="group" aria-labelledby={titleId} viewBox={chart.type === "donut" ? "0 0 420 260" : `0 0 ${width} 270`} className="block h-auto w-full" style={{ minWidth: chart.type === "donut" ? undefined : width }}>
           <title id={titleId}>{chart.title}</title>
           {chart.type === "donut" ? (
             <>
@@ -71,7 +71,7 @@ function ChartView({ chart }: { chart: ChartSpec }) {
         {selected ? `${selected.label}：${format(selected.value)}${chart.unit}${chart.type === "donut" ? ` · ${format(selected.value / total * 100)}%` : ""}` : "点击或悬停图形查看数值"}
       </div>
       {chart.type === "donut" && <ul className="m-0 flex list-none flex-wrap justify-center gap-x-4 gap-y-2 p-0 text-xs">
-        {chart.data.map((point, index) => <li key={point.label} className="m-0 flex min-w-0 items-center gap-1.5 p-0"><span className="h-2.5 w-2.5 shrink-0 rounded-sm border" style={{ background: COLORS[index % COLORS.length] }} /><span className="break-all">{point.label} · {format(point.value / total * 100)}%</span></li>)}
+        {chart.data.map((point, index) => <li key={point.label} className="m-0 flex min-w-0 items-center gap-1.5 p-0"><span className="h-2.5 w-2.5 shrink-0 rounded-sm border" style={{ background: COLORS[index % COLORS.length] }} /><span className="break-all">{point.label} · {format(point.value)}{chart.unit} · {format(point.value / total * 100)}%</span></li>)}
       </ul>}
     </>
   );
@@ -90,7 +90,7 @@ function ChartCard({ chart }: { chart: ChartSpec }) {
   const [type, setType] = useState(chart.type);
   const displayedChart = { ...chart, type };
 
-  return <section className="not-prose my-4 min-w-0 overflow-hidden rounded-xl border-2" aria-label={chart.title} style={{ borderColor: "var(--border-color)", background: "var(--card-bg)", color: "var(--ai-bubble-text)", boxShadow: "3px 3px 0 rgba(var(--shadow-color), 1)" }}>
+  return <section className={chart.type === "donut" ? "not-prose my-4 w-full min-w-0 max-w-[780px] overflow-hidden rounded-xl border-2" : "not-prose my-4 min-w-0 overflow-hidden rounded-xl border-2"} aria-label={chart.title} style={{ borderColor: "var(--border-color)", background: "var(--card-bg)", color: "var(--ai-bubble-text)", boxShadow: "3px 3px 0 rgba(var(--shadow-color), 1)" }}>
     <div className="flex flex-wrap items-start justify-between gap-3 border-b-2 px-3 py-3" style={{ borderColor: "var(--border-color)", background: "var(--card-footer-bg)" }}>
       <div className="flex min-w-0 flex-1 items-start gap-2"><BarChart3 aria-hidden="true" className="mt-0.5 h-4 w-4 shrink-0" /><span className="break-words text-sm font-black">{chart.title}</span></div>
       {chart.type !== "donut" ? <div role="group" aria-label="图表类型" className="flex shrink-0 overflow-hidden rounded-md border-2" style={{ borderColor: "var(--border-color)" }}>

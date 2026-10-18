@@ -2,7 +2,7 @@ import type { UIMessage } from "ai";
 import { getMessageQuizCards, isQuizExplanationReply, QUIZ_FOLLOW_UP_PROMPTS, readQuizAnswers } from "./quizzes";
 import { isQuizSummaryRequest, isQuizSummaryReply, QUIZ_SUMMARY_REQUEST } from "./quiz-summary";
 
-export type ResponseAction = "simplify" | "example" | "quiz" | "verify" | "next-quiz" | "easier-quiz" | "harder-quiz" | "explain-quiz" | "quiz-summary";
+export type ResponseAction = "simplify" | "example" | "principle" | "perspective" | "quiz" | "verify" | "next-quiz" | "easier-quiz" | "harder-quiz" | "explain-quiz" | "quiz-summary";
 export type ResponseActionContext = "answer" | "quiz-unanswered" | "quiz-answered" | "quiz-explanation" | "quiz-summary";
 export interface ResponseActionDefinition {
   id: ResponseAction;
@@ -11,6 +11,8 @@ export interface ResponseActionDefinition {
 }
 
 export const RESPONSE_ACTIONS: ResponseActionDefinition[] = [
+  { id: "principle", label: "讲讲原理", prompt: "请解释刚才现象背后的科学原理，区分实际机制和类比；不要重复实验操作。" },
+  { id: "perspective", label: "换个角度", prompt: "请针对刚才讨论的问题，提供一个不同但合理的思考角度，说明它的理由，不替我做决定。" },
   { id: "simplify", label: "讲简单些", prompt: "请把刚才的回答讲得更简单一些，一次只讲一个重点；如果刚才是题目解析，只简化讲解，不出新题。" },
   { id: "example", label: "举个例子", prompt: "请针对刚才的回答，举一个贴近日常生活的具体例子。" },
   { id: "quiz", label: "出道题", prompt: "请根据刚才讲解的知识，优先用 quiz 互动答题卡出练习。普通练习一道题；阅读理解或完形填空一篇材料配默认3道小题，整组提交。提交前不要在正文泄露答案和解析；不适合客观选择题时再用文字作答。" },
@@ -36,7 +38,7 @@ export function getResponseActionContext(messages: UIMessage[], replyId: string)
 }
 
 const CONTEXT_ACTIONS: Record<ResponseActionContext, ResponseAction[]> = {
-  answer: ["simplify", "example", "quiz", "verify"],
+  answer: ["simplify", "example"],
   "quiz-unanswered": ["easier-quiz", "harder-quiz", "next-quiz"],
   "quiz-answered": ["next-quiz", "explain-quiz", "easier-quiz", "harder-quiz", "quiz-summary"],
   "quiz-explanation": ["next-quiz", "easier-quiz", "harder-quiz", "simplify", "quiz-summary"],
@@ -50,9 +52,25 @@ export function isQuizGroupContext(messages: UIMessage[], replyId: string): bool
   return Boolean(card && "questions" in card);
 }
 
-export function getResponseActions(context: ResponseActionContext, grouped = false): ResponseActionDefinition[] {
-  return CONTEXT_ACTIONS[context].map((id) => {
+export function isSubstantiveReply(message: UIMessage | undefined): boolean {
+  const text = message?.parts.filter((part) => part.type === "text").map((part) => part.text).join("\n") ?? "";
+  return text.trim().length >= 180 && text.trim().split(/\n\s*\n/).length >= 2 && !/[？?][”"’']?$/.test(text.trim());
+}
+
+export function getMoreResponseActions(context: ResponseActionContext, personaId = "default"): ResponseActionDefinition[] {
+  const ids: ResponseAction[] = context === "answer" && personaId === "default" ? ["quiz", "verify"] : ["verify"];
+  return ids.map((id) => RESPONSE_ACTIONS.find((action) => action.id === id)!);
+}
+
+export function getResponseActions(context: ResponseActionContext, grouped = false, personaId = "default", substantive = false): ResponseActionDefinition[] {
+  const personaActions: Record<string, ResponseAction[]> = {
+    default: ["simplify", "example"], "mad-scientist": ["principle", "example"],
+    "adventure-master": [], "roast-master": [], "philosophical-cat": substantive ? ["perspective"] : [],
+  };
+  const ids = context === "answer" ? personaActions[personaId] ?? personaActions.default : CONTEXT_ACTIONS[context];
+  return ids.map((id) => {
     const action = RESPONSE_ACTIONS.find((item) => item.id === id)!;
+    if (context === "answer" && personaId === "mad-scientist" && id === "example") return { ...action, label: "举个实例" };
     if (grouped) {
       if (id === "next-quiz") return { ...action, label: context === "quiz-unanswered" ? "换一组题" : "再练一组" };
       if (id === "easier-quiz") return { ...action, label: "简单一点的一组" };

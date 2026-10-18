@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { UIMessage } from "ai";
-import { getResponseActionContext, getResponseActions } from "./response-actions";
+import { getResponseActionContext, getResponseActions, getMoreResponseActions } from "./response-actions";
 import { QUIZ_FOLLOW_UP_PROMPTS, buildQuizContinuationPrompt, getMessageQuizzes } from "./quizzes";
 import { normalizeSessions, toStoredMessages } from "./chat-history";
 
@@ -46,7 +46,7 @@ describe("contextual reply actions", () => {
       { id: "simpler-explanation", role: "assistant", parts: [{ type: "text", text: "Sam 有猫，所以选猫。" }] },
     );
     expect(getResponseActionContext(messages, "simpler-explanation")).toBe("quiz-explanation");
-    expect(getResponseActions("answer").map((action) => action.id)).toEqual(["simplify", "example", "quiz", "verify"]);
+    expect(getResponseActions("answer").map((action) => action.id)).toEqual(["simplify", "example"]);
     expect(getResponseActionContext(messages, "missing")).toBe("answer");
   });
 
@@ -57,6 +57,26 @@ describe("contextual reply actions", () => {
     for (const text of ['```quiz\n{"type":', '```quiz\n{}\n```']) {
       const incomplete: UIMessage = { ...card, parts: [{ type: "text", text }] };
       expect(getResponseActionContext([incomplete], card.id)).toBe("answer");
+    }
+  });
+});
+
+
+describe("persona reply actions", () => {
+  it("keeps learning extras in the menu and customizes other personas", () => {
+    expect(getMoreResponseActions("answer").map((action) => action.id)).toEqual(["quiz", "verify"]);
+    expect(getResponseActions("answer", false, "mad-scientist").map((action) => action.label)).toEqual(["讲讲原理", "举个实例"]);
+    for (const persona of ["adventure-master", "roast-master", "philosophical-cat"]) {
+      expect(getResponseActions("answer", false, persona)).toEqual([]);
+      expect(getMoreResponseActions("answer", persona).map((action) => action.id)).toEqual(["verify"]);
+    }
+    expect(getResponseActions("answer", false, "philosophical-cat", true).map((action) => action.id)).toEqual(["perspective"]);
+  });
+  it("retains real quiz controls in every persona", () => {
+    for (const context of ["quiz-unanswered", "quiz-answered", "quiz-explanation", "quiz-summary"] as const) {
+      for (const persona of ["adventure-master", "roast-master", "mad-scientist", "philosophical-cat"]) {
+        expect(getResponseActions(context, true, persona)).toEqual(getResponseActions(context, true));
+      }
     }
   });
 });

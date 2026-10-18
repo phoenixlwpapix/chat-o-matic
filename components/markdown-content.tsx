@@ -10,6 +10,9 @@ import rehypeKatex from "rehype-katex";
 import { normalizeMarkdown } from "@/lib/markdown";
 import { ChatChart } from "@/components/chat-chart";
 import { ChatQuiz, type QuizControls } from "@/components/chat-quiz";
+import { ChatStoryChoices, type StoryChoiceControls } from "@/components/chat-story-choices";
+import { ChatSentence } from "@/components/chat-sentence";
+import { ParagraphFollowUp } from "@/components/paragraph-follow-up";
 
 export { normalizeMarkdown } from "@/lib/markdown";
 
@@ -87,34 +90,51 @@ function MarkdownCode({ className, children, ...props }: React.ComponentProps<"c
 
 const MarkdownStreamContext = createContext({ text: "", isStreaming: false });
 const QuizContext = createContext<QuizControls & { prefix: string }>({ answers: [], disabled: true, prefix: "" });
+const StoryChoiceContext = createContext<StoryChoiceControls>({ disabled: true });
+const FollowUpContext = createContext<((prompt: string) => void) | undefined>(undefined);
+
+const MarkdownParagraph: NonNullable<Components["p"]> = ({ children, node }) => {
+  const { text } = useContext(MarkdownStreamContext);
+  const onFollowUp = useContext(FollowUpContext);
+  const start = node?.position?.start.offset;
+  const end = node?.position?.end.offset;
+  const quote = start !== undefined && end !== undefined ? text.slice(start, end) : "";
+  return <ParagraphFollowUp quote={quote} onFollowUp={onFollowUp}>{children}</ParagraphFollowUp>;
+};
 
 const MarkdownPre: NonNullable<Components["pre"]> = ({ children, node, ...props }) => {
   const { text, isStreaming } = useContext(MarkdownStreamContext);
   const controls = useContext(QuizContext);
-  if (isValidElement<ComponentProps<"code">>(children) && (children.props.className === "language-chart" || children.props.className === "language-quiz")) {
-    const language = children.props.className === "language-quiz" ? "quiz" : "chart";
+  const storyControls = useContext(StoryChoiceContext);
+  const onFollowUp = useContext(FollowUpContext);
+  if (isValidElement<ComponentProps<"code">>(children) && ["language-chart", "language-quiz", "language-sentence", "language-choice"].includes(children.props.className ?? "")) {
+    const language = children.props.className?.slice("language-".length);
     const raw = String(children.props.children).replace(/\n$/, "");
     const block = text.slice(node?.position?.start.offset, node?.position?.end.offset);
     const lines = block.trimEnd().split("\n");
-    const opening = /^\s*(`{3,}|~{3,})(?:chart|quiz)\s*$/.exec(lines[0] ?? "");
+    const opening = /^\s*(`{3,}|~{3,})(?:chart|quiz|sentence|choice)\s*$/.exec(lines[0] ?? "");
     const closing = /^\s*(`{3,}|~{3,})\s*$/.exec(lines.at(-1) ?? "");
     const closed = Boolean(opening && closing && lines.length > 1 && opening[1][0] === closing[1][0] && closing[1].length >= opening[1].length);
     if (language === "quiz") {
       const quizKey = `${controls.prefix}:${node?.position?.start.offset ?? 0}`;
       return <ChatQuiz key={`${quizKey}:${raw}`} {...controls} quizKey={quizKey} raw={raw} pending={isStreaming && !closed} />;
     }
+    if (language === "choice") return <ChatStoryChoices raw={raw} pending={isStreaming && !closed} {...storyControls} disabled={isStreaming || storyControls.disabled} />;
+    if (language === "sentence") return <ChatSentence raw={raw} pending={isStreaming && !closed} onFollowUp={onFollowUp} />;
     return <ChatChart raw={raw} pending={isStreaming && !closed} />;
   }
   return <pre {...props}>{children}</pre>;
 };
 
-const MARKDOWN_COMPONENTS: Components = { code: MarkdownCode, pre: MarkdownPre };
+const MARKDOWN_COMPONENTS: Components = { code: MarkdownCode, pre: MarkdownPre, p: MarkdownParagraph };
 
-export function MarkdownContent({ text, isStreaming = false, quizControls, quizPrefix = "" }: { text: string; isStreaming?: boolean; quizControls?: QuizControls; quizPrefix?: string }) {
+export function MarkdownContent({ text, isStreaming = false, quizControls, quizPrefix = "", onFollowUp, storyControls }: { text: string; isStreaming?: boolean; quizControls?: QuizControls; storyControls?: StoryChoiceControls; quizPrefix?: string; onFollowUp?: (prompt: string) => void }) {
   const normalized = normalizeMarkdown(text);
   return (
     <MarkdownStreamContext.Provider value={{ text: normalized, isStreaming }}>
     <QuizContext.Provider value={{ answers: [], disabled: true, ...quizControls, prefix: quizPrefix }}>
+    <StoryChoiceContext.Provider value={storyControls ?? { disabled: true }}>
+    <FollowUpContext.Provider value={isStreaming ? undefined : onFollowUp}>
     <div className="markdown-content prose prose-base max-w-none">
       <ReactMarkdown
         remarkPlugins={[remarkGfm, remarkMath]}
@@ -124,6 +144,8 @@ export function MarkdownContent({ text, isStreaming = false, quizControls, quizP
         {normalized}
       </ReactMarkdown>
     </div>
+    </FollowUpContext.Provider>
+    </StoryChoiceContext.Provider>
     </QuizContext.Provider>
     </MarkdownStreamContext.Provider>
   );

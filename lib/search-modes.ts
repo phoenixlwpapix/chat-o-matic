@@ -1,5 +1,6 @@
 import { CHART_PROMPT } from "./charts";
 import { QUIZ_PROMPT } from "./quizzes";
+import { SENTENCE_PROMPT } from "./sentences";
 
 export const SEARCH_MODE_IDS = ["auto", "always", "off"] as const;
 
@@ -67,7 +68,7 @@ export function buildChatSystemPrompt(
   searchPrompt: string,
   userName?: string,
 ): string {
-  const parts = [personaPrompt, searchPrompt, CHART_PROMPT, QUIZ_PROMPT];
+  const parts = [personaPrompt, searchPrompt, CHART_PROMPT, QUIZ_PROMPT, SENTENCE_PROMPT];
   const trimmedName = userName?.trim();
   if (trimmedName) {
     parts.push(
