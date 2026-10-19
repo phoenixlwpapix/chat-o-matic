@@ -5,6 +5,7 @@ import dynamic from "next/dynamic";
 import { Check, Copy } from "lucide-react";
 import ReactMarkdown, { type Components } from "react-markdown";
 import remarkGfm from "remark-gfm";
+import remarkCjkFriendly from "remark-cjk-friendly/parseOnly";
 import remarkMath from "remark-math";
 import rehypeKatex from "rehype-katex";
 import { normalizeMarkdown } from "@/lib/markdown";
@@ -137,7 +138,7 @@ export function MarkdownContent({ text, isStreaming = false, quizControls, quizP
     <FollowUpContext.Provider value={isStreaming ? undefined : onFollowUp}>
     <div className="markdown-content prose prose-base max-w-none">
       <ReactMarkdown
-        remarkPlugins={[remarkGfm, remarkMath]}
+        remarkPlugins={[remarkGfm, remarkCjkFriendly, remarkMath]}
         rehypePlugins={[rehypeKatex]}
         components={MARKDOWN_COMPONENTS}
       >

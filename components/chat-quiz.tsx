@@ -3,6 +3,7 @@
 import { createContext, useContext, useId, useState } from "react";
 import { BookOpenCheck, Check } from "lucide-react";
 import ReactMarkdown, { type Components } from "react-markdown";
+import remarkCjkFriendly from "remark-cjk-friendly/parseOnly";
 import remarkMath from "remark-math";
 import rehypeKatex from "rehype-katex";
 import { getQuizItems, isCorrectAnswer, parseQuizCard, type QuizAnswer, type QuizSpec } from "@/lib/quizzes";
@@ -21,7 +22,7 @@ const QUIZ_TEXT_COMPONENTS: Components = { p: QuizParagraph };
 function QuizText({ text, onFollowUp, context = "" }: { text: string; onFollowUp?: (prompt: string) => void; context?: string }) {
   return <div className="quiz-text markdown-content min-w-0 max-w-[780px] break-words">
     <QuizTextContext.Provider value={{ text, context, onFollowUp }}>
-    <ReactMarkdown remarkPlugins={[remarkMath]} rehypePlugins={[rehypeKatex]} disallowedElements={["img", "pre"]} unwrapDisallowed components={QUIZ_TEXT_COMPONENTS}>{text}</ReactMarkdown>
+    <ReactMarkdown remarkPlugins={[remarkCjkFriendly, remarkMath]} rehypePlugins={[rehypeKatex]} disallowedElements={["img", "pre"]} unwrapDisallowed components={QUIZ_TEXT_COMPONENTS}>{text}</ReactMarkdown>
     </QuizTextContext.Provider>
   </div>;
 }
