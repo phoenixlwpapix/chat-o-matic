@@ -40,12 +40,13 @@ export async function POST(req: Request) {
     console.error("Failed to parse chat request", error);
     return Response.json({ error: "请求处理失败" }, { status: 400 });
   }
-  const { messages, personaId, searchMode, userName } = chatRequest;
+  const { messages, personaId, searchMode, userName, replyLanguage } = chatRequest;
   const persona = getPersonaById(personaId);
   const system = [buildChatSystemPrompt(
     persona.systemPrompt,
     buildSearchPrompt(searchMode),
     userName,
+    replyLanguage,
   ), buildQuizContinuationPrompt(messages)].filter(Boolean).join("\n\n");
 
   // 2. 调用 Gemini 模型（含 Google Search 联网搜索）
@@ -54,6 +55,7 @@ export async function POST(req: Request) {
       model: google("gemini-3.5-flash-lite"),
       messages,
       personaPrompt: persona.systemPrompt,
+      replyLanguage,
     });
     if (practiceResponse) return practiceResponse;
 

@@ -8,6 +8,7 @@ import {
   Check,
   Globe2,
   Loader2,
+  Languages,
   Pencil,
   Radio,
   RotateCcw,
@@ -25,6 +26,7 @@ import { SEARCH_MODES, type SearchMode } from "@/lib/search-modes";
 import { type Theme } from "@/lib/use-theme";
 import { CHAT_FONTS, CHAT_FONT_SIZES, type ChatFont, type ChatFontSize } from "@/lib/chat-typography";
 import { cn } from "@/lib/utils";
+import { REPLY_LANGUAGES, normalizeReplyLanguage, type ReplyLanguage } from "@/lib/reply-languages";
 
 const SEARCH_MODE_ICONS: Record<SearchMode, LucideIcon> = {
   auto: Radio,
@@ -36,6 +38,8 @@ interface AppSettingsProps {
   open: boolean;
   personaId: string;
   searchMode: SearchMode;
+  replyLanguage: ReplyLanguage;
+  onReplyLanguageChange: (language: ReplyLanguage) => void;
   theme: Theme;
   userAvatar: string | null;
   userName: string;
@@ -55,6 +59,8 @@ export function AppSettings({
   open,
   personaId,
   searchMode,
+  replyLanguage,
+  onReplyLanguageChange,
   theme,
   userAvatar,
   userName,
@@ -559,6 +565,26 @@ export function AppSettings({
                 </legend>
                 <ThemeSwitcher theme={theme} setTheme={onThemeChange} variant="inline" />
               </fieldset>
+            </div>
+
+            <div className="border-t pt-3" style={{ borderColor: "var(--fb-inactive-border)" }}>
+              <label htmlFor="reply-language" className="mb-2 flex items-center gap-1.5 text-xs font-black tracking-[0.16em]">
+                <Languages className="h-4 w-4" aria-hidden="true" />
+                回复语言
+              </label>
+              <select
+                id="reply-language"
+                value={replyLanguage}
+                onChange={(event) => onReplyLanguageChange(normalizeReplyLanguage(event.target.value))}
+                aria-describedby="reply-language-description"
+                className="h-10 w-full rounded-lg border-2 px-3 text-sm font-bold focus-visible:outline-2 focus-visible:outline-offset-2 sm:max-w-xs"
+                style={{ borderColor: "var(--border-color)", backgroundColor: "var(--settings-option-bg)", color: "var(--settings-option-text)" }}
+              >
+                {REPLY_LANGUAGES.map((language) => <option key={language.id} value={language.id}>{language.label}</option>)}
+              </select>
+              <p id="reply-language-description" className="mt-1.5 text-xs" style={{ color: "var(--settings-option-muted)" }}>
+                自动保存，从下一次回复生效。翻译和语言练习按具体任务要求处理。
+              </p>
             </div>
 
             <fieldset className="border-t pt-3" style={{ borderColor: "var(--fb-inactive-border)" }}>

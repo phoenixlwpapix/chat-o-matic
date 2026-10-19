@@ -63,6 +63,8 @@ import { CHAT_FONTS } from "@/lib/chat-typography";
 import { parseQuizCard, readQuizAnswers, type QuizAnswer } from "@/lib/quizzes";
 import { getResponseActionContext, getResponseActions, getMoreResponseActions, isSubstantiveReply, isQuizGroupContext } from "@/lib/response-actions";
 import type { SearchMode } from "@/lib/search-modes";
+import type { ReplyLanguage } from "@/lib/reply-languages";
+import { getLocalizedOpening } from "@/lib/persona-localization";
 import { getClientChatErrorMessage } from "@/lib/chat-errors";
 import { getMessageLayout } from "@/lib/message-layout";
 import { ReplyFollowUpProvider } from "@/components/reply-follow-up";
@@ -132,10 +134,12 @@ function createChatRequestBody(
   personaId: string,
   searchMode: SearchMode,
   userName?: string,
+  replyLanguage: ReplyLanguage = "auto",
 ) {
   return {
     personaId,
     searchMode,
+    replyLanguage,
     ...(userName?.trim() ? { userName: userName.trim() } : {}),
   };
 }
@@ -153,6 +157,8 @@ export default function Home() {
     setChatFontSize,
     setPersonaId,
     setSearchMode,
+    replyLanguage,
+    setReplyLanguage,
     setUserAvatar,
     setUserName,
   } = useChatPreferences();
@@ -185,6 +191,7 @@ export default function Home() {
   const [personaSwitcherOpen, setPersonaSwitcherOpen] = useState(false);
 
   const currentPersona = getPersonaById(personaId);
+  const opening = getLocalizedOpening(currentPersona, replyLanguage);
   const CurrentPersonaIcon = currentPersona.icon;
 
   // AI SDK 6 useChat - 默认连接到 /api/chat
@@ -488,7 +495,7 @@ export default function Home() {
     sendMessage(
       { text: prompt },
       {
-        body: createChatRequestBody(personaId, searchMode, userName),
+        body: createChatRequestBody(personaId, searchMode, userName, replyLanguage),
       },
     );
   };
@@ -509,11 +516,12 @@ export default function Home() {
             personaId,
             requestSearchMode,
             userName,
+            replyLanguage,
           ),
         },
       );
     },
-    [sendMessage, personaId, searchMode, userName, messages, lastAssistantId, isLoading],
+    [sendMessage, personaId, searchMode, userName, replyLanguage, messages, lastAssistantId, isLoading],
   );
 
   const scrollToBottom = () => {
@@ -590,9 +598,9 @@ export default function Home() {
     setActiveRequestSearchMode(searchMode);
     regenerate({
       messageId: lastAssistant.id,
-      body: createChatRequestBody(personaId, searchMode, userName),
+      body: createChatRequestBody(personaId, searchMode, userName, replyLanguage),
     });
-  }, [messages, personaId, searchMode, userName, regenerate]);
+  }, [messages, personaId, searchMode, userName, replyLanguage, regenerate]);
 
   useEffect(() => {
     scrollToBottom();
@@ -619,7 +627,7 @@ export default function Home() {
         files,
       },
       {
-        body: createChatRequestBody(personaId, searchMode, userName),
+        body: createChatRequestBody(personaId, searchMode, userName, replyLanguage),
       },
     );
 
@@ -769,6 +777,8 @@ export default function Home() {
             open={settingsOpen}
             personaId={personaId}
             searchMode={searchMode}
+            replyLanguage={replyLanguage}
+            onReplyLanguageChange={setReplyLanguage}
             theme={theme}
             userAvatar={userAvatar}
             userName={userName}
@@ -917,12 +927,12 @@ export default function Home() {
                   color: "var(--header-text)",
                 }}
               >
-                试试下面的话题，或直接输入问题
+                {opening.intro}
               </p>
 
               {/* 快捷提示词卡片网格 */}
               <div className="grid grid-cols-2 gap-3 w-full max-w-sm">
-                {(currentPersona.quickPrompts ?? []).map((item) => {
+                {opening.quickPrompts.map((item) => {
                   const Icon = item.icon;
                   return (
                     <button
@@ -930,7 +940,7 @@ export default function Home() {
                       onClick={() => handleQuickPrompt(item.prompt)}
                       disabled={isLoading}
                       className={cn(
-                        "flex flex-col items-center gap-2 p-3 rounded-xl border-2",
+                        "flex min-w-0 flex-col items-center gap-2 p-3 rounded-xl border-2",
                         "transition-all hover:-translate-y-0.5",
                         "active:translate-x-0.5 active:translate-y-0.5",
                         "disabled:opacity-50 disabled:cursor-not-allowed",
@@ -955,7 +965,7 @@ export default function Home() {
                           style={{ color: "var(--prompt-card-text)" }}
                         />
                       </div>
-                      <span className="text-sm font-bold whitespace-nowrap">
+                      <span className="flex min-h-10 max-w-full items-center justify-center break-words text-sm font-bold leading-snug">
                         {item.label}
                       </span>
                     </button>
@@ -1361,16 +1371,16 @@ export default function Home() {
                   placeholder={
                     pendingImages.length > 0
                       ? "添加说明，或直接发送图片…"
-                      : currentPersona.placeholder ?? "今天想聊点啥？"
+                      : opening.placeholder ?? "今天想聊点啥？"
                   }
                 />
                 {inputValue.length === 0 ? (
                   <span
                     aria-hidden="true"
-                    className="pointer-events-none absolute left-2 top-2.5 text-base leading-6 md:hidden"
+                    className="pointer-events-none absolute left-2 right-11 top-2.5 truncate text-base leading-6 md:hidden"
                     style={{ color: "var(--input-placeholder)" }}
                   >
-                    {pendingImages.length > 0 ? "添加说明…" : "输入消息…"}
+                    {pendingImages.length > 0 ? "添加说明…" : opening.inputHint}
                   </span>
                 ) : null}
                 {inputValue.length >= MAX_INPUT_LENGTH * 0.8 ? (

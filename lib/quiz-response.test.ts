@@ -7,6 +7,7 @@ import { QUIZ_SUMMARY_REQUEST } from "./quiz-summary";
 import { getResponseActionContext } from "./response-actions";
 import { normalizeSessions, toStoredMessages } from "./chat-history";
 import { parseChart } from "./charts";
+import { buildReplyLanguagePrompt } from "./reply-languages";
 
 type ModelResponse = Awaited<ReturnType<MockLanguageModelV3["doStream"]>>;
 type ModelChunk = ModelResponse["stream"] extends ReadableStream<infer Chunk> ? Chunk : never;
@@ -54,6 +55,17 @@ async function readReply(response: Response): Promise<UIMessage> {
 }
 
 describe("practice completion responses", () => {
+  it("uses the selected language for summary statistics and the analysis prompt", async () => {
+    const model = new MockLanguageModelV3({ doStream: textResponse("Révise la définition des nombres premiers.") });
+    const response = await createQuizPracticeResponse({ model, messages: practice(QUIZ_SUMMARY_REQUEST), personaPrompt: "默认使用中文", replyLanguage: "fr" });
+    const reply = await readReply(response!);
+    const text = reply.parts.filter((part) => part.type === "text").map((part) => part.text).join("");
+    expect(text).toContain("### Bilan des exercices");
+    expect(text).toContain("Réponses soumises : **3**");
+    expect(text).toContain("67%");
+    expect(model.doStreamCalls[0].prompt[0]).toMatchObject({ role: "system", content: expect.stringContaining(buildReplyLanguagePrompt("fr")) });
+  });
+
   it("turns completed practice into precise charts and advice that survive history restore", async () => {
     const model = new MockLanguageModelV3({ doGenerate: decisionResponse(true), doStream: textResponse("建议复习质数的定义。") });
     const messages = practice();

@@ -6,6 +6,7 @@ import { parseChart } from "./charts";
 import { getResponseActionContext, getResponseActions } from "./response-actions";
 import { normalizeMarkdown } from "./markdown";
 import { getMessageQuizzes, withQuizAnswerContext } from "./quizzes";
+import { REPLY_LANGUAGE_IDS } from "./reply-languages";
 
 function card(id: string, selected?: number[], multiple = false): UIMessage {
   const raw = JSON.stringify({ type: multiple ? "multiple" : "single", question: `第${id}题：哪些是质数？`, options: ["2", "3", "4"], answer: multiple ? [0, 1] : [0], explanation: "2和3只有两个正因数，4不是质数。" });
@@ -13,6 +14,19 @@ function card(id: string, selected?: number[], multiple = false): UIMessage {
 }
 
 describe("practice summaries", () => {
+  it.each(REPLY_LANGUAGE_IDS)("preserves summary counts and restored actions in %s", (language) => {
+    const summary = collectQuizResults([card("1", [0]), card("2", [1]), card("3")]);
+    const text = buildQuizSummaryMarkdown(summary, language);
+    expect(text).not.toMatch(/\{(?:count|correct|incorrect|accuracy|unanswered)\}/);
+    expect(text).toContain("50%");
+    expect(parseChart(/```chart\n([\s\S]*?)\n```/.exec(text)![1])?.data.map((item) => item.value)).toEqual([1, 1]);
+    const reply: UIMessage = { id: "localized-summary", role: "assistant", parts: [{ type: "text", text }] };
+    const restored = normalizeSessions([{ id: "s", title: "练习", createdAt: 1, updatedAt: 1, messages: toStoredMessages([reply]) }])[0].messages;
+    expect(getResponseActionContext(restored, reply.id)).toBe("quiz-summary");
+    expect(buildQuizSummaryMarkdown(collectQuizResults([]), language)).not.toContain("```chart");
+    if (language === "fr") expect(text).toContain("Bilan des exercices");
+  });
+
   it("keeps rendered submissions in summaries and explanation context after history restore", () => {
     const raw = JSON.stringify({ type: "single", question: "下面哪个是 **“质数”**？", options: ["9", "11"], answer: [1], explanation: "**“11”** 只有两个正因数。" });
     const text = `\`\`\`quiz\n${raw}\n\`\`\``;

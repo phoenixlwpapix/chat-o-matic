@@ -319,6 +319,11 @@ body {
   }
 }
 
+/* Keep reply dividers closer to the surrounding text than prose defaults. */
+.markdown-content hr {
+  margin-block: 1.25em;
+}
+
 /* ── Markdown ordered lists ── */
 .markdown-content ol {
   list-style: none;

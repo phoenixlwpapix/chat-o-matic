@@ -8,6 +8,7 @@ import {
 } from "./chat-preferences";
 import type { SearchMode } from "./search-modes";
 import type { ChatFont, ChatFontSize } from "./chat-typography";
+import type { ReplyLanguage } from "./reply-languages";
 
 const STORAGE_KEY = "chat-o-matic-preferences";
 const PREFERENCES_CHANGE_EVENT = "chat-o-matic-preferences-change";
@@ -69,6 +70,10 @@ export function useChatPreferences() {
     writePreferences({ ...readPreferences(), searchMode });
   }, []);
 
+  const setReplyLanguage = useCallback((replyLanguage: ReplyLanguage) => {
+    writePreferences({ ...readPreferences(), replyLanguage });
+  }, []);
+
   const setUserAvatar = useCallback((userAvatar: string | null) => {
     writePreferences({ ...readPreferences(), userAvatar });
   }, []);
@@ -88,6 +93,8 @@ export function useChatPreferences() {
   return {
     personaId: preferences.personaId,
     searchMode: preferences.searchMode,
+    replyLanguage: preferences.replyLanguage,
+    setReplyLanguage,
     userAvatar: preferences.userAvatar,
     userName: preferences.userName,
     chatFont: preferences.chatFont,

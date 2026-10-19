@@ -12,6 +12,7 @@ import {
 } from "./constants";
 import { PERSONAS } from "./personas";
 import { SEARCH_MODE_IDS, type SearchMode } from "./search-modes";
+import { REPLY_LANGUAGE_IDS, type ReplyLanguage } from "./reply-languages";
 
 const requestEnvelopeSchema = z
   .object({
@@ -22,6 +23,7 @@ const requestEnvelopeSchema = z
     messageId: z.string().max(200).optional(),
     personaId: z.string().max(50).optional(),
     searchMode: z.enum(SEARCH_MODE_IDS).default("auto"),
+    replyLanguage: z.enum(REPLY_LANGUAGE_IDS).default("auto"),
     userName: z.string().max(MAX_USER_NAME_LENGTH).optional(),
   })
   .strict();
@@ -41,6 +43,7 @@ export interface ValidatedChatRequest {
   messages: UIMessage[];
   personaId: string;
   searchMode: SearchMode;
+  replyLanguage: ReplyLanguage;
   userName?: string;
 }
 
@@ -175,6 +178,7 @@ export async function parseChatRequest(req: Request): Promise<ValidatedChatReque
     messages: messageResult.data,
     personaId,
     searchMode: envelopeResult.data.searchMode,
+    replyLanguage: envelopeResult.data.replyLanguage,
     userName: envelopeResult.data.userName,
   };
 }

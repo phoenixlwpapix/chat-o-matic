@@ -2,11 +2,13 @@ import { MAX_USER_NAME_LENGTH } from "./constants";
 import { normalizeChatFont, normalizeChatFontSize, type ChatFont, type ChatFontSize } from "./chat-typography";
 import { getPersonaById } from "./personas";
 import { getSearchMode, type SearchMode } from "./search-modes";
+import { normalizeReplyLanguage, type ReplyLanguage } from "./reply-languages";
 
 export interface ChatPreferences {
-  schemaVersion: 4;
+  schemaVersion: 5;
   personaId: string;
   searchMode: SearchMode;
+  replyLanguage: ReplyLanguage;
   userAvatar: string | null;
   userName: string;
   chatFont: ChatFont;
@@ -14,9 +16,10 @@ export interface ChatPreferences {
 }
 
 export const DEFAULT_CHAT_PREFERENCES: ChatPreferences = {
-  schemaVersion: 4,
+  schemaVersion: 5,
   personaId: "default",
   searchMode: "auto",
+  replyLanguage: "auto",
   userAvatar: null,
   userName: "",
   chatFont: "default",
@@ -34,7 +37,8 @@ export function normalizeChatPreferences(value: unknown): ChatPreferences {
   if (!isRecord(value)) return DEFAULT_CHAT_PREFERENCES;
 
   return {
-    schemaVersion: 4,
+    schemaVersion: 5,
+    replyLanguage: normalizeReplyLanguage(value.replyLanguage),
     chatFont: normalizeChatFont(value.chatFont),
     chatFontSize: normalizeChatFontSize(value.chatFontSize),
     personaId: getPersonaById(
