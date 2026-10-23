@@ -1,6 +1,7 @@
 import { z } from "zod";
 import type { UIMessage } from "ai";
 import { normalizeMarkdown } from "./markdown";
+import { normalizeLegacyQuizRaw } from "./legacy-quiz-markdown";
 
 export const quizSchema = z.object({
   type: z.enum(["single", "multiple", "boolean"]),
@@ -45,6 +46,10 @@ const answerSchema = z.object({
 }).strict();
 export type QuizAnswer = z.infer<typeof answerSchema>;
 
+export function matchesQuizRaw(raw: string, savedRaw: string): boolean {
+  return raw === savedRaw || normalizeLegacyQuizRaw(raw) === savedRaw;
+}
+
 export const QUIZ_FOLLOW_UP_PROMPTS = {
   simplifyExplanation: "请把刚才这道题的解析讲得更简单一些，一次只讲一个重点，保留必要的解题步骤；只简化讲解，不出新题。",
   easier: "请在我指定的练习范围内，重新出难度更低的 quiz 练习，不是简化上一题讲解。普通练习一道；阅读理解或完形填空一篇材料配默认3道小题，整组提交，遵守我明确指定的小题数。数学减少推理步骤；英语降低词汇和句法难度，文章更短、线索更直接。新一组默认换新材料，明确要求同一材料时才保留；组内共用材料。不要讲解旧题，不在提交前公布答案。",
@@ -58,8 +63,7 @@ export function getMessageQuizCards(message: UIMessage): { raw: string; quiz: Qu
   if (message.role !== "assistant") return [];
   return message.parts.flatMap((part) => {
     if (part.type !== "text") return [];
-    // Match the JSON rendered by MarkdownContent and saved on submission,
-    // including formatting repairs in previously saved conversations.
+    // Match the unchanged code-block JSON rendered by MarkdownContent.
     return Array.from(normalizeMarkdown(part.text).matchAll(/^[ \t]*(`{3,}|~{3,})quiz[ \t]*\r?\n([\s\S]*?)^[ \t]*(`{3,}|~{3,})[ \t]*$/gm)).flatMap((match) => {
       if (match[1][0] !== match[3][0] || match[3].length < match[1].length) return [];
       const raw = match[2].replace(/\r\n/g, "\n").replace(/\n$/, "");
@@ -154,7 +158,7 @@ export function withQuizAnswerContext(messages: UIMessage[]): UIMessage[] {
     if (message.role !== "assistant") return [message];
     const quizzes = getMessageQuizCards(message);
     const context = readQuizAnswers(message.metadata).filter((answer) =>
-      quizzes.some(({ raw }) => raw === answer.raw),
+      quizzes.some(({ raw }) => matchesQuizRaw(raw, answer.raw)),
     ).map((answer) => {
       const quiz = parseQuizCard(answer.raw)!;
       if (!("questions" in quiz)) return describeQuizAnswer(quiz, answer.selected);

@@ -27,13 +27,14 @@ describe("practice summaries", () => {
     if (language === "fr") expect(text).toContain("Bilan des exercices");
   });
 
-  it("keeps rendered submissions in summaries and explanation context after history restore", () => {
+  it.each([false, true])("keeps current and legacy submissions after history restore (legacy=%s)", (legacy) => {
     const raw = JSON.stringify({ type: "single", question: "下面哪个是 **“质数”**？", options: ["9", "11"], answer: [1], explanation: "**“11”** 只有两个正因数。" });
     const text = `\`\`\`quiz\n${raw}\n\`\`\``;
-    // MarkdownContent renders normalized text; submissions store that code block's raw JSON.
+    // New renders preserve quiz JSON; older submissions saved rewritten quotes.
     const renderedRaw = /```quiz\n([\s\S]*?)\n```/.exec(normalizeMarkdown(text))![1];
-    expect(renderedRaw).not.toBe(raw);
-    const message: UIMessage = { id: "quoted", role: "assistant", parts: [{ type: "text", text }], metadata: { quizAnswers: [{ key: "0:0", raw: renderedRaw, selected: [1] }] } };
+    expect(renderedRaw).toBe(raw);
+    const savedRaw = legacy ? raw.replace('**“质数”**', '“**质数**”').replace('**“11”**', '“**11**”') : raw;
+    const message: UIMessage = { id: "quoted", role: "assistant", parts: [{ type: "text", text }], metadata: { quizAnswers: [{ key: "0:0", raw: savedRaw, selected: [1] }] } };
     const restored = normalizeSessions([{ id: "s", title: "练习", createdAt: 1, updatedAt: 1, messages: toStoredMessages([message]) }])[0].messages;
     for (const messages of [[message], restored]) {
       expect(getMessageQuizzes(messages[0])[0].raw).toBe(renderedRaw);

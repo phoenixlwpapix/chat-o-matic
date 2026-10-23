@@ -6,9 +6,11 @@ import { Check, Copy } from "lucide-react";
 import ReactMarkdown, { type Components } from "react-markdown";
 import remarkGfm from "remark-gfm";
 import remarkCjkFriendly from "remark-cjk-friendly/parseOnly";
+import remarkCjkFriendlyStrikethrough from "remark-cjk-friendly-gfm-strikethrough/parseOnly";
 import remarkMath from "remark-math";
 import rehypeKatex from "rehype-katex";
 import { normalizeMarkdown } from "@/lib/markdown";
+import { getLegacyQuizOffset } from "@/lib/legacy-quiz-markdown";
 import { ChatChart } from "@/components/chat-chart";
 import { ChatQuiz, type QuizControls } from "@/components/chat-quiz";
 import { ChatStoryChoices, type StoryChoiceControls } from "@/components/chat-story-choices";
@@ -89,7 +91,7 @@ function MarkdownCode({ className, children, ...props }: React.ComponentProps<"c
   );
 }
 
-const MarkdownStreamContext = createContext({ text: "", isStreaming: false });
+const MarkdownStreamContext = createContext({ text: "", sourceText: "", isStreaming: false });
 const QuizContext = createContext<QuizControls & { prefix: string }>({ answers: [], disabled: true, prefix: "" });
 const StoryChoiceContext = createContext<StoryChoiceControls>({ disabled: true });
 const FollowUpContext = createContext<((prompt: string) => void) | undefined>(undefined);
@@ -104,7 +106,7 @@ const MarkdownParagraph: NonNullable<Components["p"]> = ({ children, node }) => 
 };
 
 const MarkdownPre: NonNullable<Components["pre"]> = ({ children, node, ...props }) => {
-  const { text, isStreaming } = useContext(MarkdownStreamContext);
+  const { text, sourceText, isStreaming } = useContext(MarkdownStreamContext);
   const controls = useContext(QuizContext);
   const storyControls = useContext(StoryChoiceContext);
   const onFollowUp = useContext(FollowUpContext);
@@ -118,7 +120,11 @@ const MarkdownPre: NonNullable<Components["pre"]> = ({ children, node, ...props 
     const closed = Boolean(opening && closing && lines.length > 1 && opening[1][0] === closing[1][0] && closing[1].length >= opening[1].length);
     if (language === "quiz") {
       const quizKey = `${controls.prefix}:${node?.position?.start.offset ?? 0}`;
-      return <ChatQuiz key={`${quizKey}:${raw}`} {...controls} quizKey={quizKey} raw={raw} pending={isStreaming && !closed} />;
+      const position = node?.position?.start;
+      const legacyQuizKey = controls.answers.length && position
+        ? `${controls.prefix}:${getLegacyQuizOffset(sourceText, position.line, position.column)}`
+        : undefined;
+      return <ChatQuiz key={`${quizKey}:${raw}`} {...controls} quizKey={quizKey} legacyQuizKey={legacyQuizKey} raw={raw} pending={isStreaming && !closed} />;
     }
     if (language === "choice") return <ChatStoryChoices raw={raw} pending={isStreaming && !closed} {...storyControls} disabled={isStreaming || storyControls.disabled} />;
     if (language === "sentence") return <ChatSentence raw={raw} pending={isStreaming && !closed} onFollowUp={onFollowUp} />;
@@ -132,13 +138,13 @@ const MARKDOWN_COMPONENTS: Components = { code: MarkdownCode, pre: MarkdownPre, 
 export function MarkdownContent({ text, isStreaming = false, quizControls, quizPrefix = "", onFollowUp, storyControls }: { text: string; isStreaming?: boolean; quizControls?: QuizControls; storyControls?: StoryChoiceControls; quizPrefix?: string; onFollowUp?: (prompt: string) => void }) {
   const normalized = normalizeMarkdown(text);
   return (
-    <MarkdownStreamContext.Provider value={{ text: normalized, isStreaming }}>
+    <MarkdownStreamContext.Provider value={{ text: normalized, sourceText: text, isStreaming }}>
     <QuizContext.Provider value={{ answers: [], disabled: true, ...quizControls, prefix: quizPrefix }}>
     <StoryChoiceContext.Provider value={storyControls ?? { disabled: true }}>
     <FollowUpContext.Provider value={isStreaming ? undefined : onFollowUp}>
     <div className="markdown-content prose prose-base max-w-none">
       <ReactMarkdown
-        remarkPlugins={[remarkGfm, remarkCjkFriendly, remarkMath]}
+        remarkPlugins={[remarkGfm, remarkCjkFriendly, remarkCjkFriendlyStrikethrough, remarkMath]}
         rehypePlugins={[rehypeKatex]}
         components={MARKDOWN_COMPONENTS}
       >

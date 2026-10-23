@@ -1,6 +1,6 @@
 import type { UIMessage } from "ai";
 import type { ChartSpec } from "./charts";
-import { getMessageQuizzes, isCorrectAnswer, readQuizAnswers, QUIZ_FOLLOW_UP_PROMPTS, type QuizSpec } from "./quizzes";
+import { getMessageQuizzes, isCorrectAnswer, matchesQuizRaw, readQuizAnswers, QUIZ_FOLLOW_UP_PROMPTS, type QuizSpec } from "./quizzes";
 import { isParagraphFollowUpRequest } from "./paragraph-follow-up";
 import type { ReplyLanguage } from "./reply-languages";
 import { QUIZ_SUMMARY_COPY } from "./quiz-summary-copy";
@@ -52,7 +52,7 @@ export function collectQuizResults(messages: UIMessage[]): QuizSummary {
       const identity = `${questionIndex}:${raw}`;
       if (seen.has(identity)) continue;
       seen.add(identity);
-      const answer = answers.find((item) => item.raw === raw);
+      const answer = answers.find((item) => matchesQuizRaw(raw, item.raw));
       if (!answer) { unanswered++; continue; }
       const selected = answer.selections?.[questionIndex] ?? answer.selected;
       results.push({ quiz, selected, correct: isCorrectAnswer(quiz, selected) });

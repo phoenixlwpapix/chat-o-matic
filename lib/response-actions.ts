@@ -1,5 +1,5 @@
 import type { UIMessage } from "ai";
-import { getMessageQuizCards, isQuizExplanationReply, QUIZ_FOLLOW_UP_PROMPTS, readQuizAnswers } from "./quizzes";
+import { getMessageQuizCards, isQuizExplanationReply, matchesQuizRaw, QUIZ_FOLLOW_UP_PROMPTS, readQuizAnswers } from "./quizzes";
 import { isQuizSummaryRequest, isQuizSummaryReply, QUIZ_SUMMARY_REQUEST } from "./quiz-summary";
 
 export type ResponseAction = "simplify" | "example" | "principle" | "perspective" | "quiz" | "verify" | "next-quiz" | "easier-quiz" | "harder-quiz" | "explain-quiz" | "quiz-summary";
@@ -30,7 +30,7 @@ export function getResponseActionContext(messages: UIMessage[], replyId: string)
   const quizzes = getMessageQuizCards(message);
   if (quizzes.length) {
     const answers = readQuizAnswers(message.metadata);
-    return quizzes.every(({ raw }) => answers.some((answer) => answer.raw === raw)) ? "quiz-answered" : "quiz-unanswered";
+    return quizzes.every(({ raw }) => answers.some((answer) => matchesQuizRaw(raw, answer.raw))) ? "quiz-answered" : "quiz-unanswered";
   }
   const index = messages.indexOf(message);
   if (isQuizSummaryRequest(messages.slice(0, index)) || isQuizSummaryReply(message)) return "quiz-summary";

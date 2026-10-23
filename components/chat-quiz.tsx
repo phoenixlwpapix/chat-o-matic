@@ -6,7 +6,7 @@ import ReactMarkdown, { type Components } from "react-markdown";
 import remarkCjkFriendly from "remark-cjk-friendly/parseOnly";
 import remarkMath from "remark-math";
 import rehypeKatex from "rehype-katex";
-import { getQuizItems, isCorrectAnswer, parseQuizCard, type QuizAnswer, type QuizSpec } from "@/lib/quizzes";
+import { getQuizItems, isCorrectAnswer, matchesQuizRaw, parseQuizCard, type QuizAnswer, type QuizSpec } from "@/lib/quizzes";
 import { ParagraphFollowUp } from "@/components/paragraph-follow-up";
 
 const QuizTextContext = createContext<{ text: string; context: string; onFollowUp?: (prompt: string) => void }>({ text: "", context: "" });
@@ -64,11 +64,11 @@ function QuizQuestion({ quiz, selected, submitted, disabled, number, onChange, o
   </div>;
 }
 
-export function ChatQuiz({ raw, pending, quizKey, answers, disabled, onSubmit, onFollowUp }: QuizControls & { raw: string; pending: boolean; quizKey: string }) {
+export function ChatQuiz({ raw, pending, quizKey, legacyQuizKey, answers, disabled, onSubmit, onFollowUp }: QuizControls & { raw: string; pending: boolean; quizKey: string; legacyQuizKey?: string }) {
   const [drafts, setDrafts] = useState<number[][]>([]);
   const titleId = useId();
   const card = pending ? null : parseQuizCard(raw);
-  const stored = answers.find((answer) => answer.key === quizKey && answer.raw === raw);
+  const stored = answers.find((answer) => (answer.key === quizKey || answer.key === legacyQuizKey) && matchesQuizRaw(raw, answer.raw));
   if (!card) return <div role="status" className="not-prose my-4 rounded-xl border-2 border-dashed p-4 text-sm" style={{ borderColor: "var(--fb-inactive-border)" }}>
     {pending ? "题目生成中…" : "这道题的数据不完整或答案格式有误，请让助手重新出题。"}
   </div>;
