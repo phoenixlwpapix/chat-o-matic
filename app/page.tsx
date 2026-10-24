@@ -1,6 +1,7 @@
 "use client";
 
 import { getStoryChoiceReply } from "@/lib/story-choices";
+import { QuizSkeleton } from "@/components/quiz-skeleton";
 
 import {
   useRef,
@@ -170,6 +171,7 @@ export default function Home() {
   const [pendingImages, setPendingImages] = useState<string[]>([]);
   // API 错误提示
   const [apiError, setApiError] = useState<string | null>(null);
+  const [quizStage, setQuizStage] = useState<"generating" | "validating" | null>(null);
   const [activeRequestSearchMode, setActiveRequestSearchMode] = useState<SearchMode | null>(null);
 
   // 侧边栏
@@ -197,7 +199,14 @@ export default function Home() {
   // AI SDK 6 useChat - 默认连接到 /api/chat
   const { messages, sendMessage, regenerate, status, setMessages, stop } = useChat({
     transport: chatTransport,
+    onData: (part) => {
+      if (part.type !== "data-quiz-status" || !part.data || typeof part.data !== "object" || !("stage" in part.data)) return;
+      setQuizStage(part.data.stage === "generating" || part.data.stage === "validating" ? part.data.stage : null);
+    },
+    onFinish: () => setQuizStage(null),
     onError: (error) => {
+      if (process.env.NODE_ENV === "development") console.error("Chat reply failed", error);
+      setQuizStage(null);
       setApiError(getClientChatErrorMessage(error.message));
     },
   });
@@ -976,7 +985,8 @@ export default function Home() {
           )}
 
           {messages.map((message) => {
-            const layout = getMessageLayout(message, isLoading && message.id === lastAssistantId);
+            const pendingQuiz = isLoading && message.id === lastAssistantId ? quizStage : null;
+            const layout = pendingQuiz ? "mixed" : getMessageLayout(message, isLoading && message.id === lastAssistantId);
             const cardOnly = layout === "cards" || layout === "compact-cards";
             return (
             <div
@@ -1101,6 +1111,7 @@ export default function Home() {
                       }
                     })}
 
+                    {pendingQuiz ? <QuizSkeleton stage={pendingQuiz} /> : null}
                     {message.role === "assistant" ? (
                       <SourceList
                         parts={message.parts}
@@ -1156,6 +1167,7 @@ export default function Home() {
           ); })}
           {isLoading &&
             (() => {
+              if (quizStage) return null;
               const lastMsg = messages[messages.length - 1];
               const isToolSearching =
                 lastMsg?.role === "assistant" &&

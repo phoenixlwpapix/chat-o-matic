@@ -1,8 +1,12 @@
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { simulateReadableStream, type UIMessageChunk } from "ai";
 import { MockLanguageModelV3 } from "ai/test";
-import { createQuizValidationTransform, validateQuizDraft } from "./quiz-validation";
+import { createQuizValidationTransform, validateQuizDraft, QuizValidationError } from "./quiz-validation";
+import { CHAT_ERROR_MESSAGES, getClientChatErrorMessage } from "./chat-errors";
 import { parseQuizCard } from "./quizzes";
+
+beforeEach(() => { vi.spyOn(console, "warn").mockImplementation(() => {}); vi.spyOn(console, "error").mockImplementation(() => {}); });
+afterEach(() => vi.restoreAllMocks());
 
 const draft = { type: "single", question: "甲12天、乙15天完成，合做4天后甲还需几天？", options: ["2.4天", "3天", "4天", "5天"], answer: [1], explanation: "4.8天，等等，选项没有。" };
 const corrected = { ...draft, options: ["2.4天", "3天", "4.8天", "5天"], answer: [2], explanation: "剩余工作量为2/5，除以甲的效率1/12，需4.8天。" };
@@ -26,13 +30,29 @@ async function run(chunks: UIMessageChunk[], validate = vi.fn(async () => JSON.s
 }
 
 describe("reviewed quiz stream", () => {
+  it.each([
+    [new QuizValidationError("calculator-missing"), CHAT_ERROR_MESSAGES.quizInvalid],
+    [new QuizValidationError("unsolved"), CHAT_ERROR_MESSAGES.quizUnsolved],
+    [new DOMException("timed out", "TimeoutError"), CHAT_ERROR_MESSAGES.timeout],
+    [Object.assign(new Error("quota"), { statusCode: 429 }), CHAT_ERROR_MESSAGES.quota],
+  ])("logs the actual error and preserves the public category for %s", async (error, expected) => {
+    const result = await run([delta(`\`\`\`quiz\n${JSON.stringify(draft)}\n\`\`\``)], vi.fn(async () => { throw error; }));
+    const event = result.chunks.find((chunk) => chunk.type === "error");
+    expect(event?.type === "error" && getClientChatErrorMessage(event.errorText)).toBe(expected);
+    expect(console.error).toHaveBeenCalledWith("Quiz validation failed", expect.objectContaining({ name: error.name, message: error.message }));
+  });
   it("holds partial fences and releases only the corrected card, never the draft or postscript", async () => {
-    const { text, validate } = await run([delta("来做一道题。\n\n`"), delta("``qu"), delta(`iz\n${JSON.stringify(draft)}\n\`\`\`\n等等，答案应该改成4.8天。`)]);
+    const { text, validate, chunks } = await run([delta("来做一道题。\n\n`"), delta("``qu"), delta(`iz\n${JSON.stringify(draft)}\n\`\`\`\n等等，答案应该改成4.8天。`)]);
     expect(validate).toHaveBeenCalledWith(JSON.stringify(draft));
     expect(text).toContain(JSON.stringify(corrected));
     expect(text).toContain("来做一道题。");
     expect(text).not.toContain("等等");
     expect(text).not.toContain(JSON.stringify(draft));
+    expect(chunks.filter((chunk) => chunk.type === "data-quiz-status")).toEqual([
+      { type: "data-quiz-status", data: { stage: "generating" }, transient: true },
+      { type: "data-quiz-status", data: { stage: "validating" }, transient: true },
+      { type: "data-quiz-status", data: { stage: "done" }, transient: true },
+    ]);
   });
   it("preserves ordinary prose, non-quiz cards and search sources without review", async () => {
     const text = "普通回答。\n\n```chart\n{}\n```\n以及 `quiz` 这个单词。";
@@ -65,6 +85,7 @@ describe("reviewed quiz stream", () => {
     expect(result.text).not.toContain("quiz");
     expect(result.chunks.some((chunk) => chunk.type === "error")).toBe(true);
     expect(result.chunks.at(-1)?.type).toBe("finish");
+    expect(result.chunks).toContainEqual({ type: "data-quiz-status", data: { stage: "done" }, transient: true });
     const aborted = await run([delta("```quiz\n{\"type\":"), { type: "abort" }]);
     expect(aborted.text).toBe("");
     expect(aborted.validate).not.toHaveBeenCalled();
@@ -77,6 +98,21 @@ describe("reviewed quiz stream", () => {
 });
 
 describe("quiz reviewer", () => {
+  it("retries missing calculations separately without combining forced tools with JSON mode", async () => {
+    let call = 0;
+    const responses: GenerateResponse[] = [
+      checked(JSON.stringify(corrected), true),
+      { ...checked("{}"), content: [{ type: "tool-call", toolCallId: "retry-calc", toolName: "calculate", input: JSON.stringify({ expression: "(1-(1/12+1/15)*4)/(1/12)" }) }], finishReason: { unified: "tool-calls", raw: undefined } },
+      checked(JSON.stringify(corrected), true),
+    ];
+    const model = new MockLanguageModelV3({ doGenerate: async () => responses[call++] });
+    expect(parseQuizCard(await validateQuizDraft(JSON.stringify(draft), model))).toEqual(corrected);
+    expect(model.doGenerateCalls[1].toolChoice).toEqual({ type: "tool", toolName: "calculate" });
+    expect(model.doGenerateCalls[1].responseFormat).not.toMatchObject({ type: "json" });
+    expect(model.doGenerateCalls[2].responseFormat).toMatchObject({ type: "json" });
+    expect(JSON.stringify(model.doGenerateCalls[2].prompt)).toContain("4.800000000000001");
+    expect(console.warn).toHaveBeenCalledWith("Quiz review rejected", expect.objectContaining({ reason: "calculator-missing" }));
+  });
   it("retries structural failures, then returns a parseable corrected card", async () => {
     let call = 0;
     const model = new MockLanguageModelV3({ doGenerate: async () => call++ === 0 ? checked("{}") : checked(JSON.stringify(corrected)) });
@@ -89,7 +125,7 @@ describe("quiz reviewer", () => {
     expect(unsolved.doGenerateCalls).toHaveLength(1);
     const uncalculated = new MockLanguageModelV3({ doGenerate: checked(JSON.stringify(corrected), true) });
     await expect(validateQuizDraft(JSON.stringify(draft), uncalculated)).rejects.toThrow("did not pass");
-    expect(uncalculated.doGenerateCalls).toHaveLength(2);
+    expect(uncalculated.doGenerateCalls).toHaveLength(3);
   });
   it("uses the calculator tool result when repairing a numerical question", async () => {
     let call = 0;

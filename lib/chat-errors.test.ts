@@ -6,6 +6,11 @@ import {
 } from "./chat-errors";
 
 describe("chat error messages", () => {
+  it("keeps safe quiz rejection and timeout messages instead of replacing them with a generic error", () => {
+    for (const message of [CHAT_ERROR_MESSAGES.quizInvalid, CHAT_ERROR_MESSAGES.quizUnsolved, CHAT_ERROR_MESSAGES.timeout]) {
+      expect(getClientChatErrorMessage(message)).toBe(message);
+    }
+  });
   it("turns provider quota errors into a user-facing quota message", () => {
     expect(
       getPublicChatErrorMessage({
