@@ -1,11 +1,12 @@
 import { google } from "@ai-sdk/google";
-import { streamText, convertToModelMessages } from "ai";
+import { streamText, convertToModelMessages, createUIMessageStreamResponse } from "ai";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { ChatRequestError, parseChatRequest } from "@/lib/chat-request";
 import { getPersonaById } from "@/lib/personas";
 import { getPublicChatErrorMessage } from "@/lib/chat-errors";
 import { withQuizAnswerContext, buildQuizContinuationPrompt } from "@/lib/quizzes";
 import { createQuizPracticeResponse } from "@/lib/quiz-response";
+import { createQuizValidationTransform, validateQuizDraft } from "@/lib/quiz-validation";
 import {
   buildChatSystemPrompt,
   buildSearchPrompt,
@@ -13,7 +14,7 @@ import {
 } from "@/lib/search-modes";
 
 // 允许流式响应持续更长时间（防止超时）
-export const maxDuration = 30;
+export const maxDuration = 60;
 
 export async function POST(req: Request) {
   // 0. Vercel WAF 已在边缘层跨实例限流；这里再做进程内二次防护
@@ -68,10 +69,11 @@ export async function POST(req: Request) {
       system,
       // 3. 将 UI 消息格式转换为模型能理解的格式
       messages: await convertToModelMessages(withQuizAnswerContext(messages)),
+      abortSignal: req.signal,
     });
 
     // 4. 把流中途发生的供应商错误转换为安全、可读的消息。
-    return result.toUIMessageStreamResponse({
+    const stream = result.toUIMessageStream({
       sendSources: true,
       onError: (error) => {
         console.error(
@@ -80,6 +82,11 @@ export async function POST(req: Request) {
         );
         return getPublicChatErrorMessage(error);
       },
+    });
+    return createUIMessageStreamResponse({
+      stream: stream.pipeThrough(createQuizValidationTransform((raw) =>
+        validateQuizDraft(raw, google("gemini-3.5-flash-lite"), req.signal),
+      )),
     });
   } catch (error) {
     console.error(
