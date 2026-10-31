@@ -61,7 +61,7 @@ import { SourceList } from "@/components/source-list";
 import { useChatHistory, toStoredMessages } from "@/lib/use-chat-history";
 import { MAX_FAVORITE_SESSIONS } from "@/lib/chat-history";
 import { CHAT_FONTS } from "@/lib/chat-typography";
-import { parseQuizCard, readQuizAnswers, type QuizAnswer } from "@/lib/quizzes";
+import { parseQuizCard, QUIZ_FOLLOW_UP_PROMPTS, readQuizAnswers, type QuizAnswer } from "@/lib/quizzes";
 import { getResponseActionContext, getResponseActions, getMoreResponseActions, isSubstantiveReply, isQuizGroupContext } from "@/lib/response-actions";
 import type { SearchMode } from "@/lib/search-modes";
 import type { ReplyLanguage } from "@/lib/reply-languages";
@@ -985,6 +985,10 @@ export default function Home() {
           )}
 
           {messages.map((message) => {
+            // Keep the continuation instruction in model context and saved history,
+            // while the conversation goes straight from the button to the next quiz.
+            if (message.role === "user" && message.parts.length === 1 &&
+              message.parts[0].type === "text" && message.parts[0].text === QUIZ_FOLLOW_UP_PROMPTS.next) return null;
             const pendingQuiz = isLoading && message.id === lastAssistantId ? quizStage : null;
             const layout = pendingQuiz ? "mixed" : getMessageLayout(message, isLoading && message.id === lastAssistantId);
             const cardOnly = layout === "cards" || layout === "compact-cards";
