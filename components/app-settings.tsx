@@ -18,6 +18,7 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import { AvatarCropper } from "@/components/avatar-cropper";
+import { AdvancedModelSettings } from "@/components/advanced-model-settings";
 import { Button } from "@/components/ui/button";
 import { ThemeSwitcher } from "@/components/theme-switcher";
 import { MAX_USER_NAME_LENGTH } from "@/lib/constants";
@@ -586,6 +587,8 @@ export function AppSettings({
                 自动保存，从下一次回复生效。翻译和语言练习按具体任务要求处理。
               </p>
             </div>
+
+            <AdvancedModelSettings />
 
             <fieldset className="border-t pt-3" style={{ borderColor: "var(--fb-inactive-border)" }}>
               <legend className="mb-2 text-xs font-black uppercase tracking-[0.16em]">阅读设置</legend>

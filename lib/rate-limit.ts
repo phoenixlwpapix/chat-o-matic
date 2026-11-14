@@ -37,28 +37,28 @@ export interface RateLimitResult {
   retryAfterMs?: number;
 }
 
-function checkLocalRateLimit(ip: string): RateLimitResult {
+function checkLocalRateLimit(key: string, maxRequests: number): RateLimitResult {
   startCleanup();
 
   const now = Date.now();
-  const entry = store.get(ip) ?? { timestamps: [] };
+  const entry = store.get(key) ?? { timestamps: [] };
   entry.timestamps = entry.timestamps.filter(
     (ts) => now - ts < RATE_LIMIT_WINDOW_MS,
   );
 
-  if (entry.timestamps.length >= RATE_LIMIT_MAX_REQUESTS) {
+  if (entry.timestamps.length >= maxRequests) {
     const oldest = entry.timestamps[0];
     const retryAfterMs = RATE_LIMIT_WINDOW_MS - (now - oldest);
-    store.set(ip, entry);
+    store.set(key, entry);
     return { allowed: false, remaining: 0, retryAfterMs };
   }
 
   entry.timestamps.push(now);
-  store.set(ip, entry);
+  store.set(key, entry);
 
   return {
     allowed: true,
-    remaining: RATE_LIMIT_MAX_REQUESTS - entry.timestamps.length,
+    remaining: maxRequests - entry.timestamps.length,
   };
 }
 
@@ -71,6 +71,6 @@ function getLocalClientIp(request: Request): string {
  * 应用内的二次限流。生产环境还必须配置 Vercel WAF 的
  * `Chat API rate limit` 规则，以提供跨实例、不可绕过的边缘限流。
  */
-export function checkRateLimit(request: Request): RateLimitResult {
-  return checkLocalRateLimit(getLocalClientIp(request));
+export function checkRateLimit(request: Request, scope = "chat", maxRequests = RATE_LIMIT_MAX_REQUESTS): RateLimitResult {
+  return checkLocalRateLimit(`${scope}:${getLocalClientIp(request)}`, maxRequests);
 }

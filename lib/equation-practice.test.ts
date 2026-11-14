@@ -14,7 +14,10 @@ function generatedQuestion(question: unknown): Awaited<ReturnType<MockLanguageMo
   return {
     content: [{ type: "text", text: JSON.stringify(question) }],
     finishReason: { unified: "stop", raw: undefined },
-    usage: { inputTokens: { total: 1, noCache: 1 }, outputTokens: { total: 1, text: 1 } },
+    usage: {
+      inputTokens: { total: 1, noCache: 1, cacheRead: undefined, cacheWrite: undefined },
+      outputTokens: { total: 1, text: 1, reasoning: undefined },
+    },
     warnings: [],
   };
 }

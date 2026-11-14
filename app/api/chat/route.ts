@@ -1,4 +1,6 @@
 import { google } from "@ai-sdk/google";
+import { getAdvancedModelAccess } from "@/lib/advanced-model-access";
+import { hydrogenModel } from "@/lib/hydrogen-model";
 import { streamText, convertToModelMessages, createUIMessageStream, createUIMessageStreamResponse, generateText, Output } from "ai";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { ChatRequestError, parseChatRequest } from "@/lib/chat-request";
@@ -77,8 +79,9 @@ export async function POST(req: Request) {
     });
     if (practiceResponse) return practiceResponse;
 
+    const { enabled } = await getAdvancedModelAccess();
     const result = streamText({
-      model: google("gemini-3.5-flash-lite"),
+      model: enabled ? hydrogenModel : google("gemini-3.5-flash-lite"),
       tools:
         isSearchEnabled(searchMode)
           ? { google_search: google.tools.googleSearch({}) }

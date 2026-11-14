@@ -111,17 +111,13 @@
 
 仅使用默认页面访问统计，不发送聊天内容、昵称或自定义事件。
 
-### 更换模型
+### 高级模型
 
-在 `app/api/chat/route.ts` 中修改模型：
+日常聊天默认使用 Gemini 3.5 Flash-Lite。要为自己的设备启用 Gemini 4 Hydrogen，在 Vercel 项目的 Environment Variables 中为 Production 添加服务器端 Secret `ADVANCED_MODEL_PASSWORD`，再重新部署。本地开发可在 `.env.local` 设置同名变量。密码必须由恰好 8 个英文字母或数字组成，并至少包含一个大写字母、一个小写字母和一个数字。
 
-```typescript
-model: google("gemini-3.5-flash-lite"), // 或其他可用模型
-```
+配置后，在电脑或 iPad 上打开「设置 → 开启高级模型」，输入相同密码。解锁从下一次普通聊天回复生效，每个浏览器独立保留 30 天。关闭高级模型或清除站点数据即可恢复默认模型。更换密码或 Gemini API Key 后重新部署，会使现有授权失效。密码仅用于服务端验证，浏览器保存签名授权 Cookie。
 
-可用模型包括：
-
-- `gemini-3.5-flash-lite` - 低延迟、低成本的稳定模型（当前使用）
+标题生成、用户名审核及专用练习和卡片校验仍使用 Flash-Lite。没有配置有效密码的部署会隐藏高级模型入口。
 
 ### 生产限流
 
@@ -133,6 +129,8 @@ Vercel 项目已配置 `Chat API rate limit` WAF 规则：
 - 超限动作：Rate Limit，持续 1 小时
 
 应用内限流只是二次防护；新建 Vercel 项目时必须同步配置上述 WAF 规则。
+
+高级模型的密码验证（`POST /api/chat/advanced-model`）另设每 IP 每小时 10 次的进程内限流。可在 Vercel WAF 为这个方法和路径设置同等规则，以跨实例限制尝试次数。
 
 ### 请求限制
 
