@@ -82,6 +82,7 @@ export async function POST(req: Request) {
     const { enabled } = await getAdvancedModelAccess();
     const result = streamText({
       model: enabled ? hydrogenModel : google("gemini-3.5-flash-lite"),
+      providerOptions: enabled ? { google: { thinkingConfig: { thinkingLevel: "low" } } } : undefined,
       tools:
         isSearchEnabled(searchMode)
           ? { google_search: google.tools.googleSearch({}) }
