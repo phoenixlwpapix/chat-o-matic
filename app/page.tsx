@@ -592,7 +592,9 @@ export default function Home() {
     if (list) list.scrollTo({ top: list.scrollHeight, behavior: "smooth" });
   }, []);
 
-  const resetConversation = () => {
+  const handleNewConversation = () => {
+    if (isLoading) return;
+
     // Save current non-empty conversation before resetting
     if (messages.length > 0) {
       history.saveSession(
@@ -608,6 +610,14 @@ export default function Home() {
     setMessages([]);
     setInputValue("");
     setPendingImages([]);
+    setApiError(null);
+    setActiveRequestSearchMode(null);
+    recognitionRef.current?.abort();
+    recognitionRef.current = null;
+    setIsListening(false);
+    preVoiceTextRef.current = "";
+    setSidebarOpen(false);
+    setSettingsOpen(false);
   };
 
   const handleDeleteSession = (id: string) => {
@@ -771,7 +781,9 @@ export default function Home() {
 
           {/* 新对话按钮 */}
           <Button
-            onClick={() => { resetConversation(); setSidebarOpen(false); setSettingsOpen(false); }}
+            type="button"
+            onClick={handleNewConversation}
+            disabled={isLoading}
             className="w-full justify-start gap-2 transition-all active:translate-x-0.5 active:translate-y-0.5"
             style={{
               backgroundColor: "var(--header-bg)",
@@ -872,17 +884,16 @@ export default function Home() {
           className="chat-shell flex h-full min-w-0 flex-1 flex-col rounded-none border-0 md:rounded-lg md:border-4"
           style={{ boxShadow: "var(--chat-shell-shadow)", "--chat-font": CHAT_FONTS[chatFont].family, "--chat-font-size": `${chatFontSize}px` } as CSSProperties}
         >
-          {/* 精简 Header：汉堡菜单 + 当前人设标签 */}
           <CardHeader
-            className="border-b-2 rounded-t-lg py-3 md:py-4"
+            className="rounded-t-lg border-b-2 px-2 py-3 sm:px-6 md:py-4"
             style={{
               borderColor: "var(--border-color)",
               background: "var(--header-bg)",
               color: "var(--header-text)",
             }}
           >
-            <div className="flex items-center justify-between gap-3">
-              <div className="flex min-w-0 items-center gap-3">
+            <div className="flex items-center gap-2 sm:gap-3">
+              <div className="flex min-w-0 flex-1 items-center gap-2 sm:gap-3">
                 {/* 平板和手机使用抽屉；桌面可收起固定侧边栏。 */}
                 <Button
                   ref={drawerTriggerRef}
@@ -910,7 +921,7 @@ export default function Home() {
                   aria-label={`切换人设，当前：${currentPersona.name}`}
                   aria-haspopup="dialog"
                   aria-expanded={personaSwitcherOpen}
-                  className="group flex min-w-0 items-center gap-2 rounded-lg p-1 text-left transition-transform hover:-translate-y-0.5 focus-visible:outline-2 focus-visible:outline-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                  className="group flex min-w-0 items-center gap-1.5 rounded-lg p-1 text-left transition-transform hover:-translate-y-0.5 focus-visible:outline-2 focus-visible:outline-offset-2 disabled:cursor-not-allowed disabled:opacity-50 sm:gap-2"
                 >
                   <span
                     className="shrink-0 rounded-lg border-2 p-1.5"
@@ -924,7 +935,7 @@ export default function Home() {
                   </span>
                   <span className="min-w-0">
                     <span
-                      className="block truncate text-base font-black leading-none tracking-tight md:text-lg"
+                      className="block truncate text-sm font-black leading-none tracking-tight sm:text-base md:text-lg"
                       style={{ color: "var(--header-text)" }}
                     >
                       {currentPersona.name}
@@ -933,16 +944,30 @@ export default function Home() {
                       {currentPersona.subtitle}
                     </span>
                   </span>
-                  <ChevronRight aria-hidden="true" className="h-4 w-4 shrink-0 transition-transform group-hover:translate-x-0.5" />
+                  <ChevronRight aria-hidden="true" className="hidden h-4 w-4 shrink-0 transition-transform group-hover:translate-x-0.5 sm:block" />
                 </button>
               </div>
+              <Button
+                type="button"
+                onClick={handleNewConversation}
+                disabled={isLoading}
+                className="h-auto min-h-11 shrink-0 gap-1 px-2 xl:hidden xl:any-pointer-coarse:inline-flex"
+                style={{
+                  backgroundColor: "var(--btn-new-bg)",
+                  color: "var(--btn-new-text)",
+                  boxShadow: "3px 3px 0px 0px rgba(var(--shadow-color), 1)",
+                }}
+              >
+                <Plus aria-hidden="true" className="size-4 shrink-0" />
+                新对话
+              </Button>
               <button
                 type="button"
                 onClick={() => {
                   if (currentSession) history.toggleFavorite(currentSession.id);
                 }}
                 disabled={favoriteButtonDisabled}
-                className="inline-flex shrink-0 items-center gap-1.5 rounded-lg border-2 px-2.5 py-1.5 text-xs font-black transition-all hover:-translate-y-0.5 active:translate-x-0.5 active:translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-35"
+                className="inline-flex min-h-11 min-w-11 shrink-0 items-center justify-center gap-1.5 rounded-lg border-2 px-2.5 py-1.5 text-xs font-black transition-all hover:-translate-y-0.5 focus-visible:outline-2 focus-visible:outline-offset-2 active:translate-x-0.5 active:translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-35 xl:min-h-0 xl:min-w-0 xl:any-pointer-coarse:min-h-11 xl:any-pointer-coarse:min-w-11"
                 style={{
                   backgroundColor: currentSession?.isFavorite
                     ? "var(--qp-2)"
@@ -965,10 +990,11 @@ export default function Home() {
                 }
               >
                 <Star
+                  aria-hidden="true"
                   className="h-4 w-4"
                   fill={currentSession?.isFavorite ? "currentColor" : "none"}
                 />
-                <span className="hidden sm:inline">
+                <span className="hidden xl:inline xl:any-pointer-coarse:hidden">
                   {currentSession?.isFavorite ? "已收藏" : "收藏"}
                 </span>
               </button>
