@@ -120,17 +120,13 @@ export function AdvancedModelSettings() {
                 autoCorrect="off"
                 spellCheck={false}
                 required
-                minLength={8}
-                maxLength={8}
-                pattern="(?=.*[A-Z])(?=.*[a-z])(?=.*[0-9])[A-Za-z0-9]{8}"
-                aria-describedby="advanced-model-hint advanced-model-error"
+                aria-describedby="advanced-model-error"
                 className="h-12 min-w-32 flex-1 text-base sm:max-w-64"
               />
               <Button type="submit" size="sm" className="min-h-12" disabled={pending}>
                 {pending ? "验证中…" : "解锁"}
               </Button>
             </div>
-            <p id="advanced-model-hint" className="mt-2 text-xs">8 位，包含大写字母、小写字母和数字。</p>
           </form>
         ) : null}
       </div>
