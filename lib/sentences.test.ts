@@ -29,7 +29,7 @@ describe("sentence breakdown cards", () => {
     const text = `\`\`\`sentence\n${JSON.stringify(example)}\n\`\`\``;
     const messages = toStoredMessages([{ id: "sentence", role: "assistant", parts: [{ type: "text", text }] }]);
     const restored = normalizeSessions([{ id: "s", title: "句子", createdAt: 1, updatedAt: 1, messages }]);
-    expect(restored[0].messages[0].parts[0].text).toBe(text);
+    expect(restored[0].messages[0].parts[0]).toEqual({ type: "text", text });
     const prompt = buildChatSystemPrompt("人设", "联网");
     expect(prompt).toContain("【句子拆解卡】");
     expect(prompt).toContain("不填写完形空位");

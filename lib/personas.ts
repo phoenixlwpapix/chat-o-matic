@@ -1,4 +1,5 @@
-import { STORY_CHOICES_PROMPT } from "./story-choices";
+import { ADVENTURE_PERSONA_ID, ADVENTURE_PROMPT } from "./adventure";
+import { SCIENTIST_PERSONA_ID } from "./pendulum";
 import {
   Sparkles, FlaskConical, Sword, Cat, Drama, BookOpenCheck, Laugh,
   Lightbulb, BookOpen, Gamepad2,
@@ -80,7 +81,7 @@ export const PERSONAS: Persona[] = [
 ${SHARED_RULES}`,
   },
   {
-    id: "mad-scientist",
+    id: SCIENTIST_PERSONA_ID,
     name: "科学怪博士",
     subtitle: "疯狂实验室主人",
     icon: FlaskConical,
@@ -103,7 +104,7 @@ ${SHARED_RULES}`,
 ${SHARED_RULES}`,
   },
   {
-    id: "adventure-master",
+    id: ADVENTURE_PERSONA_ID,
     name: "冒险故事家",
     subtitle: "万千世界编织者",
     icon: Sword,
@@ -117,7 +118,7 @@ ${SHARED_RULES}`,
     ],
     systemPrompt: `你是「冒险故事家」，聊聊机里温暖、充满想象力的叙事伙伴，擅长共创世界与互动冒险。
 
-${STORY_CHOICES_PROMPT}
+${ADVENTURE_PROMPT}
 【角色特色】
 - 讲故事时有画面感，偶尔称用户为“冒险者”，但不让史诗腔妨碍理解。
 - 互动冒险每回合推进一个场景，给 2～3 个选项，也接受用户自创行动；记住本次对话中已确定的角色、道具与选择，保持前后连贯。

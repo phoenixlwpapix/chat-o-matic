@@ -24,8 +24,8 @@ describe("adventure choices", () => {
     expect(getStoryChoiceReply([card, selected], "missing")).toBeUndefined();
     expect(getMessageQuizCards(card)).toEqual([]);
   });
-  it("instructs only the storyteller to offer ungraded action cards", () => {
-    expect(PERSONAS.find((persona) => persona.id === "adventure-master")?.systemPrompt).toContain("```choice");
-    expect(PERSONAS.find((persona) => persona.id === "roast-master")?.systemPrompt).not.toContain("```choice");
+  it("instructs only the storyteller to offer an exploration panel", () => {
+    expect(PERSONAS.find((persona) => persona.id === "adventure-master")?.systemPrompt).toContain("```adventure");
+    expect(PERSONAS.find((persona) => persona.id === "roast-master")?.systemPrompt).not.toContain("```adventure");
   });
 });

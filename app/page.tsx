@@ -1,6 +1,9 @@
 "use client";
 
 import { getStoryChoiceReply } from "@/lib/story-choices";
+import { ADVENTURE_PERSONA_ID, getLatestAdventure, getSelectedAdventureAction } from "@/lib/adventure";
+import { EQUATION_PART_TYPE, EQUATION_PRACTICE_PROMPT, MAX_RECENT_EQUATIONS, checkEquationAnswer, createEquationPart, equationDisplay, isEquationPracticeRequest, readEquationPart, type EquationQuestion } from "@/lib/equation-practice";
+import { createPendulumUpdate, formatPendulumLength, pendulumExplanationPrompt, pendulumLengthSchema, pendulumPeriod, PENDULUM_PART_TYPE, PENDULUM_PROMPT, readPendulumPart, SCIENTIST_PERSONA_ID } from "@/lib/pendulum";
 import { QuizSkeleton } from "@/components/quiz-skeleton";
 
 import {
@@ -8,10 +11,12 @@ import {
   useEffect,
   useState,
   useCallback,
+  useMemo,
   useSyncExternalStore,
   type CSSProperties,
 } from "react";
 import Image from "next/image";
+import dynamic from "next/dynamic";
 import { useChat } from "@ai-sdk/react";
 import { DefaultChatTransport, type UIMessage } from "ai";
 import { MAX_INPUT_LENGTH } from "@/lib/constants";
@@ -33,6 +38,8 @@ import {
   ChevronRight,
   Settings2,
   Star,
+  PencilLine,
+  FlaskConical,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
@@ -121,6 +128,9 @@ const subscribeToBrowserCapability = () => () => undefined;
 const getSpeechSupportSnapshot = () =>
   "SpeechRecognition" in window || "webkitSpeechRecognition" in window;
 const getServerSpeechSupportSnapshot = () => false;
+const ChatAdventure = dynamic(() => import("@/components/chat-adventure").then((module) => module.ChatAdventure), { ssr: false });
+const ChatEquationPractice = dynamic(() => import("@/components/chat-equation-practice").then((module) => module.ChatEquationPractice), { ssr: false });
+const ChatPendulum = dynamic(() => import("@/components/chat-pendulum").then((module) => module.ChatPendulum), { ssr: false });
 
 function getMessageText(parts: UIMessage["parts"]): string {
   return parts
@@ -163,7 +173,7 @@ export default function Home() {
     setUserAvatar,
     setUserName,
   } = useChatPreferences();
-  const messagesEndRef = useRef<HTMLDivElement>(null);
+  const messageListRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const [inputValue, setInputValue] = useState("");
@@ -215,9 +225,29 @@ export default function Home() {
   const lastAssistantId = messages.findLast(
     (message) => message.role === "assistant",
   )?.id;
+  const pendulumLengthCommitted = useRef(false);
+  const adventure = useMemo(() => personaId === ADVENTURE_PERSONA_ID ? getLatestAdventure(messages) : undefined, [messages, personaId]);
+  const adventureMessageIndex = adventure ? messages.findLastIndex(({ id }) => id === adventure.messageId) : -1;
+  const adventureIsCurrent = adventureMessageIndex >= 0 && adventureMessageIndex === messages.length - 1;
+  const adventureNeedsRetry = Boolean(adventure && !isLoading && !adventureIsCurrent && messages.at(-1)?.role === "assistant" &&
+    getSelectedAdventureAction(messages[adventureMessageIndex + 1], adventure.update.updateDataModel.value));
 
   // ── History ──
   const history = useChatHistory();
+  const recentEquations = useMemo(() => {
+    const recent = new Map<string, EquationQuestion>();
+    for (const session of history.sessions) {
+      for (let index = session.messages.length - 1; index >= 0; index--) {
+        for (const part of session.messages[index].parts) {
+          if (part.type !== EQUATION_PART_TYPE) continue;
+          const question = part.data.updateDataModel.value.question;
+          recent.set(equationDisplay(question), question);
+          if (recent.size === MAX_RECENT_EQUATIONS) return [...recent.values()];
+        }
+      }
+    }
+    return [...recent.values()];
+  }, [history.sessions]);
   const sessionIdRef = useRef<string>(crypto.randomUUID());
   const currentSession = history.sessions.find(
     (session) => session.id === history.currentSessionId,
@@ -497,6 +527,27 @@ export default function Home() {
     });
   };
 
+  const handleEquationAnswer = (messageId: string, answer: string, stage: "isolate" | "solve") => {
+    if (isLoading) return;
+    setMessages((current) => current.map((message) => {
+      if (message.id !== messageId || message.role !== "assistant") return message;
+      return { ...message, parts: message.parts.map((part) => {
+        const practice = readEquationPart(part)?.data.updateDataModel.value;
+        return practice?.stage === stage ? createEquationPart(checkEquationAnswer(practice, answer)) : part;
+      }) };
+    }));
+  };
+
+  const handlePendulumLengthCommit = (messageId: string, lengthCm: number) => {
+    const length = pendulumLengthSchema.safeParse(lengthCm);
+    if (isLoading || !length.success) return;
+    pendulumLengthCommitted.current = true;
+    setMessages((current) => current.map((message) => message.id === messageId && message.role === "assistant" ? {
+      ...message,
+      parts: message.parts.map((part) => part.type === PENDULUM_PART_TYPE ? { ...part, data: createPendulumUpdate(length.data) } : part),
+    } : message));
+  };
+
   const handleQuickPrompt = (prompt: string) => {
     if (isLoading) return;
     setApiError(null);
@@ -504,7 +555,10 @@ export default function Home() {
     sendMessage(
       { text: prompt },
       {
-        body: createChatRequestBody(personaId, searchMode, userName, replyLanguage),
+        body: {
+          ...createChatRequestBody(personaId, searchMode, userName, replyLanguage),
+          ...(personaId === "default" && isEquationPracticeRequest(prompt) ? { recentEquations } : {}),
+        },
       },
     );
   };
@@ -533,9 +587,10 @@ export default function Home() {
     [sendMessage, personaId, searchMode, userName, replyLanguage, messages, lastAssistantId, isLoading],
   );
 
-  const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  };
+  const scrollToBottom = useCallback(() => {
+    const list = messageListRef.current;
+    if (list) list.scrollTo({ top: list.scrollHeight, behavior: "smooth" });
+  }, []);
 
   const resetConversation = () => {
     // Save current non-empty conversation before resetting
@@ -607,13 +662,20 @@ export default function Home() {
     setActiveRequestSearchMode(searchMode);
     regenerate({
       messageId: lastAssistant.id,
-      body: createChatRequestBody(personaId, searchMode, userName, replyLanguage),
+      body: {
+        ...createChatRequestBody(personaId, searchMode, userName, replyLanguage),
+        ...(lastAssistant.parts.some((part) => part.type === EQUATION_PART_TYPE) ? { recentEquations } : {}),
+      },
     });
-  }, [messages, personaId, searchMode, userName, replyLanguage, regenerate]);
+  }, [messages, personaId, searchMode, userName, replyLanguage, recentEquations, regenerate]);
 
   useEffect(() => {
+    if (pendulumLengthCommitted.current) {
+      pendulumLengthCommitted.current = false;
+      return;
+    }
     scrollToBottom();
-  }, [messages, apiError]);
+  }, [messages, apiError, scrollToBottom]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -636,7 +698,10 @@ export default function Home() {
         files,
       },
       {
-        body: createChatRequestBody(personaId, searchMode, userName, replyLanguage),
+        body: {
+          ...createChatRequestBody(personaId, searchMode, userName, replyLanguage),
+          ...(personaId === "default" && !files.length && isEquationPracticeRequest(inputValue) ? { recentEquations } : {}),
+        },
       },
     );
 
@@ -911,6 +976,7 @@ export default function Home() {
           </CardHeader>
 
         <CardContent
+          ref={messageListRef}
           className="min-h-0 flex-1 space-y-4 overflow-y-auto p-3 md:p-4"
           style={{ backgroundColor: "var(--card-content-bg)" }}
         >
@@ -981,6 +1047,16 @@ export default function Home() {
                   );
                 })}
               </div>
+              {personaId === "default" && (
+                <Button type="button" variant="ghost" onClick={() => handleQuickPrompt(EQUATION_PRACTICE_PROMPT)} disabled={isLoading} className="min-h-11 gap-2 text-[var(--ai-bubble-text)]">
+                  <PencilLine aria-hidden="true" className="size-4" />分步解题
+                </Button>
+              )}
+              {personaId === SCIENTIST_PERSONA_ID && (
+                <Button type="button" variant="ghost" onClick={() => handleQuickPrompt(PENDULUM_PROMPT)} disabled={isLoading} className="min-h-11 gap-2 text-[var(--ai-bubble-text)]">
+                  <FlaskConical aria-hidden="true" className="size-4" />单摆实验
+                </Button>
+              )}
             </div>
           )}
 
@@ -992,6 +1068,8 @@ export default function Home() {
             const pendingQuiz = isLoading && message.id === lastAssistantId ? quizStage : null;
             const layout = pendingQuiz ? "mixed" : getMessageLayout(message, isLoading && message.id === lastAssistantId);
             const cardOnly = layout === "cards" || layout === "compact-cards";
+            const equation = message.parts.find((part) => part.type === EQUATION_PART_TYPE);
+            const pendulum = message.parts.find((part) => part.type === PENDULUM_PART_TYPE);
             return (
             <div
               key={message.id}
@@ -1037,7 +1115,7 @@ export default function Home() {
                     />
                   )}
                 </div>
-                <ReplyFollowUpProvider disabled={isLoading} allowEntry={layout !== "text" || getMessageText(message.parts).length >= 180}>
+                <ReplyFollowUpProvider disabled={isLoading} allowEntry={!equation && !pendulum && (layout !== "text" || getMessageText(message.parts).length >= 180)}>
                 <div
                   className={cn(
                     "group relative min-w-0",
@@ -1110,6 +1188,26 @@ export default function Home() {
                             );
                           }
                           return null;
+                        case EQUATION_PART_TYPE: {
+                          const parsed = message.role === "assistant" ? readEquationPart(part) : undefined;
+                          return parsed ? <ChatEquationPractice
+                            key={key}
+                            update={parsed.data}
+                            disabled={isLoading}
+                            onAnswer={(answer, stage) => handleEquationAnswer(message.id, answer, stage)}
+                            onNext={message.id === lastAssistantId ? () => handleQuickPrompt(EQUATION_PRACTICE_PROMPT) : undefined}
+                          /> : null;
+                        }
+                        case PENDULUM_PART_TYPE: {
+                          const parsed = message.role === "assistant" ? readPendulumPart(part) : undefined;
+                          return parsed ? <ChatPendulum
+                            key={key}
+                            update={parsed.data}
+                            disabled={isLoading}
+                            onLengthCommit={(length) => handlePendulumLengthCommit(message.id, length)}
+                            onExplain={(length) => handleQuickPrompt(pendulumExplanationPrompt(length))}
+                          /> : null;
+                        }
                         default:
                           return null;
                       }
@@ -1127,7 +1225,7 @@ export default function Home() {
                   {message.role === "assistant" ? (
                     <ResponseActions
                       disabled={isLoading}
-                      showLearningActions={message.id === lastAssistantId}
+                      showLearningActions={!equation && !pendulum && message.id === lastAssistantId}
                       isCopied={copiedId === message.id}
                       isRegenerating={
                         isLoading && message.id === lastAssistantId
@@ -1138,9 +1236,12 @@ export default function Home() {
                       personaId={personaId}
                       substantive={isSubstantiveReply(message)}
                       onRegenerate={handleRegenerate}
-                      onCopy={() =>
-                        handleCopy(getMessageText(message.parts), message.id)
-                      }
+                      onCopy={() => {
+                        const practice = readEquationPart(equation)?.data.updateDataModel.value;
+                        const length = readPendulumPart(pendulum)?.data.updateDataModel.value;
+                        const text = length === undefined ? getMessageText(message.parts) : `单摆实验 · 摆长 ${formatPendulumLength(length)} 米 · 周期约 ${pendulumPeriod(length).toFixed(2)} 秒`;
+                        handleCopy(practice ? equationDisplay(practice.question) : text, message.id);
+                      }}
                     />
                   ) : message.role === "user" && getMessageText(message.parts).trim() ? (
                     <div className="mt-2 flex justify-end">
@@ -1282,7 +1383,20 @@ export default function Home() {
               </div>
             </div>
           ) : null}
-          {messages.length > 0 ? <div ref={messagesEndRef} /> : null}
+          {adventure && (!adventure.update.updateDataModel.value.ended || adventure.messageId === lastAssistantId) && (
+            <div className="mx-auto flex w-full max-w-[1160px] md:pl-10">
+              <ChatAdventure
+                key={history.currentSessionId}
+                update={adventure.update}
+                messageId={adventure.messageId}
+                disabled={isLoading || !adventureIsCurrent}
+                awaitingUpdate={isLoading && !adventureIsCurrent}
+                onRetry={adventureNeedsRetry ? handleRegenerate : undefined}
+                onChoose={handleQuickPrompt}
+                onMount={scrollToBottom}
+              />
+            </div>
+          )}
         </CardContent>
 
         <CardFooter

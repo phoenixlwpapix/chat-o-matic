@@ -4,6 +4,8 @@ import { parseChart } from "./charts";
 import { parseQuizCard } from "./quizzes";
 import { parseStoryChoices } from "./story-choices";
 import { parseSentence } from "./sentences";
+import { readEquationPart } from "./equation-practice";
+import { readPendulumPart } from "./pendulum";
 
 /** Only rendered, valid cards can remove a bubble; ordinary code and malformed JSON keep it. */
 export function getMessageLayout(message: Pick<UIMessage, "role" | "parts">, isStreaming = false): "text" | "mixed" | "cards" | "compact-cards" {
@@ -13,6 +15,7 @@ export function getMessageLayout(message: Pick<UIMessage, "role" | "parts">, isS
   let hasOtherContent = false;
   let hasPendingCard = false;
   for (const part of message.parts) {
+    if (readEquationPart(part) || readPendulumPart(part)) cards++;
     if (part.type === "file") hasOtherContent = true;
     if (part.type !== "text") continue;
     const text = normalizeMarkdown(part.text);

@@ -41,7 +41,7 @@ describe("chat charts", () => {
   it("keeps chart blocks when restoring stored history", () => {
     const text = `\`\`\`chart\n${JSON.stringify(example)}\n\`\`\``;
     const sessions = normalizeSessions([{ id: "s", title: "图表", createdAt: 1, updatedAt: 1, messages: [{ id: "m", role: "assistant", parts: [{ type: "text", text }] }] }]);
-    expect(sessions[0].messages[0].parts[0].text).toBe(text);
+    expect(sessions[0].messages[0].parts[0]).toEqual({ type: "text", text });
     expect(buildChatSystemPrompt("角色", "联网")).toContain("【图表】");
   });
 });

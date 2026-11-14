@@ -1,7 +1,11 @@
-import type { TextUIPart, UIMessage } from "ai";
+import type { UIMessage } from "ai";
 import { getSearchMode, type SearchMode } from "./search-modes";
 import { getSearchSummary, readSearchSummary, type SearchSummary } from "./search-sources";
 import { readQuizAnswers, type QuizAnswer } from "./quizzes";
+import { ADVENTURE_PART_TYPE, ADVENTURE_PERSONA_ID, readAdventurePart, type AdventurePart } from "./adventure";
+import { createAdventureDraftReader } from "./adventure-draft";
+import { equationDisplay, readEquationPart, type EquationPart } from "./equation-practice";
+import { PENDULUM_PART_TYPE, readPendulumPart, type PendulumPart } from "./pendulum";
 
 const MAX_SESSIONS = 100;
 export const MAX_FAVORITE_SESSIONS = 10;
@@ -14,7 +18,7 @@ export interface StoredTextPart {
 export interface StoredMessage {
   id: string;
   role: "user" | "assistant";
-  parts: StoredTextPart[];
+  parts: (StoredTextPart | AdventurePart | EquationPart | PendulumPart)[];
   metadata?: { search?: SearchSummary; quizAnswers?: QuizAnswer[] };
 }
 
@@ -41,7 +45,7 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null;
 }
 
-function normalizeMessages(value: unknown): StoredMessage[] {
+function normalizeMessages(value: unknown, personaId: string): StoredMessage[] {
   if (!Array.isArray(value)) return [];
 
   return value.flatMap((message) => {
@@ -54,7 +58,9 @@ function normalizeMessages(value: unknown): StoredMessage[] {
       return [];
     }
 
-    const parts = message.parts.flatMap((part): StoredTextPart[] => {
+    const parts = message.parts.flatMap((part): StoredMessage["parts"] => {
+      const card = message.role === "assistant" ? readAdventurePart(part) ?? readEquationPart(part) ?? readPendulumPart(part) : undefined;
+      if (card) return [card];
       if (
         !isRecord(part) ||
         part.type !== "text" ||
@@ -67,8 +73,26 @@ function normalizeMessages(value: unknown): StoredMessage[] {
 
     const search = message.role === "assistant" ? readSearchSummary(message.metadata) : undefined;
     const quizAnswers = message.role === "assistant" ? readQuizAnswers(message.metadata) : [];
-    return [{ id: message.id, role: message.role, parts, ...((search || quizAnswers.length) ? { metadata: { ...(search ? { search } : {}), ...(quizAnswers.length ? { quizAnswers } : {}) } } : {}) }];
+    const restoredParts = personaId === ADVENTURE_PERSONA_ID && message.role === "assistant" ? restoreAdventureDraft(parts) : parts;
+    return [{ id: message.id, role: message.role, parts: restoredParts, ...((search || quizAnswers.length) ? { metadata: { ...(search ? { search } : {}), ...(quizAnswers.length ? { quizAnswers } : {}) } } : {}) }];
   });
+}
+
+function restoreAdventureDraft(parts: StoredMessage["parts"]): StoredMessage["parts"] {
+  if (parts.some((part) => part.type === ADVENTURE_PART_TYPE)) return parts;
+  const index = parts.findLastIndex((part) => part.type === "text" && /(?:`{3,}|~{3,})adventure/i.test(part.text));
+  const part = parts[index];
+  if (!part || part.type !== "text") return parts;
+  const reader = createAdventureDraftReader();
+  const visible = reader.push(part.text);
+  const result = reader.finish();
+  if (!result.found) return parts;
+  return [
+    ...parts.slice(0, index),
+    { ...part, text: visible + result.text },
+    ...parts.slice(index + 1),
+    ...(result.update ? [{ type: ADVENTURE_PART_TYPE, data: result.update } as const] : []),
+  ];
 }
 
 /** Normalize persisted data and migrate sessions created before persona support. */
@@ -101,7 +125,7 @@ export function normalizeSessions(value: unknown): ChatSession[] {
             : "auto",
         ).id,
         isFavorite: session.isFavorite === true,
-        messages: normalizeMessages(session.messages),
+        messages: normalizeMessages(session.messages, personaId),
         favoriteMessageIds: Array.isArray(session.favoriteMessageIds)
           ? session.favoriteMessageIds.filter(
               (id): id is string => typeof id === "string",
@@ -117,9 +141,18 @@ export function normalizeSessions(value: unknown): ChatSession[] {
 export function deriveTitle(messages: StoredMessage[]): string {
   const first = messages.find((message) => message.role === "user");
   if (!first) return "新对话";
-  const text = first.parts.map((part) => part.text).join("");
+  const text = storedText(first);
   if (!text.trim()) return "图片对话";
   return text.slice(0, 30).trim();
+}
+
+function storedText(message: StoredMessage) {
+  return message.parts.map((part) => {
+    if (part.type === "text") return part.text;
+    const practice = readEquationPart(part)?.data.updateDataModel.value;
+    if (practice) return equationDisplay(practice.question);
+    return part.type === PENDULUM_PART_TYPE ? "单摆实验" : "";
+  }).join("");
 }
 
 /** Only the first user turn and its answer determine the conversation topic. */
@@ -129,10 +162,10 @@ export function getFirstExchange(messages: StoredMessage[]) {
   const user = messages[userIndex];
   const assistant = messages[userIndex + 1];
   if (assistant?.role !== "assistant") return null;
-  const answer = assistant.parts.map((part) => part.text).join("").trim();
+  const answer = storedText(assistant).trim();
   if (!answer) return null;
   return {
-    question: user.parts.map((part) => part.text).join("").trim() || "（用户发送了一张图片，请根据回答概括主题）",
+    question: storedText(user).trim() || "（用户发送了一张图片，请根据回答概括主题）",
     answer: answer.slice(0, 6000),
   };
 }
@@ -155,9 +188,11 @@ export function updateSessionTitle(
 export function toStoredMessages(messages: UIMessage[]): StoredMessage[] {
   return messages.flatMap((message): StoredMessage[] => {
     if (message.role !== "user" && message.role !== "assistant") return [];
-    const parts = message.parts
-      .filter((part): part is TextUIPart => part.type === "text")
-      .map((part) => ({ type: "text" as const, text: part.text }));
+    const parts = message.parts.flatMap((part): StoredMessage["parts"] => {
+      if (part.type === "text") return [{ type: "text", text: part.text }];
+      const card = message.role === "assistant" ? readAdventurePart(part) ?? readEquationPart(part) ?? readPendulumPart(part) : undefined;
+      return card ? [card] : [];
+    });
     const search = message.role === "assistant" ? getSearchSummary(message.parts, message.metadata) : undefined;
     const quizAnswers = message.role === "assistant" ? readQuizAnswers(message.metadata) : [];
     return [{ id: message.id, role: message.role, parts, ...((search || quizAnswers.length) ? { metadata: { ...(search ? { search } : {}), ...(quizAnswers.length ? { quizAnswers } : {}) } } : {}) }];
@@ -183,7 +218,11 @@ function messagesAreEqual(
     }
 
     return message.parts.every(
-      (part, partIndex) => part.text === otherMessage.parts[partIndex].text,
+      (part, partIndex) => {
+        const other = otherMessage.parts[partIndex];
+        if (part.type === "text") return other.type === "text" && part.text === other.text;
+        return other.type === part.type && JSON.stringify(part.data) === JSON.stringify(other.data);
+      },
     );
   });
 }
