@@ -304,7 +304,7 @@ body {
 
 /* Mixed replies give cards room without stretching prose across the full panel. */
 .chat-message-wide > .markdown-content > :is(p, .paragraph-follow-up, h1, h2, h3, h4, h5, h6, ul, ol, blockquote) {
-  max-width: 780px;
+  max-width: 720px;
 }
 .chat-message-cards > .markdown-content > section:first-child {
   margin-top: 0;

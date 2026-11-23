@@ -39,7 +39,7 @@ export interface ChartLayout {
 }
 
 const PROSE_CARD_MAX_WIDTH = 752;
-const WIDE_CARD_MAX_WIDTH = 1120;
+const WIDE_CARD_MAX_WIDTH = 900;
 const CARTESIAN_MARGIN_X = 92;
 
 export function getChartLayout(chart: Pick<ChartSpec, "type" | "data">): ChartLayout {

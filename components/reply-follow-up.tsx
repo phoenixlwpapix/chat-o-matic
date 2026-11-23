@@ -48,7 +48,7 @@ export function ReplyFollowUpButton({ disabled, className, style }: { disabled: 
   const scope = useReplyFollowUp();
   if (!scope || !scope.available || (!scope.allowEntry && scope.available < 2)) return null;
   return <>
-    <button ref={(node) => scope.setTrigger(node)} type="button" disabled={disabled} aria-pressed={scope.selecting} onClick={scope.toggle} className={className} style={scope.selecting ? { ...style, backgroundColor: "var(--settings-selected-bg)", borderColor: "var(--border-color)" } : style}><MessageCircleQuestion aria-hidden="true" className="h-3 w-3" />{scope.selecting ? "取消选择" : "追问某段"}</button>
+    <button ref={(node) => scope.setTrigger(node)} type="button" disabled={disabled} aria-pressed={scope.selecting} onClick={scope.toggle} className={className} style={scope.selecting ? { ...style, backgroundColor: "var(--settings-selected-bg)", borderColor: "var(--settings-selected-border)", color: "var(--settings-selected-text)" } : style}><MessageCircleQuestion aria-hidden="true" className="h-3 w-3" />{scope.selecting ? "取消选择" : "追问某段"}</button>
     {scope.selecting ? <span role="status" className="text-xs opacity-75">轻点想追问的段落</span> : null}
   </>;
 }

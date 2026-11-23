@@ -254,9 +254,9 @@ export default function Home() {
       toStoredMessages(messages),
       { personaId, searchMode },
     );
-    void history.summarizeSession(sessionIdRef.current);
+    void history.summarizeSession(sessionIdRef.current, replyLanguage);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [messages, isLoading, personaId, searchMode]);
+  }, [messages, isLoading, personaId, searchMode, replyLanguage]);
 
   // 带字符限制的输入更新
   const handleInputChange = useCallback((value: string) => {
@@ -674,7 +674,7 @@ export default function Home() {
 
   return (
     <main className="relative flex h-dvh min-h-dvh items-center justify-center overflow-hidden md:min-h-screen md:p-4">
-      <div className="flex h-dvh w-full max-w-[1440px] gap-0 md:h-[90vh] xl:gap-4">
+      <div className="flex h-dvh w-full max-w-[1200px] gap-0 md:h-[90vh] xl:gap-4">
         {/* ── 左侧边栏 ── */}
 
         {/* 移动端遮罩 */}
@@ -1029,11 +1029,15 @@ export default function Home() {
             const pendingQuiz = isLoading && message.id === lastAssistantId ? quizStage : null;
             const layout = pendingQuiz ? "mixed" : getMessageLayout(message, isLoading && message.id === lastAssistantId);
             const cardOnly = layout === "cards" || layout === "compact-cards";
+            const hasEmbeddedCard = message.role === "assistant" && (
+              layout !== "text" ||
+              message.parts.some((part) => part.type === "text" && /^[ \t]*(`{3,}|~{3,})(chart|quiz|sentence|choice)[ \t]*\r?\n/m.test(part.text))
+            );
             return (
             <div
               key={message.id}
               className={cn(
-                "mx-auto flex w-full max-w-[1160px]",
+                "mx-auto flex w-full max-w-[900px]",
                 message.role === "user" ? "justify-end" : "justify-start",
               )}
             >
@@ -1042,7 +1046,7 @@ export default function Home() {
                   "flex min-w-0 items-start",
                   message.role === "user"
                     ? "max-w-[94%] flex-row-reverse gap-2 md:max-w-[80%]"
-                    : cn("w-full flex-col gap-1.5 md:flex-row md:gap-2", layout === "mixed" || layout === "cards" ? "max-w-[1160px]" : "max-w-[820px]"),
+                    : cn("w-full flex-col gap-1.5 md:flex-row md:gap-2", layout === "mixed" || layout === "cards" ? "max-w-[900px]" : "max-w-[760px]"),
                 )}
               >
                 <div
@@ -1088,7 +1092,9 @@ export default function Home() {
                       layout === "mixed" && "chat-message-wide",
                       message.role === "user"
                         ? "rounded-tr-none"
-                        : "w-full rounded-tl-none md:w-auto",
+                        : hasEmbeddedCard
+                          ? "w-full rounded-tl-none"
+                          : "w-full rounded-tl-none md:w-fit md:max-w-full",
                     )}
                     style={{
                       borderColor: "var(--border-color)",
@@ -1232,7 +1238,7 @@ export default function Home() {
               if (!isSearching && !hasNoText) return null;
 
               return (
-                <div className="flex justify-start w-full">
+                <div className="mx-auto flex w-full max-w-[900px] justify-start">
                   <div className="flex items-center gap-2">
                     <div
                       className={cn(
@@ -1279,7 +1285,7 @@ export default function Home() {
               );
             })()}
           {apiError ? (
-            <div className="flex w-full justify-start" role="alert" aria-live="assertive">
+            <div className="mx-auto flex w-full max-w-[900px] justify-start" role="alert" aria-live="assertive">
               <div className="flex w-full max-w-xl items-start gap-2">
                 <div
                   className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border-2"
@@ -1320,7 +1326,7 @@ export default function Home() {
             </div>
           ) : null}
           {adventure && (!adventure.update.updateDataModel.value.ended || adventure.messageId === lastAssistantId) && (
-            <div className="mx-auto flex w-full max-w-[1160px] md:pl-10">
+            <div className="mx-auto flex w-full max-w-[900px] md:pl-10">
               <ChatAdventure
                 key={history.currentSessionId}
                 update={adventure.update}
@@ -1352,7 +1358,7 @@ export default function Home() {
             onChange={handleImageUpload}
           />
 
-          <div className="mx-auto flex w-full max-w-[1160px] flex-col gap-2">
+          <div className="mx-auto flex w-full max-w-[900px] flex-col gap-2">
             {/* 图片预览区域 */}
             {pendingImages.length > 0 && (
               <div className="flex gap-2 flex-wrap">

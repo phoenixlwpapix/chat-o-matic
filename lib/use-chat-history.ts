@@ -1,6 +1,8 @@
 "use client";
 
 import { useCallback, useRef, useState, useSyncExternalStore } from "react";
+import { MAX_CONVERSATION_TITLE_LENGTH } from "./constants";
+import type { ReplyLanguage } from "./reply-languages";
 import {
   normalizeSessions,
   toggleSessionFavorite,
@@ -73,7 +75,7 @@ export function useChatHistory() {
   const [currentSessionId, setCurrentSessionId] = useState<string | null>(null);
   const titleRequests = useRef(new Set<string>());
 
-  const summarizeSession = useCallback(async (id: string) => {
+  const summarizeSession = useCallback(async (id: string, replyLanguage?: ReplyLanguage) => {
     const session = readSessions().find((item) => item.id === id);
     if (!session || session.titleGenerated || titleRequests.current.has(id)) return;
     const exchange = getFirstExchange(session.messages);
@@ -84,7 +86,7 @@ export function useChatHistory() {
       const response = await fetch("/api/chat/title", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(exchange),
+        body: JSON.stringify(replyLanguage ? { ...exchange, replyLanguage } : exchange),
         signal: AbortSignal.timeout(20_000),
       });
       if (!response.ok) return;
@@ -92,7 +94,7 @@ export function useChatHistory() {
       if (
         typeof data !== "object" || data === null ||
         !("title" in data) || typeof data.title !== "string" ||
-        !data.title.trim() || data.title.length > 30
+        !data.title.trim() || data.title.trim().length > MAX_CONVERSATION_TITLE_LENGTH
       ) return;
 
       const currentSessions = readSessions();

@@ -4,6 +4,9 @@ export const MAX_INPUT_LENGTH = 3000;
 /** 用户名最大字符数 */
 export const MAX_USER_NAME_LENGTH = 10;
 
+/** 对话标题最大字符数（兼容中英文与法/德/西等字母语言） */
+export const MAX_CONVERSATION_TITLE_LENGTH = 60;
+
 /** 聊天接口请求体最大 4 MiB */
 export const MAX_CHAT_REQUEST_BYTES = 4 * 1024 * 1024;
 

@@ -6,6 +6,8 @@ const { generateText, checkRateLimit } = vi.hoisted(() => ({
 vi.mock("ai", () => ({ generateText }));
 vi.mock("@ai-sdk/google", () => ({ google: vi.fn(() => "test-model") }));
 vi.mock("@/lib/rate-limit", () => ({ checkRateLimit }));
+vi.mock("@/lib/constants", async () => await import("../../../../lib/constants"));
+vi.mock("@/lib/reply-languages", async () => await import("../../../../lib/reply-languages"));
 
 import { POST } from "./route";
 
@@ -30,12 +32,21 @@ describe("conversation title", () => {
     expect(JSON.parse(generateText.mock.calls[0][0].prompt)).toEqual(exchange);
   });
 
-  it.each([{}, { ...exchange, answer: "" }, { ...exchange, question: "字".repeat(3001) }])("rejects invalid input before calling the provider", async (body) => {
+  it("accepts non-Chinese titles up to 60 characters and strips French guillemets", async () => {
+    generateText.mockResolvedValue({ text: "« Comprendre la photosynthèse des plantes »" });
+    const response = await POST(request({ ...exchange, replyLanguage: "fr" }));
+    expect(response.status).toBe(200);
+    expect(await response.json()).toEqual({ title: "Comprendre la photosynthèse des plantes" });
+    expect(generateText.mock.calls[0][0].system).toContain("法语（fr）");
+    expect(JSON.parse(generateText.mock.calls[0][0].prompt)).toEqual(exchange);
+  });
+
+  it.each([{}, { ...exchange, answer: "" }, { ...exchange, question: "字".repeat(3001) }, { ...exchange, replyLanguage: "invalid" }])("rejects invalid input before calling the provider", async (body) => {
     expect((await POST(request(body))).status).toBe(400);
     expect(generateText).not.toHaveBeenCalled();
   });
 
-  it.each(["", "标题\n额外解释", "长".repeat(31)])("rejects malformed model output", async (text) => {
+  it.each(["", "标题\n额外解释", "长".repeat(61)])("rejects malformed model output", async (text) => {
     generateText.mockResolvedValue({ text });
     expect((await POST(request())).status).toBe(502);
   });
