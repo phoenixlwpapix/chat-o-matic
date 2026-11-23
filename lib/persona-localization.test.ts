@@ -31,8 +31,8 @@ describe("localized persona openings", () => {
         count++;
       });
       const quiz = getLocalizedOpening(PERSONAS[0], language).quickPrompts[3];
-      expect(quiz.prompt).toContain("quiz");
       expect(quiz.prompt).toContain("3");
+      expect(quiz.prompt.length).toBeLessThan(180);
     }
     expect(count).toBe(20);
   });

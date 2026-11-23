@@ -97,8 +97,10 @@ describe("practice summaries", () => {
 
   it("offers a summary after answering and lets a restored summary resume practice", () => {
     const user: UIMessage = { id: "u", role: "user", parts: [{ type: "text", text: QUIZ_SUMMARY_REQUEST }] };
+    const legacyUser: UIMessage = { id: "u-legacy", role: "user", parts: [{ type: "text", text: "请总结本次对话中已提交的练习结果，用图表和文字展示表现，指出需要加强的知识点并给出练习建议。暂时不要出新题。" }] };
     const reply: UIMessage = { id: "summary", role: "assistant", parts: [{ type: "text", text: "练习总结" }] };
     expect(isQuizSummaryRequest([user])).toBe(true);
+    expect(isQuizSummaryRequest([legacyUser])).toBe(true);
     expect(isQuizSummaryRequest([user, reply])).toBe(false);
     expect(getResponseActions("quiz-answered").some((action) => action.id === "quiz-summary")).toBe(true);
     expect(getResponseActions("quiz-unanswered").some((action) => action.id === "quiz-summary")).toBe(false);

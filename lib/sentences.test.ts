@@ -32,6 +32,8 @@ describe("sentence breakdown cards", () => {
     expect(restored[0].messages[0].parts[0]).toEqual({ type: "text", text });
     const prompt = buildChatSystemPrompt("人设", "联网");
     expect(prompt).toContain("【句子拆解卡】");
+    expect(prompt).toContain("使用当前回复语言解释");
+    expect(prompt).not.toContain("用中文解释成分");
     expect(prompt).toContain("不填写完形空位");
   });
 });

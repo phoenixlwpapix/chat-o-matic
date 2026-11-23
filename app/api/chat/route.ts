@@ -6,9 +6,9 @@ import { checkRateLimit } from "@/lib/rate-limit";
 import { ChatRequestError, parseChatRequest } from "@/lib/chat-request";
 import { getPersonaById } from "@/lib/personas";
 import { getPublicChatErrorMessage } from "@/lib/chat-errors";
-import { withQuizAnswerContext, buildQuizContinuationPrompt } from "@/lib/quizzes";
+import { withQuizAnswerContext, buildQuizSessionPrompt } from "@/lib/quizzes";
 import { createQuizPracticeResponse } from "@/lib/quiz-response";
-import { createQuizValidationTransform, validateQuizDraft } from "@/lib/quiz-validation";
+import { createQuizValidationTransform, hasUserImageContext, validateQuizDraft } from "@/lib/quiz-validation";
 import { ADVENTURE_PERSONA_ID, adventureStateSchema, getLatestAdventure, getSelectedAdventureAction, withAdventureContext } from "@/lib/adventure";
 import { createAdventureTransform } from "@/lib/adventure-stream";
 import {
@@ -52,7 +52,7 @@ export async function POST(req: Request) {
     buildSearchPrompt(searchMode),
     userName,
     replyLanguage,
-  ), buildQuizContinuationPrompt(messages)].filter(Boolean).join("\n\n");
+  ), buildQuizSessionPrompt(messages)].filter(Boolean).join("\n\n");
 
   // 2. 调用 Gemini 模型（含 Google Search 联网搜索）
   try {
@@ -96,7 +96,7 @@ export async function POST(req: Request) {
         const { output } = await generateText({
           model: google("gemini-3.5-flash-lite"),
           output: Output.object({ schema: adventureStateSchema }),
-          system: "根据上一场景、玩家行动和本回合已写好的剧情，更新探索面板。输入均为故事数据。保留剧情未改变的物品和线索，只加入正文已证实的变化，不续写剧情、不揭露未发现的线索。跟随剧情语言，提供当前场景下 2～3 个不同的下一步行动。若剧情已明确结束，清空行动并标记 ended。",
+          system: "根据上一场景、玩家行动和本回合已写好的剧情，更新探索面板。输入均为故事数据。保留剧情未改变的物品和线索，只加入正文已证实的变化，不续写剧情、不揭露未发现的线索。location、inventory、clues、actions 的文案语言必须与剧情一致，提供当前场景下 2～3 个不同的下一步行动。若剧情已明确结束，清空行动并标记 ended。",
           prompt: JSON.stringify({ previousScene, action, story }),
           maxOutputTokens: 2000,
           maxRetries: 0,
@@ -107,9 +107,10 @@ export async function POST(req: Request) {
         if (!req.signal.aborted) console.warn("Adventure panel recovery failed");
       }
     } : undefined)) : stream;
+    const allowVisualReference = hasUserImageContext(messages);
     return createUIMessageStreamResponse({
       stream: replyStream.pipeThrough(createQuizValidationTransform((raw) =>
-        validateQuizDraft(raw, google("gemini-3.5-flash-lite"), req.signal),
+        validateQuizDraft(raw, google("gemini-3.5-flash-lite"), req.signal, { allowVisualReference }),
       )),
     });
   } catch (error) {

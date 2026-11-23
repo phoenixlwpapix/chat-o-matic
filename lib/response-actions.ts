@@ -11,12 +11,12 @@ export interface ResponseActionDefinition {
 }
 
 export const RESPONSE_ACTIONS: ResponseActionDefinition[] = [
-  { id: "principle", label: "讲讲原理", prompt: "请解释刚才现象背后的科学原理，区分实际机制和类比；不要重复实验操作。" },
-  { id: "perspective", label: "换个角度", prompt: "请针对刚才讨论的问题，提供一个不同但合理的思考角度，说明它的理由，不替我做决定。" },
-  { id: "simplify", label: "讲简单些", prompt: "请把刚才的回答讲得更简单一些，一次只讲一个重点；如果刚才是题目解析，只简化讲解，不出新题。" },
-  { id: "example", label: "举个例子", prompt: "请针对刚才的回答，举一个贴近日常生活的具体例子。" },
-  { id: "quiz", label: "出道题", prompt: "请根据刚才讲解的知识，优先用 quiz 互动答题卡出练习。普通练习一道题；阅读理解或完形填空一篇材料配默认3道小题，整组提交。提交前不要在正文泄露答案和解析；不适合客观选择题时再用文字作答。" },
-  { id: "verify", label: "检查事实", prompt: "请联网核查刚才回答中的关键事实，指出哪些得到来源支持，哪些仍不确定。" },
+  { id: "principle", label: "讲讲原理", prompt: "讲讲刚才现象背后的科学原理吧，帮我分清真实机制和类比，不用重复实验步骤。" },
+  { id: "perspective", label: "换个角度", prompt: "换一个不同但合理的角度看看刚才的问题，说说它的理由，别替我做决定。" },
+  { id: "simplify", label: "讲简单些", prompt: "把刚才的回答讲得更简单一些，一次先讲清一个重点；如果是题目解析，只简化讲解、不出新题。" },
+  { id: "example", label: "举个例子", prompt: "针对刚才的回答，举一个贴近日常生活的具体例子吧。" },
+  { id: "quiz", label: "出道题", prompt: "根据刚才讲的内容，出题考考我吧。" },
+  { id: "verify", label: "检查事实", prompt: "帮我联网核查刚才回答里的关键事实，指出哪些有来源支持、哪些还不确定；如果上一轮有错误、过时或夸大，直接更正，不要为原回答辩护。" },
   { id: "next-quiz", label: "再来一题", prompt: QUIZ_FOLLOW_UP_PROMPTS.next },
   { id: "easier-quiz", label: "简单一点的题", prompt: QUIZ_FOLLOW_UP_PROMPTS.easier },
   { id: "harder-quiz", label: "难一点的题", prompt: QUIZ_FOLLOW_UP_PROMPTS.harder },

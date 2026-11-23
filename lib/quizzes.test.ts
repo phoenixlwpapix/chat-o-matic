@@ -1,10 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { parseQuiz, isCorrectAnswer, readQuizAnswers, describeQuizAnswer, withQuizAnswerContext, QUIZ_FOLLOW_UP_PROMPTS, isQuizExplanationReply } from "./quizzes";
+import { parseQuiz, isCorrectAnswer, readQuizAnswers, describeQuizAnswer, withQuizAnswerContext, QUIZ_FOLLOW_UP_PROMPTS, LEGACY_QUIZ_FOLLOW_UP_PROMPTS, isQuizExplanationReply, isNextQuizPrompt, buildQuizSessionPrompt, buildQuizContinuationPrompt } from "./quizzes";
 import { normalizeSessions, toStoredMessages, upsertSession } from "./chat-history";
 import { buildChatSystemPrompt } from "./search-modes";
 import { parseChatRequest } from "./chat-request";
 import { convertToModelMessages, type UIMessage } from "ai";
-import { buildQuizContinuationPrompt } from "./quizzes";
 
 const question = { type: "single", question: "哪个是质数？", options: ["9", "11", "15"], answer: [1], explanation: "11只有两个正因数。" };
 const raw = JSON.stringify(question);
@@ -47,10 +46,14 @@ describe("interactive quizzes", () => {
     expect(context[2].parts).toEqual([{ type: "text", text: describeQuizAnswer(parseQuiz(raw)!, [0]) }]);
     const converted = await convertToModelMessages(context);
     expect(JSON.stringify(converted.at(-1))).toContain(QUIZ_FOLLOW_UP_PROMPTS.next);
-    expect(QUIZ_FOLLOW_UP_PROMPTS.next).toContain("主动追加一题");
-    expect(QUIZ_FOLLOW_UP_PROMPTS.next).not.toContain("尚未答对");
-    expect(buildChatSystemPrompt("角色", "联网")).toContain("都必须直接输出一道新的 quiz 卡片");
-    expect(QUIZ_FOLLOW_UP_PROMPTS.explain).toContain("不要出新题");
+    expect(isNextQuizPrompt(QUIZ_FOLLOW_UP_PROMPTS.next)).toBe(true);
+    expect(isNextQuizPrompt(LEGACY_QUIZ_FOLLOW_UP_PROMPTS.next)).toBe(true);
+    const sessionPrompt = buildQuizSessionPrompt(messages);
+    expect(sessionPrompt).toContain("主动追加");
+    expect(sessionPrompt).toContain("必须直接输出新的 quiz 卡片");
+    expect(buildQuizSessionPrompt([{ id: "u", role: "user", parts: [{ type: "text", text: "你好" }] }])).toBe("");
+    expect(buildQuizSessionPrompt([...messages.slice(0, 2), { id: "e", role: "user", parts: [{ type: "text", text: QUIZ_FOLLOW_UP_PROMPTS.explain }] }])).toContain("不要出新题");
+    expect(buildQuizSessionPrompt([{ id: "t", role: "user", parts: [{ type: "text", text: "根据刚才讲的内容，出题考考我吧。" }] }])).toContain("优先使用 quiz 互动答题卡");
   });
 
   it("provides saved answers only to model context without mutating visible messages", async () => {
@@ -122,7 +125,10 @@ describe("interactive quizzes", () => {
   });
 
   it("includes one-at-a-time card instructions and keeps follow-up text within request limits", () => {
-    expect(buildChatSystemPrompt("角色", "联网")).toContain("每次回答只出一道题");
+    const prompt = buildChatSystemPrompt("角色", "联网");
+    expect(prompt).toContain("每次回答只出一道题");
+    expect(prompt).toContain("纯文字自洽");
+    expect(prompt).toContain("如图所示");
     const quiz = parseQuiz(JSON.stringify({ ...question, type: "multiple", question: "题".repeat(2000), options: Array.from({ length: 6 }, (_, i) => `${i}${"选".repeat(499)}`), answer: [0, 1, 2, 3, 4, 5] }))!;
     expect(describeQuizAnswer(quiz, quiz.answer).length).toBeLessThan(2500);
   });

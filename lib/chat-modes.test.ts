@@ -14,6 +14,7 @@ describe("chat mode prompts", () => {
     expect(result).toContain("用户在设置中选择了法语");
     expect(result).toContain("翻译或双语输出时，以该任务要求为准");
     expect(result).toContain("不要翻译卡片 JSON 字段名");
+    expect(result).toContain('["正确","错误"]');
   });
 
   it("combines the persona and search behavior", () => {
@@ -26,7 +27,7 @@ describe("chat mode prompts", () => {
     expect(result).toContain("联网策略：自动");
   });
 
-  it("includes user name requirement when userName is provided", () => {
+  it("includes natural user name guidance when userName is provided", () => {
     const result = buildChatSystemPrompt(
       "PERSONA",
       buildSearchPrompt("auto"),
@@ -34,7 +35,7 @@ describe("chat mode prompts", () => {
     );
 
     expect(result).toContain("阿荒");
-    expect(result).toContain("以该用户名开头");
+    expect(result).toContain("自然使用该称呼");
   });
 
   it("requires sources in always-search mode", () => {

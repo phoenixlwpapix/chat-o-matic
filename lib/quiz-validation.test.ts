@@ -1,7 +1,13 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { simulateReadableStream, type UIMessageChunk } from "ai";
+import { simulateReadableStream, type UIMessage, type UIMessageChunk } from "ai";
 import { MockLanguageModelV3 } from "ai/test";
-import { createQuizValidationTransform, validateQuizDraft, QuizValidationError } from "./quiz-validation";
+import {
+  createQuizValidationTransform,
+  hasMissingVisualReference,
+  hasUserImageContext,
+  QuizValidationError,
+  validateQuizDraft,
+} from "./quiz-validation";
 import { CHAT_ERROR_MESSAGES, getClientChatErrorMessage } from "./chat-errors";
 import { parseQuizCard } from "./quizzes";
 
@@ -33,6 +39,7 @@ describe("reviewed quiz stream", () => {
   it.each([
     [new QuizValidationError("calculator-missing"), CHAT_ERROR_MESSAGES.quizInvalid],
     [new QuizValidationError("unsolved"), CHAT_ERROR_MESSAGES.quizUnsolved],
+    [new QuizValidationError("missing-visual"), CHAT_ERROR_MESSAGES.quizMissingVisual],
     [new DOMException("timed out", "TimeoutError"), CHAT_ERROR_MESSAGES.timeout],
     [Object.assign(new Error("quota"), { statusCode: 429 }), CHAT_ERROR_MESSAGES.quota],
   ])("logs the actual error and preserves the public category for %s", async (error, expected) => {
@@ -138,5 +145,137 @@ describe("quiz reviewer", () => {
     const card = parseQuizCard(result);
     expect(card && !("questions" in card) ? card.answer : null).toEqual([2]);
     expect(JSON.stringify(model.doGenerateCalls[1].prompt)).toContain('4.800000000000001');
+    expect(JSON.stringify(model.doGenerateCalls[0].prompt)).not.toContain("再来一题");
+  });
+});
+
+describe("missing visual reference guard", () => {
+  const visualCircuitDraft = {
+    type: "single" as const,
+    question: "如图所示的电路中，电源电压保持不变，闭合开关 S 后，滑片 P 向右移动时电流表示数如何变化？",
+    options: ["变大", "变小", "不变", "无法判断"],
+    answer: [1],
+    explanation: "如图所示，滑片右移电阻增大，电流变小。",
+  };
+  const selfContainedCircuit = {
+    type: "single" as const,
+    question: "电源电压保持 6V 不变，定值电阻 $R_1=10\\,\\Omega$ 与滑动变阻器 $R_2$ 串联，电流表测电路电流。闭合开关后，将滑片向阻值增大的方向移动，电流表示数如何变化？",
+    options: ["变大", "变小", "不变", "先变大后变小"],
+    answer: [1],
+    explanation: "串联电路总电阻等于各电阻之和，滑动变阻器接入阻值增大导致总电阻增大，电源电压不变，由 $I=U/R$ 可知电流表示数变小。",
+  };
+
+  it("detects missing diagram references in Chinese and English without false positives on self-contained text", () => {
+    const shouldFlag = [
+      "如图所示的电路中，电源电压为 6V。",
+      "如图，在△ABC 中，AB=AC。",
+      "如图甲所示，滑片 P 向右移动。",
+      "如图（1）所示的装置。",
+      "如图甲、乙所示，两灯连接方式相同。",
+      "在图1中，电流表测量干路电流。",
+      "见下图，求阴影面积。",
+      "根据右图判断电流方向。",
+      "闭合开关后，图中电流表示数为 0.5A。",
+      "根据图中数据，下列说法正确的是？",
+      "根据电路图，灯 L1 与 L2 的连接方式是？",
+      "由图可知，物体的速度为 2 m/s。",
+      "看图计算该三角形的面积。",
+      "下列各图中，能正确测量通过 L1 电流的是？",
+      "哪幅图正确表示了光的折射？",
+      "In the circuit shown in the figure, find the current.",
+      "Look at the diagram below to find angle x.",
+      "Based on the graph above, what is the speed?",
+      "Figure 1 shows two resistors connected to a battery.",
+    ];
+    for (const question of shouldFlag) {
+      expect(hasMissingVisualReference(question), question).toBe(true);
+    }
+
+    const shouldAllow = [
+      selfContainedCircuit.question,
+      "在画电路图时，导线一般应画成横平竖直。",
+      "下列关于电路图的说法中，正确的是？",
+      "关于二次函数 $y=x^2$ 的图像，下列说法正确的是？",
+      "在一幅比例尺为 1:50000 的地图中，两地的图上距离为 4 cm，实际距离是多少？",
+      "小明去图书馆借了 3 本书，还剩几本？",
+      "In the circuit, a 6V battery is connected in series with a 10Ω resistor and a 20Ω resistor. Find the current.",
+      "Which of the following statements about a circuit diagram is correct?",
+      "Sam found an old treasure map. Look at the map, he whispered.",
+    ];
+    for (const question of shouldAllow) {
+      expect(hasMissingVisualReference(question), question).toBe(false);
+    }
+  });
+
+  it("recognizes when the user actually uploaded an image for the current turn", () => {
+    const imageMessage: UIMessage = {
+      id: "u1",
+      role: "user",
+      parts: [
+        { type: "file", mediaType: "image/png", url: "data:image/png;base64,AA==" },
+        { type: "text", text: "帮我看看这张电路图" },
+      ],
+    };
+    const assistantReply: UIMessage = { id: "a1", role: "assistant", parts: [{ type: "text", text: "这是一个串联电路。" }] };
+    expect(hasUserImageContext([imageMessage])).toBe(true);
+    expect(hasUserImageContext([imageMessage, assistantReply, { id: "u2", role: "user", parts: [{ type: "text", text: "根据刚才的图出一道选择题" }] }])).toBe(true);
+    expect(hasUserImageContext([imageMessage, assistantReply, { id: "u3", role: "user", parts: [{ type: "text", text: "帮我出几道新的初中物理电路练习题" }] }])).toBe(false);
+    expect(hasUserImageContext([{ id: "u4", role: "user", parts: [{ type: "text", text: "出一道如图所示的电路题" }] }])).toBe(false);
+  });
+
+  it("proactively asks the reviewer to rewrite a missing-visual draft into a self-contained pure-text quiz", async () => {
+    const model = new MockLanguageModelV3({
+      doGenerate: async () => checked(JSON.stringify(selfContainedCircuit)),
+    });
+    const result = await validateQuizDraft(JSON.stringify(visualCircuitDraft), model);
+    expect(parseQuizCard(result)).toEqual(selfContainedCircuit);
+    expect(model.doGenerateCalls).toHaveLength(1);
+    expect(JSON.stringify(model.doGenerateCalls[0].prompt)).toContain("答题卡不展示任何图片");
+  });
+
+  it("rejects and retries when the reviewer output still cites a missing figure, then fails closed if unresolved", async () => {
+    let call = 0;
+    const recoveringModel = new MockLanguageModelV3({
+      doGenerate: async () => call++ === 0 ? checked(JSON.stringify(visualCircuitDraft)) : checked(JSON.stringify(selfContainedCircuit)),
+    });
+    expect(parseQuizCard(await validateQuizDraft(JSON.stringify(visualCircuitDraft), recoveringModel))).toEqual(selfContainedCircuit);
+    expect(recoveringModel.doGenerateCalls).toHaveLength(2);
+    expect(console.warn).toHaveBeenCalledWith("Quiz review rejected", expect.objectContaining({ reason: "missing-visual" }));
+
+    const stuckModel = new MockLanguageModelV3({
+      doGenerate: async () => checked(JSON.stringify(visualCircuitDraft)),
+    });
+    await expect(validateQuizDraft(JSON.stringify(visualCircuitDraft), stuckModel)).rejects.toMatchObject({ reason: "missing-visual" });
+    expect(stuckModel.doGenerateCalls).toHaveLength(2);
+  });
+
+  it("passes the rewritten self-contained card to separate calculator retry when needed", async () => {
+    const rewrittenNumeric = {
+      type: "single" as const,
+      question: "电源电压 6V，定值电阻 $R_1=10\\,\\Omega$ 与 $R_2=20\\,\\Omega$ 串联，求电路中的电流。",
+      options: ["0.1 A", "0.2 A", "0.3 A", "0.6 A"],
+      answer: [1],
+      explanation: "总电阻 $R=10+20=30\\,\\Omega$，电流 $I=6/30=0.2\\,\\text{A}$。",
+    };
+    let call = 0;
+    const responses: GenerateResponse[] = [
+      checked(JSON.stringify(rewrittenNumeric), true),
+      { ...checked("{}"), content: [{ type: "tool-call", toolCallId: "calc-circuit", toolName: "calculate", input: JSON.stringify({ expression: "6/(10+20)" }) }], finishReason: { unified: "tool-calls", raw: undefined } },
+      checked(JSON.stringify(rewrittenNumeric), true),
+    ];
+    const model = new MockLanguageModelV3({ doGenerate: async () => responses[call++] });
+    expect(parseQuizCard(await validateQuizDraft(JSON.stringify(visualCircuitDraft), model))).toEqual(rewrittenNumeric);
+    expect(JSON.stringify(model.doGenerateCalls[1].prompt)).toContain("串联");
+    expect(JSON.stringify(model.doGenerateCalls[1].prompt)).not.toContain("如图所示");
+    expect(JSON.stringify(model.doGenerateCalls[2].prompt)).toContain("串联");
+  });
+
+  it("allows diagram references when the user explicitly uploaded an image", async () => {
+    const model = new MockLanguageModelV3({
+      doGenerate: async () => checked(JSON.stringify(visualCircuitDraft)),
+    });
+    const result = await validateQuizDraft(JSON.stringify(visualCircuitDraft), model, undefined, { allowVisualReference: true });
+    expect(parseQuizCard(result)).toEqual(visualCircuitDraft);
+    expect(model.doGenerateCalls).toHaveLength(1);
   });
 });

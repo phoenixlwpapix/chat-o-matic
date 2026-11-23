@@ -7,6 +7,7 @@ export const CHAT_ERROR_MESSAGES = {
   generic: "出了点小问题，请稍后再试。你的对话仍保留在这里。",
   quizInvalid: "这道题暂时未通过答案或格式校验，请点击重新生成换一道题。",
   quizUnsolved: "这道题的条件不足或答案无法确定，请重新生成，或补充题目条件。",
+  quizMissingVisual: "这道题引用了未提供的示意图，请点击重新生成换一道纯文字题。",
   timeout: "答案核对超时，请稍后重新生成。你的对话仍保留在这里。",
 } as const;
 

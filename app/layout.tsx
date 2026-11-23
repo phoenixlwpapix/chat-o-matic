@@ -17,7 +17,7 @@ const geistMono = Geist_Mono({
 
 export const metadata: Metadata = {
   title: "聊聊机 - Chat-O-Matic",
-  description: "由 Chat-O-Matic 驱动的智能聊天机器人",
+  description: "专为好奇青少年设计的 AI 聊天伙伴",
   applicationName: "聊聊机",
   manifest: "/manifest.webmanifest",
   appleWebApp: {
