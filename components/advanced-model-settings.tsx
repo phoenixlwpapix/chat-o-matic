@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, type FormEvent } from "react";
-import { LockKeyhole } from "lucide-react";
+import { LockKeyhole, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 
@@ -76,21 +76,69 @@ export function AdvancedModelSettings() {
   if (!access && !error) return null;
 
   return (
-    <section aria-labelledby="advanced-model-heading" className="space-y-2 border-t pt-3" style={{ borderColor: "var(--fb-inactive-border)" }}>
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <h2 id="advanced-model-heading" className="flex items-center gap-1.5 text-xs font-black tracking-[0.16em]">
-          <LockKeyhole className="h-4 w-4" aria-hidden="true" />
-          高级模型
-        </h2>
+    <section
+      aria-labelledby="advanced-model-heading"
+      className="space-y-3 rounded-xl border-2 p-4"
+      style={{
+        borderColor: "var(--border-color)",
+        backgroundColor: "var(--card-bg)",
+        boxShadow: "3px 3px 0px 0px rgba(var(--shadow-color), 1)",
+      }}
+    >
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="min-w-0 space-y-1">
+          <div className="flex flex-wrap items-center gap-2">
+            <h3 id="advanced-model-heading" className="flex items-center gap-2 text-sm font-black">
+              <LockKeyhole className="h-4 w-4 shrink-0" aria-hidden="true" />
+              高级模型
+            </h3>
+            {access?.enabled ? (
+              <span
+                className="inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[11px] font-black"
+                style={{
+                  borderColor: "var(--settings-selected-border)",
+                  backgroundColor: "var(--settings-selected-bg)",
+                  color: "var(--settings-selected-text)",
+                }}
+              >
+                <Sparkles className="h-3 w-3" aria-hidden="true" />
+                已启用
+              </span>
+            ) : null}
+          </div>
+          <p className="text-xs" role="status" style={{ color: "var(--settings-option-muted)" }}>
+            {access?.enabled
+              ? "当前浏览器已启用 Gemini 4 Hydrogen，从下一次回复生效。"
+              : "默认使用 Gemini 3.5 Flash-Lite，输入密码可在本浏览器解锁更强模型。"}
+          </p>
+        </div>
         {access?.enabled ? (
-          <Button type="button" size="sm" variant="outline" className="min-h-12" disabled={pending} onClick={() => void updateAccess()}>
+          <Button
+            type="button"
+            size="sm"
+            variant="outline"
+            className="h-10 shrink-0 rounded-lg border-2 px-3 text-xs font-black"
+            style={{
+              borderColor: "var(--border-color)",
+              backgroundColor: "var(--settings-option-bg)",
+              color: "var(--settings-option-text)",
+            }}
+            disabled={pending}
+            onClick={() => void updateAccess()}
+          >
             {pending ? "关闭中…" : "关闭高级模型"}
           </Button>
         ) : access ? (
           <Button
             type="button"
             size="sm"
-            className="min-h-12"
+            className="h-10 shrink-0 rounded-lg border-2 px-3 text-xs font-black transition-transform hover:-translate-y-0.5 active:translate-x-0.5 active:translate-y-0.5"
+            style={{
+              borderColor: "var(--border-color)",
+              backgroundColor: showUnlock ? "var(--settings-option-bg)" : "var(--btn-new-bg)",
+              color: showUnlock ? "var(--settings-option-text)" : "var(--btn-new-text)",
+              boxShadow: "2px 2px 0px 0px rgba(var(--shadow-color), 1)",
+            }}
             aria-expanded={showUnlock}
             aria-controls="advanced-model-unlock"
             disabled={pending}
@@ -103,13 +151,20 @@ export function AdvancedModelSettings() {
           </Button>
         ) : null}
       </div>
-      <p className="text-sm empty:hidden" role="status">
-        {access?.enabled ? "当前浏览器已启用 Gemini 4 Hydrogen" : ""}
-      </p>
+
       <div id="advanced-model-unlock" hidden={!showUnlock}>
         {showUnlock ? (
-          <form method="post" action={endpoint} onSubmit={submitPassword} aria-labelledby="advanced-model-heading">
-            <label htmlFor="advanced-model-password" className="mb-1 block text-xs font-bold">高级模型密码</label>
+          <form
+            method="post"
+            action={endpoint}
+            onSubmit={submitPassword}
+            aria-labelledby="advanced-model-heading"
+            className="border-t pt-3"
+            style={{ borderColor: "var(--fb-inactive-border)" }}
+          >
+            <label htmlFor="advanced-model-password" className="mb-1.5 block text-xs font-bold" style={{ color: "var(--settings-option-muted)" }}>
+              输入解锁密码
+            </label>
             <div className="flex flex-wrap items-center gap-2">
               <Input
                 id="advanced-model-password"
@@ -121,16 +176,35 @@ export function AdvancedModelSettings() {
                 spellCheck={false}
                 required
                 aria-describedby="advanced-model-error"
-                className="h-12 min-w-32 flex-1 text-base sm:max-w-64"
+                className="h-10 min-w-36 flex-1 rounded-lg border-2 text-base sm:max-w-xs"
+                style={{
+                  borderColor: "var(--border-color)",
+                  backgroundColor: "var(--settings-option-bg)",
+                  color: "var(--settings-option-text)",
+                }}
               />
-              <Button type="submit" size="sm" className="min-h-12" disabled={pending}>
+              <Button
+                type="submit"
+                size="sm"
+                className="h-10 shrink-0 rounded-lg border-2 px-4 text-xs font-black transition-transform hover:-translate-y-0.5 active:translate-x-0.5 active:translate-y-0.5"
+                style={{
+                  borderColor: "var(--border-color)",
+                  backgroundColor: "var(--btn-send-bg)",
+                  color: "var(--btn-action-text)",
+                  boxShadow: "2px 2px 0px 0px rgba(var(--shadow-color), 1)",
+                }}
+                disabled={pending}
+              >
                 {pending ? "验证中…" : "解锁"}
               </Button>
             </div>
           </form>
         ) : null}
       </div>
-      <p id="advanced-model-error" role="alert" className="text-xs font-bold text-red-600 dark:text-red-400 empty:hidden">{error}</p>
+
+      <p id="advanced-model-error" role="alert" className="text-xs font-bold text-red-600 empty:hidden dark:text-red-400">
+        {error}
+      </p>
     </section>
   );
 }

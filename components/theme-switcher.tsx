@@ -47,7 +47,7 @@ export function ThemeSwitcher({
     // 内联模式：直接展示所有主题选项
     if (variant === "inline") {
         return (
-            <div className="flex gap-2">
+            <div className="grid grid-cols-3 gap-2">
                 {THEMES.map((t) => {
                     const meta = THEME_META[t];
                     const isActive = t === theme;
@@ -55,25 +55,27 @@ export function ThemeSwitcher({
                         <button
                             key={t}
                             type="button"
+                            aria-pressed={isActive}
                             onClick={() => setTheme(t)}
-                            className={cn(
-                                "flex h-10 flex-1 items-center justify-center gap-1.5 rounded-lg border-2 px-2 transition-all",
-                                "hover:-translate-y-0.5 active:translate-x-0.5 active:translate-y-0.5",
-                                isActive
-                                    ? "shadow-[2px_2px_0px_0px_rgba(var(--shadow-color),1)]"
-                                    : "shadow-[1px_1px_0px_0px_rgba(var(--shadow-color),0.3)]",
-                            )}
+                            className="flex h-10 items-center justify-center gap-2 rounded-lg border-2 px-2.5 transition-all hover:-translate-y-0.5 active:translate-x-0.5 active:translate-y-0.5 focus-visible:outline-2 focus-visible:outline-offset-2"
                             style={{
-                                borderColor: isActive ? "var(--border-color)" : "var(--fb-inactive-border)",
-                                backgroundColor: isActive ? meta.colors[0] + "30" : "transparent",
+                                borderColor: isActive ? "var(--settings-selected-border)" : "var(--fb-inactive-border)",
+                                backgroundColor: isActive ? "var(--settings-selected-bg)" : "var(--settings-option-bg)",
+                                color: isActive ? "var(--settings-selected-text)" : "var(--settings-option-text)",
+                                boxShadow: isActive ? "2px 2px 0px 0px var(--settings-selected-border)" : "none",
                             }}
                             title={meta.label}
                         >
-                            <div
-                                className="h-4 w-4 shrink-0 rounded-full border-2"
-                                style={{ backgroundColor: meta.colors[0], borderColor: "var(--border-color)" }}
-                            />
-                            <span className="text-[10px] font-bold" style={{ color: "var(--foreground)" }}>
+                            <span className="flex -space-x-1" aria-hidden="true">
+                                {meta.colors.slice(0, 2).map((color, index) => (
+                                    <span
+                                        key={index}
+                                        className="h-3.5 w-3.5 rounded-full border"
+                                        style={{ backgroundColor: color, borderColor: "var(--border-color)" }}
+                                    />
+                                ))}
+                            </span>
+                            <span className="text-xs font-black">
                                 {meta.label}
                             </span>
                         </button>

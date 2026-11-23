@@ -7,12 +7,14 @@ import {
   Camera,
   Check,
   Globe2,
-  Loader2,
   Languages,
+  Loader2,
+  Palette,
   Pencil,
   Radio,
   RotateCcw,
   Settings2,
+  SlidersHorizontal,
   UserRound,
   WifiOff,
   type LucideIcon,
@@ -22,8 +24,7 @@ import { AdvancedModelSettings } from "@/components/advanced-model-settings";
 import { Button } from "@/components/ui/button";
 import { ThemeSwitcher } from "@/components/theme-switcher";
 import { MAX_USER_NAME_LENGTH } from "@/lib/constants";
-import { PERSONAS, type Persona } from "@/lib/personas";
-import { SEARCH_MODES, type SearchMode } from "@/lib/search-modes";
+import { getSearchMode, SEARCH_MODES, type SearchMode } from "@/lib/search-modes";
 import { type Theme } from "@/lib/use-theme";
 import { CHAT_FONTS, CHAT_FONT_SIZES, type ChatFont, type ChatFontSize } from "@/lib/chat-typography";
 import { cn } from "@/lib/utils";
@@ -37,7 +38,6 @@ const SEARCH_MODE_ICONS: Record<SearchMode, LucideIcon> = {
 
 interface AppSettingsProps {
   open: boolean;
-  personaId: string;
   searchMode: SearchMode;
   replyLanguage: ReplyLanguage;
   onReplyLanguageChange: (language: ReplyLanguage) => void;
@@ -49,16 +49,29 @@ interface AppSettingsProps {
   onChatFontChange: (font: ChatFont) => void;
   onChatFontSizeChange: (size: ChatFontSize) => void;
   onOpenChange: (open: boolean) => void;
-  onPersonaChange: (persona: Persona) => void;
   onSearchModeChange: (mode: SearchMode) => void;
   onThemeChange: (theme: Theme) => void;
   onUserAvatarChange: (avatar: string | null) => void;
   onUserNameChange: (userName: string) => void;
 }
 
+const SECTION_CARD_STYLE = {
+  borderColor: "var(--border-color)",
+  backgroundColor: "var(--card-bg)",
+  boxShadow: "3px 3px 0px 0px rgba(var(--shadow-color), 1)",
+} as const;
+
+function getSegmentedStyle(isActive: boolean) {
+  return {
+    borderColor: isActive ? "var(--settings-selected-border)" : "var(--fb-inactive-border)",
+    backgroundColor: isActive ? "var(--settings-selected-bg)" : "var(--settings-option-bg)",
+    color: isActive ? "var(--settings-selected-text)" : "var(--settings-option-text)",
+    boxShadow: isActive ? "2px 2px 0px 0px var(--settings-selected-border)" : "none",
+  };
+}
+
 export function AppSettings({
   open,
-  personaId,
   searchMode,
   replyLanguage,
   onReplyLanguageChange,
@@ -70,7 +83,6 @@ export function AppSettings({
   onChatFontChange,
   onChatFontSizeChange,
   onOpenChange,
-  onPersonaChange,
   onSearchModeChange,
   onThemeChange,
   onUserAvatarChange,
@@ -128,6 +140,8 @@ export function AppSettings({
 
   if (!open) return null;
 
+  const currentSearchMode = getSearchMode(searchMode);
+
   const handleUserNameInput = (e: React.ChangeEvent<HTMLInputElement>) => {
     const val = e.target.value;
     setUserNameError(null);
@@ -147,17 +161,15 @@ export function AppSettings({
     setUserNameError(null);
     setUserNameSuccess(null);
 
-    // 允许留空，直接保存并清空
     if (!trimmed) {
       onUserNameChange("");
       setInputUserName("");
       setIsEditingUserName(false);
-      setUserNameSuccess("用户名已清除");
+      setUserNameSuccess("称呼已清除");
       setTimeout(() => setUserNameSuccess(null), 2500);
       return;
     }
 
-    // 若与当前已保存的用户名一致，无需重复调用模型检查
     if (trimmed === userName) {
       setIsEditingUserName(false);
       return;
@@ -185,7 +197,7 @@ export function AppSettings({
 
       onUserNameChange(trimmed);
       setIsEditingUserName(false);
-      setUserNameSuccess("用户名已保存生效");
+      setUserNameSuccess("称呼已保存生效");
       setTimeout(() => setUserNameSuccess(null), 2500);
     } catch {
       setUserNameError("网络异常，无法验证用户名");
@@ -232,7 +244,7 @@ export function AppSettings({
           }}
         >
           <header
-            className="flex items-center justify-between gap-3 border-b-2 px-4 py-3"
+            className="flex items-center justify-between gap-3 border-b-2 px-4 py-3 md:px-6"
             style={{
               borderColor: "var(--border-color)",
               backgroundColor: "var(--header-bg)",
@@ -249,17 +261,22 @@ export function AppSettings({
                   boxShadow: "2px 2px 0px 0px rgba(var(--shadow-color), 1)",
                 }}
               >
-                <Settings2 className="h-4.5 w-4.5" />
+                <Settings2 className="h-4.5 w-4.5" aria-hidden="true" />
               </span>
-              <h2 id="app-settings-title" className="text-lg font-black leading-none">
-                设置
-              </h2>
+              <div>
+                <h2 id="app-settings-title" className="text-lg font-black leading-none">
+                  设置
+                </h2>
+                <p className="mt-0.5 text-[11px] font-bold" style={{ color: "var(--header-subtitle)" }}>
+                  所有更改自动保存在当前浏览器
+                </p>
+              </div>
             </div>
             <button
               ref={closeButtonRef}
               type="button"
               onClick={closeDialog}
-              className="inline-flex h-9 shrink-0 items-center justify-center gap-1.5 rounded-lg border-2 px-2.5 text-xs font-bold transition-transform hover:-translate-y-0.5"
+              className="inline-flex h-9 shrink-0 items-center justify-center gap-1.5 rounded-lg border-2 px-3 text-xs font-black transition-transform hover:-translate-y-0.5 active:translate-x-0.5 active:translate-y-0.5"
               style={{
                 borderColor: "var(--border-color)",
                 backgroundColor: "var(--btn-new-bg)",
@@ -268,455 +285,430 @@ export function AppSettings({
               }}
               aria-label="返回聊天"
             >
-              <ArrowLeft className="h-4 w-4" />
+              <ArrowLeft className="h-4 w-4" aria-hidden="true" />
               返回聊天
             </button>
           </header>
 
-          <div className="min-h-0 flex-1 space-y-4 overflow-y-auto p-4">
-            {/* ── 1. 上方区域：用户资料（单栏：头像 + 用户名展示/编辑态） ── */}
-            <div>
-              <div className="mb-2">
-                <label
-                  htmlFor="app-username-input"
-                  className="text-xs font-black uppercase tracking-[0.16em]"
-                >
-                  用户资料
-                </label>
-              </div>
-
-              <div className="flex items-center gap-2.5">
-                {/* 可交互头像按钮 */}
-                <div className="relative shrink-0">
-                  <button
-                    type="button"
-                    onClick={() => avatarInputRef.current?.click()}
-                    className="group relative grid h-11 w-11 place-items-center overflow-hidden rounded-full border-2 transition-transform hover:-translate-y-0.5 active:translate-x-0.5 active:translate-y-0.5"
-                    style={{
-                      borderColor: "var(--border-color)",
-                      backgroundColor: "var(--user-avatar-bg)",
-                      backgroundImage: userAvatar ? `url(${userAvatar})` : undefined,
-                      backgroundSize: "cover",
-                      backgroundPosition: "center",
-                      boxShadow: "2px 2px 0px 0px rgba(var(--shadow-color), 1)",
-                    }}
-                    title="点击更换本地头像"
-                    aria-label="点击更换本地头像"
-                  >
-                    {userAvatar ? null : <UserRound className="h-5 w-5 text-white" />}
-                    {/* 方案 1：底部半月微托底 + 精致微型相机图标 */}
-                    <div className="absolute inset-x-0 bottom-0 flex h-4.5 items-center justify-center bg-black/60 pb-0.5 opacity-0 backdrop-blur-[0.5px] transition-all duration-200 group-hover:opacity-100">
-                      <Camera className="h-2.5 w-2.5 text-white drop-shadow-sm" />
-                    </div>
-                  </button>
-
-                  {/* 恢复默认头像按钮（仅在自定义头像时显示） */}
+          <div className="min-h-0 flex-1 overflow-y-auto p-4 md:p-6">
+            <div className="mx-auto flex w-full max-w-2xl flex-col gap-4">
+              {/* ── 1. 个人资料 ── */}
+              <section
+                aria-labelledby="settings-profile-heading"
+                className="rounded-xl border-2 p-4"
+                style={SECTION_CARD_STYLE}
+              >
+                <div className="mb-3 flex items-center justify-between gap-2">
+                  <h3 id="settings-profile-heading" className="flex items-center gap-2 text-sm font-black">
+                    <UserRound className="h-4 w-4 shrink-0" aria-hidden="true" />
+                    个人资料
+                  </h3>
                   {userAvatar ? (
                     <button
                       type="button"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        onUserAvatarChange(null);
-                      }}
-                      className="absolute -bottom-1 -right-1 grid h-5 w-5 place-items-center rounded-full border-2 transition-transform hover:scale-110"
+                      onClick={() => onUserAvatarChange(null)}
+                      className="inline-flex items-center gap-1 rounded-md border px-2 py-1 text-[11px] font-bold transition-colors hover:brightness-95"
                       style={{
-                        borderColor: "var(--border-color)",
+                        borderColor: "var(--fb-inactive-border)",
                         backgroundColor: "var(--settings-option-bg)",
-                        color: "var(--settings-option-text)",
-                        boxShadow: "1px 1px 0px 0px rgba(var(--shadow-color), 1)",
+                        color: "var(--settings-option-muted)",
                       }}
-                      title="恢复默认头像"
-                      aria-label="恢复默认头像"
                     >
-                      <RotateCcw className="h-2.5 w-2.5" />
+                      <RotateCcw className="h-3 w-3" aria-hidden="true" />
+                      恢复默认头像
                     </button>
                   ) : null}
-
-                  <input
-                    ref={avatarInputRef}
-                    type="file"
-                    accept="image/jpeg,image/png,image/webp"
-                    className="hidden"
-                    tabIndex={-1}
-                    onChange={(event) => selectAvatarFile(event.target.files?.[0])}
-                  />
                 </div>
 
-                {isEditingUserName ? (
-                  <>
-                    {/* 编辑状态：输入框（内嵌字符计数） */}
-                    <div className="relative flex-1 min-w-0">
-                      <input
-                        id="app-username-input"
-                        type="text"
-                        autoFocus
-                        value={inputUserName}
-                        maxLength={MAX_USER_NAME_LENGTH}
-                        onChange={handleUserNameInput}
-                        onKeyDown={(e) => {
-                          if (e.key === "Enter" && !isValidatingUserName) {
-                            e.preventDefault();
-                            handleSaveUserName();
-                          } else if (e.key === "Escape" && !isValidatingUserName) {
-                            e.preventDefault();
-                            setIsEditingUserName(false);
-                            setUserNameError(null);
-                            setLengthWarning(false);
-                          }
-                        }}
-                        placeholder={`最多 ${MAX_USER_NAME_LENGTH} 字，留空即清除`}
-                        className="h-11 w-full rounded-xl border-2 pl-3 pr-11 text-sm font-bold transition-all placeholder:text-xs placeholder:font-normal focus:outline-none"
-                        style={{
-                          borderColor: "var(--border-color)",
-                          backgroundColor: "var(--settings-option-bg)",
-                          color: "var(--settings-option-text)",
-                          boxShadow: "2px 2px 0px 0px rgba(var(--shadow-color), 1)",
-                        }}
-                      />
-                      <span
-                        className={cn(
-                          "pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 font-mono text-[10px] font-bold transition-colors",
-                          inputUserName.length >= MAX_USER_NAME_LENGTH
-                            ? "text-red-500 font-black"
-                            : inputUserName.length >= MAX_USER_NAME_LENGTH * 0.8
-                              ? "text-amber-500"
-                              : "opacity-45",
-                        )}
-                      >
-                        {inputUserName.length}/{MAX_USER_NAME_LENGTH}
-                      </span>
+                <div className="flex items-center gap-3.5">
+                  <div className="relative shrink-0">
+                    <button
+                      type="button"
+                      onClick={() => avatarInputRef.current?.click()}
+                      className="group relative grid h-14 w-14 place-items-center overflow-hidden rounded-full border-2 transition-transform hover:-translate-y-0.5 active:translate-x-0.5 active:translate-y-0.5 focus-visible:outline-2 focus-visible:outline-offset-2"
+                      style={{
+                        borderColor: "var(--border-color)",
+                        backgroundColor: "var(--user-avatar-bg)",
+                        backgroundImage: userAvatar ? `url(${userAvatar})` : undefined,
+                        backgroundSize: "cover",
+                        backgroundPosition: "center",
+                        boxShadow: "2px 2px 0px 0px rgba(var(--shadow-color), 1)",
+                      }}
+                      title="点击更换本地头像"
+                      aria-label="点击更换本地头像"
+                    >
+                      {userAvatar ? null : <UserRound className="h-6 w-6 text-white" aria-hidden="true" />}
+                    </button>
+                    <span
+                      className="pointer-events-none absolute -bottom-0.5 -right-0.5 grid h-5.5 w-5.5 place-items-center rounded-full border-2"
+                      style={{
+                        borderColor: "var(--border-color)",
+                        backgroundColor: "var(--header-bg)",
+                        color: "var(--header-text)",
+                      }}
+                      aria-hidden="true"
+                    >
+                      <Camera className="h-3 w-3" />
+                    </span>
+
+                    <input
+                      ref={avatarInputRef}
+                      type="file"
+                      accept="image/jpeg,image/png,image/webp"
+                      className="hidden"
+                      tabIndex={-1}
+                      onChange={(event) => selectAvatarFile(event.target.files?.[0])}
+                    />
+                  </div>
+
+                  <div className="min-w-0 flex-1 space-y-1.5">
+                    <div className="flex items-center gap-2">
+                      {isEditingUserName ? (
+                        <>
+                          <div className="relative min-w-0 flex-1">
+                            <label htmlFor="app-username-input" className="sr-only">
+                              用户称呼
+                            </label>
+                            <input
+                              id="app-username-input"
+                              type="text"
+                              autoFocus
+                              value={inputUserName}
+                              maxLength={MAX_USER_NAME_LENGTH}
+                              onChange={handleUserNameInput}
+                              onKeyDown={(e) => {
+                                if (e.key === "Enter" && !isValidatingUserName) {
+                                  e.preventDefault();
+                                  handleSaveUserName();
+                                } else if (e.key === "Escape" && !isValidatingUserName) {
+                                  e.preventDefault();
+                                  setIsEditingUserName(false);
+                                  setUserNameError(null);
+                                  setLengthWarning(false);
+                                }
+                              }}
+                              placeholder={`最多 ${MAX_USER_NAME_LENGTH} 字，留空即清除`}
+                              className="h-10 w-full rounded-lg border-2 pl-3 pr-11 text-sm font-bold transition-all placeholder:text-xs placeholder:font-normal focus:outline-none"
+                              style={{
+                                borderColor: "var(--border-color)",
+                                backgroundColor: "var(--settings-option-bg)",
+                                color: "var(--settings-option-text)",
+                              }}
+                            />
+                            <span
+                              className={cn(
+                                "pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 font-mono text-[10px] font-bold transition-colors",
+                                inputUserName.length >= MAX_USER_NAME_LENGTH
+                                  ? "font-black text-red-500"
+                                  : inputUserName.length >= MAX_USER_NAME_LENGTH * 0.8
+                                    ? "text-amber-500"
+                                    : "opacity-45",
+                              )}
+                            >
+                              {inputUserName.length}/{MAX_USER_NAME_LENGTH}
+                            </span>
+                          </div>
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            onClick={() => {
+                              setIsEditingUserName(false);
+                              setUserNameError(null);
+                              setLengthWarning(false);
+                            }}
+                            disabled={isValidatingUserName}
+                            className="h-10 shrink-0 rounded-lg border-2 px-2.5 text-xs font-bold"
+                            style={{
+                              borderColor: "var(--border-color)",
+                              backgroundColor: "var(--settings-option-bg)",
+                              color: "var(--settings-option-text)",
+                            }}
+                          >
+                            取消
+                          </Button>
+                          <Button
+                            type="button"
+                            size="sm"
+                            onClick={handleSaveUserName}
+                            disabled={isValidatingUserName}
+                            className="h-10 shrink-0 gap-1.5 rounded-lg border-2 px-3 text-xs font-black transition-transform hover:-translate-y-0.5 active:translate-x-0.5 active:translate-y-0.5"
+                            style={{
+                              borderColor: "var(--border-color)",
+                              backgroundColor: "var(--btn-send-bg)",
+                              color: "var(--btn-action-text)",
+                              boxShadow: "2px 2px 0px 0px rgba(var(--shadow-color), 1)",
+                            }}
+                          >
+                            {isValidatingUserName ? (
+                              <>
+                                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                                <span>检测中</span>
+                              </>
+                            ) : (
+                              <>
+                                <Check className="h-3.5 w-3.5" />
+                                <span>保存</span>
+                              </>
+                            )}
+                          </Button>
+                        </>
+                      ) : (
+                        <>
+                          <div
+                            className="flex h-10 min-w-0 flex-1 items-center gap-2 rounded-lg border-2 px-3"
+                            style={{
+                              borderColor: "var(--fb-inactive-border)",
+                              backgroundColor: "var(--settings-option-bg)",
+                              color: "var(--settings-option-text)",
+                            }}
+                          >
+                            <span className="shrink-0 text-xs font-bold" style={{ color: "var(--settings-option-muted)" }}>
+                              称呼
+                            </span>
+                            <span className="truncate text-sm font-black">
+                              {userName ? (
+                                userName
+                              ) : (
+                                <span className="font-normal opacity-50">未设置</span>
+                              )}
+                            </span>
+                          </div>
+                          <Button
+                            type="button"
+                            size="sm"
+                            onClick={() => {
+                              setInputUserName(userName);
+                              setUserNameError(null);
+                              setUserNameSuccess(null);
+                              setLengthWarning(false);
+                              setIsEditingUserName(true);
+                            }}
+                            className="h-10 shrink-0 gap-1.5 rounded-lg border-2 px-3 text-xs font-black transition-transform hover:-translate-y-0.5 active:translate-x-0.5 active:translate-y-0.5"
+                            style={{
+                              borderColor: "var(--border-color)",
+                              backgroundColor: "var(--btn-new-bg)",
+                              color: "var(--btn-new-text)",
+                              boxShadow: "2px 2px 0px 0px rgba(var(--shadow-color), 1)",
+                            }}
+                          >
+                            <Pencil className="h-3.5 w-3.5" aria-hidden="true" />
+                            <span>修改</span>
+                          </Button>
+                        </>
+                      )}
                     </div>
 
-                    {/* 取消与保存按钮组 */}
-                    <div className="flex shrink-0 gap-1.5">
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        onClick={() => {
-                          setIsEditingUserName(false);
-                          setUserNameError(null);
-                          setLengthWarning(false);
-                        }}
-                        disabled={isValidatingUserName}
-                        className="h-11 rounded-xl border-2 px-2.5 text-xs font-bold"
-                        style={{
-                          borderColor: "var(--border-color)",
-                          backgroundColor: "var(--settings-option-bg)",
-                          color: "var(--settings-option-text)",
-                        }}
-                      >
-                        取消
-                      </Button>
-                      <Button
-                        type="button"
-                        size="sm"
-                        onClick={handleSaveUserName}
-                        disabled={isValidatingUserName}
-                        className="h-11 gap-1.5 rounded-xl border-2 px-3 text-xs font-black transition-transform hover:-translate-y-0.5 active:translate-x-0.5 active:translate-y-0.5"
-                        style={{
-                          borderColor: "var(--border-color)",
-                          backgroundColor: "var(--btn-send-bg)",
-                          color: "var(--settings-option-text)",
-                          boxShadow: "2px 2px 0px 0px rgba(var(--shadow-color), 1)",
-                        }}
-                      >
-                        {isValidatingUserName ? (
-                          <>
-                            <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                            <span>检测中</span>
-                          </>
-                        ) : (
-                          <>
-                            <Check className="h-3.5 w-3.5" />
-                            <span>保存</span>
-                          </>
-                        )}
-                      </Button>
+                    {avatarError || userNameError || userNameSuccess || lengthWarning ? (
+                      <div className="flex items-center gap-1.5 text-xs font-bold">
+                        {avatarError ? (
+                          <span className="flex items-center gap-1 text-red-500">
+                            <AlertTriangle className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+                            {avatarError}
+                          </span>
+                        ) : userNameError ? (
+                          <span className="flex items-center gap-1 text-red-500">
+                            <AlertTriangle className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+                            {userNameError}
+                          </span>
+                        ) : userNameSuccess ? (
+                          <span className="flex items-center gap-1 text-emerald-600 dark:text-emerald-400">
+                            <Check className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+                            {userNameSuccess}
+                          </span>
+                        ) : lengthWarning ? (
+                          <span className="flex items-center gap-1 text-amber-600 dark:text-amber-400">
+                            <AlertTriangle className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+                            已达到最大 {MAX_USER_NAME_LENGTH} 个字符限制
+                          </span>
+                        ) : null}
+                      </div>
+                    ) : (
+                      <p className="text-xs" style={{ color: "var(--settings-option-muted)" }}>
+                        点击头像可裁剪本地图片；AI 会在交流中自然使用你的称呼。
+                      </p>
+                    )}
+                  </div>
+                </div>
+              </section>
+
+              {/* ── 2. 对话偏好（联网模式 + 回复语言） ── */}
+              <section
+                aria-labelledby="settings-chat-heading"
+                className="rounded-xl border-2 p-4"
+                style={SECTION_CARD_STYLE}
+              >
+                <h3 id="settings-chat-heading" className="mb-3 flex items-center gap-2 text-sm font-black">
+                  <SlidersHorizontal className="h-4 w-4 shrink-0" aria-hidden="true" />
+                  对话偏好
+                </h3>
+
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <fieldset className="min-w-0">
+                    <legend className="mb-2 flex items-center gap-1.5 text-xs font-bold" style={{ color: "var(--settings-option-muted)" }}>
+                      <Globe2 className="h-3.5 w-3.5" aria-hidden="true" />
+                      联网模式
+                    </legend>
+                    <div className="grid grid-cols-3 gap-2">
+                      {SEARCH_MODES.map((mode) => {
+                        const Icon = SEARCH_MODE_ICONS[mode.id];
+                        const isActive = mode.id === searchMode;
+                        return (
+                          <button
+                            key={mode.id}
+                            type="button"
+                            onClick={() => onSearchModeChange(mode.id)}
+                            aria-pressed={isActive}
+                            className="flex h-10 items-center justify-center gap-1.5 rounded-lg border-2 px-2 transition-all hover:-translate-y-0.5 focus-visible:outline-2 focus-visible:outline-offset-2"
+                            style={getSegmentedStyle(isActive)}
+                          >
+                            <Icon className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+                            <span className="text-xs font-black">{mode.shortLabel}</span>
+                          </button>
+                        );
+                      })}
                     </div>
-                  </>
-                ) : (
-                  /* 默认展示状态：当前用户名黑框 + 外部独立的修改按钮 */
-                  <>
-                    <div
-                      className="flex h-11 flex-1 min-w-0 items-center rounded-xl border-2 px-3.5"
+                    <p className="mt-1.5 text-xs" style={{ color: "var(--settings-option-muted)" }}>
+                      {currentSearchMode.description}
+                    </p>
+                  </fieldset>
+
+                  <div className="min-w-0">
+                    <label
+                      htmlFor="reply-language"
+                      className="mb-2 flex items-center gap-1.5 text-xs font-bold"
+                      style={{ color: "var(--settings-option-muted)" }}
+                    >
+                      <Languages className="h-3.5 w-3.5" aria-hidden="true" />
+                      回复语言
+                    </label>
+                    <select
+                      id="reply-language"
+                      value={replyLanguage}
+                      onChange={(event) => onReplyLanguageChange(normalizeReplyLanguage(event.target.value))}
+                      aria-describedby="reply-language-description"
+                      className="h-10 w-full rounded-lg border-2 px-3 text-sm font-bold focus-visible:outline-2 focus-visible:outline-offset-2"
                       style={{
                         borderColor: "var(--border-color)",
                         backgroundColor: "var(--settings-option-bg)",
                         color: "var(--settings-option-text)",
-                        boxShadow: "2px 2px 0px 0px rgba(var(--shadow-color), 1)",
                       }}
                     >
-                      <div className="flex min-w-0 items-center gap-2">
-                        <span className="text-[11px] font-bold opacity-50 shrink-0">
-                          用户名
-                        </span>
-                        <span className="truncate text-sm font-black">
-                          {userName ? (
-                            userName
-                          ) : (
-                            <span className="font-normal opacity-40">未设置</span>
-                          )}
-                        </span>
+                      {REPLY_LANGUAGES.map((language) => (
+                        <option key={language.id} value={language.id}>
+                          {language.label}
+                        </option>
+                      ))}
+                    </select>
+                    <p id="reply-language-description" className="mt-1.5 text-xs" style={{ color: "var(--settings-option-muted)" }}>
+                      从下一次回复生效；翻译与语言练习按任务要求处理。
+                    </p>
+                  </div>
+                </div>
+              </section>
+
+              {/* ── 3. 外观与阅读 ── */}
+              <section
+                aria-labelledby="settings-appearance-heading"
+                className="rounded-xl border-2 p-4"
+                style={SECTION_CARD_STYLE}
+              >
+                <h3 id="settings-appearance-heading" className="mb-3 flex items-center gap-2 text-sm font-black">
+                  <Palette className="h-4 w-4 shrink-0" aria-hidden="true" />
+                  外观与阅读
+                </h3>
+
+                <div className="space-y-4">
+                  <fieldset>
+                    <legend className="mb-2 text-xs font-bold" style={{ color: "var(--settings-option-muted)" }}>
+                      主题配色
+                    </legend>
+                    <ThemeSwitcher theme={theme} setTheme={onThemeChange} variant="inline" />
+                  </fieldset>
+
+                  <div
+                    className="grid gap-4 border-t pt-4 sm:grid-cols-2"
+                    style={{ borderColor: "var(--fb-inactive-border)" }}
+                  >
+                    <div className="min-w-0">
+                      <p id="chat-font-label" className="mb-2 text-xs font-bold" style={{ color: "var(--settings-option-muted)" }}>
+                        字体
+                      </p>
+                      <div role="group" aria-labelledby="chat-font-label" className="grid grid-cols-3 gap-2">
+                        {(Object.keys(CHAT_FONTS) as ChatFont[]).map((font) => {
+                          const isActive = chatFont === font;
+                          return (
+                            <button
+                              key={font}
+                              type="button"
+                              aria-pressed={isActive}
+                              onClick={() => onChatFontChange(font)}
+                              className="h-10 rounded-lg border-2 px-1.5 text-xs font-bold transition-all hover:-translate-y-0.5 focus-visible:outline-2 focus-visible:outline-offset-2"
+                              style={{
+                                fontFamily: CHAT_FONTS[font].family,
+                                ...getSegmentedStyle(isActive),
+                              }}
+                            >
+                              {CHAT_FONTS[font].label}
+                            </button>
+                          );
+                        })}
                       </div>
                     </div>
 
-                    <Button
-                      type="button"
-                      size="sm"
-                      onClick={() => {
-                        setInputUserName(userName);
-                        setUserNameError(null);
-                        setUserNameSuccess(null);
-                        setLengthWarning(false);
-                        setIsEditingUserName(true);
-                      }}
-                      className="h-11 shrink-0 gap-1.5 rounded-xl border-2 px-3.5 text-xs font-black transition-transform hover:-translate-y-0.5 active:translate-x-0.5 active:translate-y-0.5"
+                    <div className="min-w-0">
+                      <p id="chat-font-size-label" className="mb-2 text-xs font-bold" style={{ color: "var(--settings-option-muted)" }}>
+                        字号（默认 16）
+                      </p>
+                      <div role="group" aria-labelledby="chat-font-size-label" className="grid grid-cols-4 gap-2">
+                        {CHAT_FONT_SIZES.map((size) => {
+                          const isActive = chatFontSize === size;
+                          return (
+                            <button
+                              key={size}
+                              type="button"
+                              aria-pressed={isActive}
+                              onClick={() => onChatFontSizeChange(size)}
+                              className="h-10 rounded-lg border-2 px-1.5 text-xs font-black transition-all hover:-translate-y-0.5 focus-visible:outline-2 focus-visible:outline-offset-2"
+                              style={getSegmentedStyle(isActive)}
+                            >
+                              {size}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  </div>
+
+                  <div
+                    className="rounded-lg border-2 px-3.5 py-2.5"
+                    style={{
+                      borderColor: "var(--fb-inactive-border)",
+                      backgroundColor: "var(--ai-bubble-bg)",
+                      color: "var(--ai-bubble-text)",
+                    }}
+                  >
+                    <p className="mb-1 text-[11px] font-bold" style={{ color: "var(--settings-option-muted)" }}>
+                      阅读预览
+                    </p>
+                    <p
+                      className="truncate"
                       style={{
-                        borderColor: "var(--border-color)",
-                        backgroundColor: "var(--btn-new-bg)",
-                        color: "var(--btn-new-text)",
-                        boxShadow: "2px 2px 0px 0px rgba(var(--shadow-color), 1)",
+                        fontFamily: CHAT_FONTS[chatFont].family,
+                        fontSize: chatFontSize,
+                        lineHeight: 1.6,
                       }}
                     >
-                      <Pencil className="h-3.5 w-3.5" />
-                      <span>修改</span>
-                    </Button>
-                  </>
-                )}
-              </div>
-
-              {/* 状态与提示行 */}
-              {(avatarError || userNameError || userNameSuccess || lengthWarning) ? (
-                <div className="mt-1.5 flex items-center gap-1.5 text-[11px] font-bold">
-                  {avatarError ? (
-                    <span className="flex items-center gap-1 text-red-500">
-                      <AlertTriangle className="h-3.5 w-3.5 shrink-0" />
-                      {avatarError}
-                    </span>
-                  ) : userNameError ? (
-                    <span className="flex items-center gap-1 text-red-500">
-                      <AlertTriangle className="h-3.5 w-3.5 shrink-0" />
-                      {userNameError}
-                    </span>
-                  ) : userNameSuccess ? (
-                    <span className="flex items-center gap-1 text-emerald-600 dark:text-emerald-400">
-                      <Check className="h-3.5 w-3.5 shrink-0" />
-                      {userNameSuccess}
-                    </span>
-                  ) : lengthWarning ? (
-                    <span className="flex items-center gap-1 text-amber-600 dark:text-amber-400">
-                      <AlertTriangle className="h-3.5 w-3.5 shrink-0" />
-                      已达到最大 {MAX_USER_NAME_LENGTH} 个字符限制
-                    </span>
-                  ) : null}
-                </div>
-              ) : null}
-            </div>
-
-            {/* ── 2. 上方区域：系统偏好（联网设置 + 主题配色） ── */}
-            <div
-              className="grid gap-4 border-t pt-3 sm:grid-cols-2"
-              style={{
-                borderColor:
-                  "color-mix(in srgb, var(--settings-option-muted) 35%, transparent)",
-              }}
-            >
-              <fieldset>
-                <legend className="mb-2 text-xs font-black uppercase tracking-[0.16em]">
-                  联网模式
-                </legend>
-                <div className="grid grid-cols-3 gap-2">
-                  {SEARCH_MODES.map((mode) => {
-                    const Icon = SEARCH_MODE_ICONS[mode.id];
-                    const isActive = mode.id === searchMode;
-                    return (
-                      <button
-                        key={mode.id}
-                        type="button"
-                        onClick={() => onSearchModeChange(mode.id)}
-                        aria-pressed={isActive}
-                        className="flex h-10 items-center justify-center gap-1.5 rounded-lg border-2 px-2 transition-all hover:-translate-y-0.5"
-                        style={{
-                          borderColor: isActive
-                            ? "var(--settings-selected-border)"
-                            : "var(--border-color)",
-                          backgroundColor: isActive
-                            ? "var(--settings-selected-bg)"
-                            : "var(--settings-option-bg)",
-                          color: isActive
-                            ? "var(--settings-selected-text)"
-                            : "var(--settings-option-text)",
-                          boxShadow: isActive
-                            ? "2px 2px 0px 0px var(--settings-selected-border)"
-                            : "none",
-                        }}
-                      >
-                        <Icon className="h-4 w-4" />
-                        <span className="text-[10px] font-black">{mode.shortLabel}</span>
-                      </button>
-                    );
-                  })}
-                </div>
-              </fieldset>
-
-              <fieldset>
-                <legend className="mb-2 text-xs font-black uppercase tracking-[0.16em]">
-                  主题配色
-                </legend>
-                <ThemeSwitcher theme={theme} setTheme={onThemeChange} variant="inline" />
-              </fieldset>
-            </div>
-
-            <div className="border-t pt-3" style={{ borderColor: "var(--fb-inactive-border)" }}>
-              <label htmlFor="reply-language" className="mb-2 flex items-center gap-1.5 text-xs font-black tracking-[0.16em]">
-                <Languages className="h-4 w-4" aria-hidden="true" />
-                回复语言
-              </label>
-              <select
-                id="reply-language"
-                value={replyLanguage}
-                onChange={(event) => onReplyLanguageChange(normalizeReplyLanguage(event.target.value))}
-                aria-describedby="reply-language-description"
-                className="h-10 w-full rounded-lg border-2 px-3 text-sm font-bold focus-visible:outline-2 focus-visible:outline-offset-2 sm:max-w-xs"
-                style={{ borderColor: "var(--border-color)", backgroundColor: "var(--settings-option-bg)", color: "var(--settings-option-text)" }}
-              >
-                {REPLY_LANGUAGES.map((language) => <option key={language.id} value={language.id}>{language.label}</option>)}
-              </select>
-              <p id="reply-language-description" className="mt-1.5 text-xs" style={{ color: "var(--settings-option-muted)" }}>
-                自动保存，从下一次回复生效。翻译和语言练习按具体任务要求处理。
-              </p>
-            </div>
-
-            <AdvancedModelSettings />
-
-            <fieldset className="border-t pt-3" style={{ borderColor: "var(--fb-inactive-border)" }}>
-              <legend className="mb-2 text-xs font-black uppercase tracking-[0.16em]">阅读设置</legend>
-
-              <div className="grid gap-3 sm:grid-cols-2">
-                <div className="min-w-0">
-                  <p id="chat-font-label" className="mb-2 text-xs font-bold">字体</p>
-                  <div role="group" aria-labelledby="chat-font-label" className="grid grid-cols-3 gap-2">
-                    {(Object.keys(CHAT_FONTS) as ChatFont[]).map((font) => (
-                      <button
-                        key={font}
-                        type="button"
-                        aria-pressed={chatFont === font}
-                        onClick={() => onChatFontChange(font)}
-                        className="min-h-9 rounded-lg border-2 px-1.5 py-1.5 text-xs transition-colors focus-visible:outline-2 focus-visible:outline-offset-2"
-                        style={{
-                          fontFamily: CHAT_FONTS[font].family,
-                          borderColor: chatFont === font ? "var(--border-color)" : "var(--fb-inactive-border)",
-                          backgroundColor: chatFont === font ? "var(--header-bg)" : "var(--settings-option-bg)",
-                          color: chatFont === font ? "var(--header-text)" : "var(--settings-option-text)",
-                        }}
-                      >{CHAT_FONTS[font].label}</button>
-                    ))}
+                      把复杂问题讲清楚，好奇心是探索世界的起点。
+                    </p>
                   </div>
                 </div>
-                <div>
-                  <p id="chat-font-size-label" className="mb-2 text-xs font-bold">字号 · 默认 16</p>
-                  <div role="group" aria-labelledby="chat-font-size-label" className="grid grid-cols-4 gap-2">
-                    {CHAT_FONT_SIZES.map((size) => (
-                      <button
-                        key={size}
-                        type="button"
-                        aria-pressed={chatFontSize === size}
-                        onClick={() => onChatFontSizeChange(size)}
-                        className="min-h-9 rounded-lg border-2 px-1.5 py-1.5 text-xs font-bold transition-colors focus-visible:outline-2 focus-visible:outline-offset-2"
-                        style={{
-                          borderColor: chatFontSize === size ? "var(--border-color)" : "var(--fb-inactive-border)",
-                          backgroundColor: chatFontSize === size ? "var(--header-bg)" : "var(--settings-option-bg)",
-                          color: chatFontSize === size ? "var(--header-text)" : "var(--settings-option-text)",
-                        }}
-                      >{size}</button>
-                    ))}
-                  </div>
-                </div>
-                <div className="rounded-lg border-2 px-3 py-2 sm:col-span-2" style={{ borderColor: "var(--fb-inactive-border)", backgroundColor: "var(--settings-option-bg)" }}>
-                  <p className="mb-1 text-[10px] font-bold opacity-55">即时预览 · 自动保存</p>
-                  <div className="flex h-8 items-center overflow-hidden">
-                    <p className="truncate" style={{ fontFamily: CHAT_FONTS[chatFont].family, fontSize: chatFontSize, lineHeight: 1.6 }}>把复杂问题讲清楚。</p>
-                  </div>
-                </div>
-              </div>
-            </fieldset>
+              </section>
 
-            {/* ── 3. 下方区域：性格选择 ── */}
-            <fieldset
-              className="border-t pt-3"
-              style={{
-                borderColor:
-                  "color-mix(in srgb, var(--settings-option-muted) 35%, transparent)",
-              }}
-            >
-              <legend className="mb-2 text-xs font-black uppercase tracking-[0.16em]">
-                性格选择
-              </legend>
-              <p className="mb-2 text-[11px] opacity-65">点击即切换，已有对话自动保存并新建。</p>
-              <div className="grid grid-cols-3 gap-2 sm:grid-cols-5">
-                {PERSONAS.map((persona) => {
-                  const Icon = persona.icon;
-                  const isSelected = persona.id === personaId;
-                  return (
-                    <button
-                      key={persona.id}
-                      type="button"
-                      onClick={() => onPersonaChange(persona)}
-                      aria-pressed={isSelected}
-                      className={cn(
-                        "relative flex min-h-16 flex-col items-center justify-center gap-1.5 rounded-lg border-2 px-1.5 py-2 text-center transition-all",
-                        "hover:-translate-y-0.5 active:translate-x-0.5 active:translate-y-0.5",
-                      )}
-                      style={{
-                        borderColor: "var(--border-color)",
-                        backgroundColor: isSelected
-                          ? `var(${persona.colorVar})`
-                          : "var(--settings-option-bg)",
-                        color: isSelected
-                          ? "var(--prompt-card-text)"
-                          : "var(--settings-option-text)",
-                        boxShadow: isSelected
-                          ? "3px 3px 0px 0px rgba(var(--shadow-color), 1)"
-                          : "none",
-                      }}
-                      title={persona.subtitle}
-                    >
-                      <span
-                        className="grid h-7 w-7 place-items-center rounded-md border-2"
-                        style={{
-                          borderColor: "var(--border-color)",
-                          backgroundColor: "var(--prompt-card-icon-bg)",
-                          color: "var(--prompt-card-text)",
-                        }}
-                      >
-                        <Icon className="h-4.5 w-4.5" />
-                      </span>
-                      <span className="text-[11px] font-black leading-tight">
-                        {persona.name}
-                      </span>
-                      {isSelected ? (
-                        <span
-                          className="absolute right-1.5 top-1.5 grid h-4.5 w-4.5 place-items-center rounded-full border"
-                          style={{
-                            borderColor: "var(--border-color)",
-                            backgroundColor: "var(--settings-selected-badge-bg)",
-                            color: "var(--settings-selected-badge-text)",
-                          }}
-                          aria-hidden="true"
-                        >
-                          <Check className="h-3 w-3" strokeWidth={3} />
-                        </span>
-                      ) : null}
-                    </button>
-                  );
-                })}
-              </div>
-            </fieldset>
-
-
+              {/* ── 4. 高级模型（按服务端配置条件展示） ── */}
+              <AdvancedModelSettings />
+            </div>
           </div>
-
         </section>
       </div>
       {avatarCropUrl ? (

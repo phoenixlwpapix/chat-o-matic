@@ -806,7 +806,6 @@ export default function Home() {
         {settingsOpen ? (
           <AppSettings
             open={settingsOpen}
-            personaId={personaId}
             searchMode={searchMode}
             replyLanguage={replyLanguage}
             onReplyLanguageChange={setReplyLanguage}
@@ -818,7 +817,6 @@ export default function Home() {
             onChatFontChange={setChatFont}
             onChatFontSizeChange={setChatFontSize}
             onOpenChange={setSettingsOpen}
-            onPersonaChange={handlePersonaSelect}
             onSearchModeChange={setSearchMode}
             onThemeChange={setTheme}
             onUserAvatarChange={setUserAvatar}
