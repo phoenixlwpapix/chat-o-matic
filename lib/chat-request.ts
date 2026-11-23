@@ -1,8 +1,6 @@
 import { safeValidateUIMessages, type UIMessage } from "ai";
 import { z } from "zod";
 import { ADVENTURE_PART_TYPE, adventureUpdateSchema } from "./adventure";
-import { EQUATION_PART_TYPE, MAX_RECENT_EQUATIONS, equationQuestionSchema, equationUpdateSchema, type EquationQuestion } from "./equation-practice";
-import { PENDULUM_PART_TYPE, pendulumUpdateSchema } from "./pendulum";
 import {
   MAX_ASSISTANT_MESSAGE_LENGTH,
   MAX_CHAT_MESSAGES,
@@ -28,7 +26,6 @@ const requestEnvelopeSchema = z
     searchMode: z.enum(SEARCH_MODE_IDS).default("auto"),
     replyLanguage: z.enum(REPLY_LANGUAGE_IDS).default("auto"),
     userName: z.string().max(MAX_USER_NAME_LENGTH).optional(),
-    recentEquations: z.array(equationQuestionSchema).max(MAX_RECENT_EQUATIONS).optional(),
   })
   .strict();
 
@@ -49,7 +46,6 @@ export interface ValidatedChatRequest {
   searchMode: SearchMode;
   replyLanguage: ReplyLanguage;
   userName?: string;
-  recentEquations?: EquationQuestion[];
 }
 
 export class ChatRequestError extends Error {
@@ -90,8 +86,6 @@ function validateMessageContent(messages: UIMessage[]) {
     let messageTextLength = 0;
     let imageCount = 0;
     let hasAdventureUpdate = false;
-    let hasEquationUpdate = false;
-    let hasPendulumUpdate = false;
 
     for (const part of message.parts) {
       if (part.type === "text") {
@@ -119,14 +113,6 @@ function validateMessageContent(messages: UIMessage[]) {
 
       if (message.role === "assistant" && part.type === ADVENTURE_PART_TYPE && !hasAdventureUpdate) {
         hasAdventureUpdate = true;
-        continue;
-      }
-      if (message.role === "assistant" && part.type === EQUATION_PART_TYPE && !hasEquationUpdate) {
-        hasEquationUpdate = true;
-        continue;
-      }
-      if (message.role === "assistant" && part.type === PENDULUM_PART_TYPE && !hasPendulumUpdate) {
-        hasPendulumUpdate = true;
         continue;
       }
 
@@ -183,7 +169,7 @@ export async function parseChatRequest(req: Request): Promise<ValidatedChatReque
 
   const messageResult = await safeValidateUIMessages({
     messages: envelopeResult.data.messages,
-    dataSchemas: { adventure: adventureUpdateSchema, "equation-practice": equationUpdateSchema, pendulum: pendulumUpdateSchema },
+    dataSchemas: { adventure: adventureUpdateSchema },
   });
   if (!messageResult.success) {
     throw new ChatRequestError("消息格式不正确");
@@ -202,6 +188,5 @@ export async function parseChatRequest(req: Request): Promise<ValidatedChatReque
     searchMode: envelopeResult.data.searchMode,
     replyLanguage: envelopeResult.data.replyLanguage,
     userName: envelopeResult.data.userName,
-    recentEquations: envelopeResult.data.recentEquations,
   };
 }

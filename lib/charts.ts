@@ -29,6 +29,43 @@ export const chartSchema = z.object({
 
 export type ChartSpec = z.infer<typeof chartSchema>;
 
+export interface ChartLayout {
+  cardMaxWidth?: number;
+  svgWidth: number;
+  svgHeight: number;
+  svgMaxWidth: number;
+  svgMinWidth?: number;
+  needsWideLayout: boolean;
+}
+
+const PROSE_CARD_MAX_WIDTH = 752;
+const WIDE_CARD_MAX_WIDTH = 1120;
+const CARTESIAN_MARGIN_X = 92;
+
+export function getChartLayout(chart: Pick<ChartSpec, "type" | "data">): ChartLayout {
+  const count = chart.data.length;
+  if (chart.type === "donut") {
+    return {
+      cardMaxWidth: Math.min(680, Math.max(480, 400 + count * 36)),
+      svgWidth: 380,
+      svgHeight: 236,
+      svgMaxWidth: 360,
+      needsWideLayout: false,
+    };
+  }
+
+  const svgWidth = Math.max(380, CARTESIAN_MARGIN_X + Math.max(count * 54, Math.min(count, 8) * 74));
+  const cardWidth = Math.max(460, svgWidth + 38);
+  return {
+    cardMaxWidth: cardWidth <= WIDE_CARD_MAX_WIDTH ? cardWidth : undefined,
+    svgWidth,
+    svgHeight: 240,
+    svgMaxWidth: svgWidth,
+    svgMinWidth: Math.min(svgWidth, Math.max(280, CARTESIAN_MARGIN_X + count * 54)),
+    needsWideLayout: cardWidth > PROSE_CARD_MAX_WIDTH,
+  };
+}
+
 export function parseChart(raw: string): ChartSpec | null {
   if (raw.length > 12_000) return null;
   try {

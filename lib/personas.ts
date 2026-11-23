@@ -1,5 +1,4 @@
 import { ADVENTURE_PERSONA_ID, ADVENTURE_PROMPT } from "./adventure";
-import { SCIENTIST_PERSONA_ID } from "./pendulum";
 import {
   Sparkles, FlaskConical, Sword, Cat, Drama, BookOpenCheck, Laugh,
   Lightbulb, BookOpen, Gamepad2,
@@ -81,7 +80,7 @@ export const PERSONAS: Persona[] = [
 ${SHARED_RULES}`,
   },
   {
-    id: SCIENTIST_PERSONA_ID,
+    id: "mad-scientist",
     name: "科学怪博士",
     subtitle: "疯狂实验室主人",
     icon: FlaskConical,

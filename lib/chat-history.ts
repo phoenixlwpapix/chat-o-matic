@@ -4,8 +4,6 @@ import { getSearchSummary, readSearchSummary, type SearchSummary } from "./searc
 import { readQuizAnswers, type QuizAnswer } from "./quizzes";
 import { ADVENTURE_PART_TYPE, ADVENTURE_PERSONA_ID, readAdventurePart, type AdventurePart } from "./adventure";
 import { createAdventureDraftReader } from "./adventure-draft";
-import { equationDisplay, readEquationPart, type EquationPart } from "./equation-practice";
-import { PENDULUM_PART_TYPE, readPendulumPart, type PendulumPart } from "./pendulum";
 
 const MAX_SESSIONS = 100;
 export const MAX_FAVORITE_SESSIONS = 10;
@@ -18,7 +16,7 @@ export interface StoredTextPart {
 export interface StoredMessage {
   id: string;
   role: "user" | "assistant";
-  parts: (StoredTextPart | AdventurePart | EquationPart | PendulumPart)[];
+  parts: (StoredTextPart | AdventurePart)[];
   metadata?: { search?: SearchSummary; quizAnswers?: QuizAnswer[] };
 }
 
@@ -59,7 +57,7 @@ function normalizeMessages(value: unknown, personaId: string): StoredMessage[] {
     }
 
     const parts = message.parts.flatMap((part): StoredMessage["parts"] => {
-      const card = message.role === "assistant" ? readAdventurePart(part) ?? readEquationPart(part) ?? readPendulumPart(part) : undefined;
+      const card = message.role === "assistant" ? readAdventurePart(part) : undefined;
       if (card) return [card];
       if (
         !isRecord(part) ||
@@ -147,12 +145,7 @@ export function deriveTitle(messages: StoredMessage[]): string {
 }
 
 function storedText(message: StoredMessage) {
-  return message.parts.map((part) => {
-    if (part.type === "text") return part.text;
-    const practice = readEquationPart(part)?.data.updateDataModel.value;
-    if (practice) return equationDisplay(practice.question);
-    return part.type === PENDULUM_PART_TYPE ? "单摆实验" : "";
-  }).join("");
+  return message.parts.map((part) => (part.type === "text" ? part.text : "")).join("");
 }
 
 /** Only the first user turn and its answer determine the conversation topic. */
@@ -190,7 +183,7 @@ export function toStoredMessages(messages: UIMessage[]): StoredMessage[] {
     if (message.role !== "user" && message.role !== "assistant") return [];
     const parts = message.parts.flatMap((part): StoredMessage["parts"] => {
       if (part.type === "text") return [{ type: "text", text: part.text }];
-      const card = message.role === "assistant" ? readAdventurePart(part) ?? readEquationPart(part) ?? readPendulumPart(part) : undefined;
+      const card = message.role === "assistant" ? readAdventurePart(part) : undefined;
       return card ? [card] : [];
     });
     const search = message.role === "assistant" ? getSearchSummary(message.parts, message.metadata) : undefined;

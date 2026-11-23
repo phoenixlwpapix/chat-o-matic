@@ -1,7 +1,7 @@
 import { google } from "@ai-sdk/google";
 import { getAdvancedModelAccess } from "@/lib/advanced-model-access";
 import { hydrogenModel } from "@/lib/hydrogen-model";
-import { streamText, convertToModelMessages, createUIMessageStream, createUIMessageStreamResponse, generateText, Output } from "ai";
+import { streamText, convertToModelMessages, createUIMessageStreamResponse, generateText, Output } from "ai";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { ChatRequestError, parseChatRequest } from "@/lib/chat-request";
 import { getPersonaById } from "@/lib/personas";
@@ -11,9 +11,6 @@ import { createQuizPracticeResponse } from "@/lib/quiz-response";
 import { createQuizValidationTransform, validateQuizDraft } from "@/lib/quiz-validation";
 import { ADVENTURE_PERSONA_ID, adventureStateSchema, getLatestAdventure, getSelectedAdventureAction, withAdventureContext } from "@/lib/adventure";
 import { createAdventureTransform } from "@/lib/adventure-stream";
-import { equationDisplay, isEquationPracticeRequest, readEquationPart } from "@/lib/equation-practice";
-import { createEquationResponse } from "@/lib/equation-response";
-import { createPendulumUpdate, isPendulumExplanation, isPendulumRequest, PENDULUM_INITIAL_LENGTH, PENDULUM_PART_TYPE, SCIENTIST_PERSONA_ID } from "@/lib/pendulum";
 import {
   buildChatSystemPrompt,
   buildSearchPrompt,
@@ -49,8 +46,6 @@ export async function POST(req: Request) {
     return Response.json({ error: "请求处理失败" }, { status: 400 });
   }
   const { messages, personaId, searchMode, userName, replyLanguage } = chatRequest;
-  const lastParts = messages.at(-1)?.parts;
-  const requestText = lastParts?.length === 1 && lastParts[0].type === "text" ? lastParts[0].text : "";
   const persona = getPersonaById(personaId);
   const system = [buildChatSystemPrompt(
     persona.systemPrompt,
@@ -61,17 +56,7 @@ export async function POST(req: Request) {
 
   // 2. 调用 Gemini 模型（含 Google Search 联网搜索）
   try {
-    if (personaId === "default" && isEquationPracticeRequest(requestText)) {
-      return await createEquationResponse(messages, google("gemini-3.5-flash-lite"), req.signal, chatRequest.recentEquations);
-    }
-    if (personaId === SCIENTIST_PERSONA_ID && isPendulumRequest(requestText)) {
-      return createUIMessageStreamResponse({ stream: createUIMessageStream({ execute: ({ writer }) => {
-        writer.write({ type: "start" });
-        writer.write({ type: PENDULUM_PART_TYPE, data: createPendulumUpdate(PENDULUM_INITIAL_LENGTH) });
-        writer.write({ type: "finish", finishReason: "stop" });
-      } }) });
-    }
-    const practiceResponse = personaId === SCIENTIST_PERSONA_ID && isPendulumExplanation(requestText) ? null : await createQuizPracticeResponse({
+    const practiceResponse = await createQuizPracticeResponse({
       model: google("gemini-3.5-flash-lite"),
       messages,
       personaPrompt: persona.systemPrompt,
@@ -89,13 +74,7 @@ export async function POST(req: Request) {
           : undefined,
       system,
       // 3. 将 UI 消息格式转换为模型能理解的格式
-      messages: await convertToModelMessages(withQuizAnswerContext(withAdventureContext(messages, personaId)), {
-        convertDataPart: (part) => {
-          const practice = readEquationPart(part)?.data.updateDataModel.value;
-          if (practice) return { type: "text", text: `分步方程练习：${equationDisplay(practice.question)}。${practice.stage === "done" ? "已经完成" : `正在做第 ${practice.stage === "isolate" ? 1 : 2} 步`}。` };
-          if (part.type === PENDULUM_PART_TYPE) return { type: "text", text: "已打开互动单摆实验，可调整摆长，图中显示小角度近似下的摆角与周期。" };
-        },
-      }),
+      messages: await convertToModelMessages(withQuizAnswerContext(withAdventureContext(messages, personaId))),
       abortSignal: req.signal,
     });
 

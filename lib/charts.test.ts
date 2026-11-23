@@ -1,10 +1,11 @@
 import { describe, expect, it } from "vitest";
-import { parseChart } from "./charts";
+import { getChartLayout, parseChart } from "./charts";
 import { normalizeSessions } from "./chat-history";
 import { buildChatSystemPrompt } from "./search-modes";
 
 const example = { type: "bar", title: "阅读时间", unit: "分钟", dataKind: "example", data: [{ label: "周一", value: 20 }, { label: "周二", value: 35 }] };
 const parse = (changes: Record<string, unknown>) => parseChart(JSON.stringify({ ...example, ...changes }));
+const points = (count: number) => Array.from({ length: count }, (_, index) => ({ label: `项${index + 1}`, value: index + 1 }));
 
 describe("chat charts", () => {
   it("accepts all supported types and preserves negative and zero Cartesian values", () => {
@@ -43,5 +44,32 @@ describe("chat charts", () => {
     const sessions = normalizeSessions([{ id: "s", title: "图表", createdAt: 1, updatedAt: 1, messages: [{ id: "m", role: "assistant", parts: [{ type: "text", text }] }] }]);
     expect(sessions[0].messages[0].parts[0]).toEqual({ type: "text", text });
     expect(buildChatSystemPrompt("角色", "联网")).toContain("【图表】");
+  });
+
+  it("scales chart card and SVG bounds proportionally to data density", () => {
+    const smallBar = getChartLayout({ type: "bar", data: points(3) });
+    const mediumBar = getChartLayout({ type: "bar", data: points(8) });
+    const wideLine = getChartLayout({ type: "line", data: points(14) });
+    const denseBar = getChartLayout({ type: "bar", data: points(24) });
+    const donut = getChartLayout({ type: "donut", data: points(4) });
+
+    expect(smallBar.cardMaxWidth).toBe(460);
+    expect(smallBar.svgMaxWidth).toBe(smallBar.svgWidth);
+    expect(smallBar.svgMinWidth).toBeLessThanOrEqual(300);
+    expect(smallBar.needsWideLayout).toBe(false);
+
+    expect(mediumBar.cardMaxWidth).toBeGreaterThan(smallBar.cardMaxWidth!);
+    expect(mediumBar.needsWideLayout).toBe(false);
+
+    expect(wideLine.needsWideLayout).toBe(true);
+    expect(wideLine.cardMaxWidth).toBeGreaterThan(752);
+
+    expect(denseBar.needsWideLayout).toBe(true);
+    expect(denseBar.cardMaxWidth).toBeUndefined();
+    expect(denseBar.svgMinWidth).toBe(denseBar.svgWidth);
+
+    expect(donut.needsWideLayout).toBe(false);
+    expect(donut.cardMaxWidth).toBeGreaterThanOrEqual(480);
+    expect(donut.cardMaxWidth).toBeLessThanOrEqual(680);
   });
 });
