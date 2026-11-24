@@ -108,8 +108,8 @@ export function AdvancedModelSettings() {
           </div>
           <p className="text-xs" role="status" style={{ color: "var(--settings-option-muted)" }}>
             {access?.enabled
-              ? "当前浏览器已启用 Gemini 4 Hydrogen，从下一次回复生效。"
-              : "默认使用 Gemini 3.5 Flash-Lite，输入密码可在本浏览器解锁更强模型。"}
+              ? "当前浏览器已启用，从下一次回复生效。"
+              : "输入密码可在本浏览器解锁。"}
           </p>
         </div>
         {access?.enabled ? (
