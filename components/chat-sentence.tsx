@@ -1,13 +1,25 @@
 "use client";
 
 import { useId, useState } from "react";
-import { Languages } from "lucide-react";
-import { parseSentence, SENTENCE_ROLES, type SentenceSpec } from "@/lib/sentences";
+import { Languages, RotateCcw } from "lucide-react";
+import { extractDraftSentenceText, parseSentence, SENTENCE_ROLES, type SentenceSpec } from "@/lib/sentences";
 import { ParagraphFollowUp } from "@/components/paragraph-follow-up";
 
 export function ChatSentence({ raw, pending, onFollowUp }: { raw: string; pending: boolean; onFollowUp?: (prompt: string) => void }) {
   const sentence = pending ? null : parseSentence(raw);
-  if (!sentence) return <div role="status" className="not-prose my-4 rounded-xl border-2 border-dashed p-4 text-sm" style={{ borderColor: "var(--fb-inactive-border)" }}>{pending ? "句子拆解中…" : "这张句子拆解卡的数据不完整或片段与原句不符，请让助手重新拆解。"}</div>;
+  if (!sentence) {
+    if (pending) {
+      return <div role="status" className="not-prose my-4 rounded-xl border-2 border-dashed p-4 text-sm" style={{ borderColor: "var(--fb-inactive-border)" }}>句子拆解中…</div>;
+    }
+    const draftSentence = extractDraftSentenceText(raw);
+    const retryPrompt = draftSentence
+      ? `请把下面这句英文按分句拆成更短、清晰的句子拆解卡逐段讲解（如有明显拼写笔误请先简要指出并统一拼写）：\n${draftSentence}`
+      : "刚才的句子拆解卡格式有误，请把这句英文按分句拆成更短、清晰的句子拆解卡重新讲解。";
+    return <div role="status" className="not-prose my-4 flex flex-wrap items-center justify-between gap-3 rounded-xl border-2 border-dashed p-4 text-sm" style={{ borderColor: "var(--fb-inactive-border)" }}>
+      <span>这张句子拆解卡的数据不完整或片段与原句不符。</span>
+      {onFollowUp ? <button type="button" onClick={() => onFollowUp(retryPrompt)} className="inline-flex min-h-9 shrink-0 items-center gap-1.5 rounded-lg border-2 px-3 py-1.5 text-xs font-black transition-transform hover:-translate-y-0.5 focus-visible:outline-2 focus-visible:outline-offset-2" style={{ borderColor: "var(--border-color)", backgroundColor: "var(--btn-new-bg)", color: "var(--btn-new-text)", boxShadow: "2px 2px 0px 0px rgba(var(--shadow-color), 1)" }}><RotateCcw aria-hidden="true" className="h-3.5 w-3.5" />按分句重新拆解</button> : null}
+    </div>;
+  }
   return <SentenceCard key={raw} sentence={sentence} onFollowUp={onFollowUp} />;
 }
 
@@ -17,7 +29,7 @@ function SentenceCard({ sentence, onFollowUp }: { sentence: SentenceSpec; onFoll
   const detailId = useId();
   const selected = sentence.chunks[active];
   return <section aria-labelledby={titleId} className="not-prose my-4 min-w-0 overflow-hidden rounded-xl border-2" style={{ borderColor: "var(--border-color)", background: "var(--card-bg)", color: "var(--ai-bubble-text)", boxShadow: "3px 3px 0 rgba(var(--shadow-color), 1)" }}>
-    <header className="flex items-center gap-2 border-b-2 px-3 py-3" style={{ borderColor: "var(--border-color)", background: "var(--card-footer-bg)" }}><Languages aria-hidden="true" className="h-4 w-4" /><span id={titleId} className="text-sm font-black">句子拆解</span></header>
+    <header className="flex flex-wrap items-center gap-2 border-b-2 px-3 py-3" style={{ borderColor: "var(--border-color)", background: "var(--card-footer-bg)" }}><Languages aria-hidden="true" className="h-4 w-4 shrink-0" /><span id={titleId} className="text-sm font-black">{sentence.label ? `句子拆解 · ${sentence.label}` : "句子拆解"}</span></header>
     <div className="space-y-4 p-3">
       <div className="max-w-[780px] break-words text-base font-bold leading-relaxed"><ParagraphFollowUp quote={sentence.sentence} onFollowUp={onFollowUp}><span lang="en">{sentence.sentence}</span></ParagraphFollowUp></div>
       <p className="m-0 max-w-[780px] text-sm leading-relaxed">{sentence.translation}</p>

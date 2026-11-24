@@ -9,6 +9,7 @@ import { getPublicChatErrorMessage } from "@/lib/chat-errors";
 import { withQuizAnswerContext, buildQuizSessionPrompt } from "@/lib/quizzes";
 import { createQuizPracticeResponse } from "@/lib/quiz-response";
 import { createQuizValidationTransform, hasUserImageContext, validateQuizDraft } from "@/lib/quiz-validation";
+import { createSentenceTransform, repairSentenceDraft } from "@/lib/sentence-stream";
 import { ADVENTURE_PERSONA_ID, adventureStateSchema, getLatestAdventure, getSelectedAdventureAction, withAdventureContext } from "@/lib/adventure";
 import { createAdventureTransform } from "@/lib/adventure-stream";
 import {
@@ -109,9 +110,13 @@ export async function POST(req: Request) {
     } : undefined)) : stream;
     const allowVisualReference = hasUserImageContext(messages);
     return createUIMessageStreamResponse({
-      stream: replyStream.pipeThrough(createQuizValidationTransform((raw) =>
-        validateQuizDraft(raw, google("gemini-3.5-flash-lite"), req.signal, { allowVisualReference }),
-      )),
+      stream: replyStream
+        .pipeThrough(createSentenceTransform((raw) =>
+          repairSentenceDraft(raw, google("gemini-3.5-flash-lite"), req.signal),
+        ))
+        .pipeThrough(createQuizValidationTransform((raw) =>
+          validateQuizDraft(raw, google("gemini-3.5-flash-lite"), req.signal, { allowVisualReference }),
+        )),
     });
   } catch (error) {
     console.error(
