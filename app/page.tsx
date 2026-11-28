@@ -39,6 +39,7 @@ import {
   ChevronRight,
   Settings2,
   Star,
+  Smartphone,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
@@ -208,6 +209,11 @@ export default function Home() {
   const [historySearch, setHistorySearch] = useState("");
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [personaSwitcherOpen, setPersonaSwitcherOpen] = useState(false);
+  const [favoriteBurst, setFavoriteBurst] = useState(false);
+  const favoriteBurstTimerRef = useRef<number | null>(null);
+  useEffect(() => () => {
+    if (favoriteBurstTimerRef.current) window.clearTimeout(favoriteBurstTimerRef.current);
+  }, []);
 
   const currentPersona = getPersonaById(personaId);
   const opening = getLocalizedOpening(currentPersona, replyLanguage);
@@ -215,6 +221,10 @@ export default function Home() {
   const currentSearchMode = getSearchMode(searchMode);
   const CurrentSearchModeIcon = SEARCH_MODE_ICONS[searchMode];
   const hasDraft = Boolean(inputValue.trim() || pendingImages.length > 0);
+  const inputPlaceholder =
+    pendingImages.length > 0
+      ? "添加说明，或直接发送图片…"
+      : opening.placeholder ?? opening.inputHint;
 
   // AI SDK 6 useChat - 默认连接到 /api/chat
   const { messages, sendMessage, regenerate, status, setMessages, stop } = useChat({
@@ -701,16 +711,16 @@ export default function Home() {
   };
 
   return (
-    <main className="relative flex h-dvh min-h-dvh items-center justify-center overflow-hidden md:min-h-screen md:p-4">
-      <div className="flex h-dvh w-full max-w-[1200px] gap-0 md:h-[90vh] xl:gap-4">
+    <main className="relative flex h-dvh min-h-dvh items-center justify-center overflow-hidden md:p-3 lg:p-4">
+      <div className="flex h-full w-full max-w-[1200px] gap-0 lg:gap-4 xl:h-[min(92dvh,960px)]">
         {/* ── 左侧边栏 ── */}
 
-        {/* 移动端遮罩 */}
+        {/* 移动端 / 平板竖屏遮罩 */}
         {sidebarOpen && (
           <button
             type="button"
             aria-label="关闭侧边栏遮罩"
-            className="fixed inset-0 z-40 bg-black/30 xl:hidden"
+            className="fixed inset-0 z-40 bg-black/30 lg:hidden"
             onClick={() => { setSidebarOpen(false); drawerTriggerRef.current?.focus(); }}
           />
         )}
@@ -719,12 +729,12 @@ export default function Home() {
           id="chat-sidebar"
           aria-label="对话导航"
           className={cn(
-            // 移动端：固定定位浮层
-            "fixed inset-y-0 left-0 z-50 w-64 p-3 flex flex-col gap-3 transition-transform duration-200",
-            "xl:static xl:z-auto xl:w-56 xl:shrink-0 xl:translate-x-0 xl:visible",
-            "rounded-none xl:rounded-2xl border-r-2 xl:border-2",
+            // 手机 & 平板竖屏：固定定位抽屉；iPad 横屏及以上（>= 1024px）：常驻侧边栏
+            "fixed inset-y-0 left-0 z-50 flex w-64 flex-col gap-3 px-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-[max(0.75rem,env(safe-area-inset-top))] transition-transform duration-200",
+            "lg:static lg:z-auto lg:w-56 lg:shrink-0 lg:translate-x-0 lg:visible lg:py-3",
+            "rounded-none border-r-2 lg:rounded-2xl lg:border-2",
             sidebarOpen ? "visible translate-x-0" : "invisible -translate-x-full",
-            desktopSidebarCollapsed && "xl:hidden",
+            desktopSidebarCollapsed && "lg:hidden",
           )}
           style={{
             backgroundColor: "var(--card-bg)",
@@ -749,7 +759,7 @@ export default function Home() {
               <p className="text-lg font-black tracking-tighter leading-none" style={{ color: "var(--foreground)" }}>聊聊机</p>
               <p className="text-[9px] font-black uppercase tracking-[0.2em]" style={{ color: "var(--header-subtitle)" }}>Chat-O-Matic</p>
             </div>
-            <button type="button" aria-label="关闭侧边栏" onClick={() => { setSidebarOpen(false); drawerTriggerRef.current?.focus(); }} className="ml-auto inline-flex h-9 w-9 items-center justify-center rounded-md focus-visible:outline-2 xl:hidden"><X aria-hidden="true" className="h-4 w-4" /></button>
+            <button type="button" aria-label="关闭侧边栏" onClick={() => { setSidebarOpen(false); drawerTriggerRef.current?.focus(); }} className="ml-auto inline-flex h-9 w-9 items-center justify-center rounded-md focus-visible:outline-2 lg:hidden"><X aria-hidden="true" className="h-4 w-4" /></button>
           </div>
 
           {/* 新对话按钮 */}
@@ -856,7 +866,7 @@ export default function Home() {
           style={{ boxShadow: "var(--chat-shell-shadow)", "--chat-font": CHAT_FONTS[chatFont].family, "--chat-font-size": `${chatFontSize}px` } as CSSProperties}
         >
           <CardHeader
-            className="rounded-t-lg border-b-2 px-2 py-3 sm:px-6 md:py-4"
+            className="rounded-none border-b-2 px-3 pb-2.5 pt-[max(0.625rem,env(safe-area-inset-top))] sm:px-5 md:rounded-t-lg md:py-3.5"
             style={{
               borderColor: "var(--border-color)",
               background: "var(--header-bg)",
@@ -865,7 +875,7 @@ export default function Home() {
           >
             <div className="flex items-center gap-2 sm:gap-3">
               <div className="flex min-w-0 flex-1 items-center gap-2 sm:gap-3">
-                {/* 平板和手机使用抽屉；桌面可收起固定侧边栏。 */}
+                {/* 手机与平板竖屏使用抽屉；iPad 横屏及桌面可收起固定侧边栏。 */}
                 <Button
                   ref={drawerTriggerRef}
                   onClick={() => setSidebarOpen((v) => !v)}
@@ -873,7 +883,7 @@ export default function Home() {
                   aria-expanded={sidebarOpen}
                   aria-controls="chat-sidebar"
                   size="icon"
-                  className="xl:hidden transition-all active:translate-x-0.5 active:translate-y-0.5"
+                  className="h-10 w-10 shrink-0 transition-all active:translate-x-0.5 active:translate-y-0.5 lg:hidden"
                   style={{
                     backgroundColor: "var(--btn-new-bg)",
                     color: "var(--btn-new-text)",
@@ -883,7 +893,7 @@ export default function Home() {
                 >
                   {sidebarOpen ? <PanelLeftClose className="w-5 h-5" /> : <PanelLeftOpen className="w-5 h-5" />}
                 </Button>
-                <Button type="button" size="icon" aria-label={desktopSidebarCollapsed ? "展开对话导航" : "收起对话导航"} aria-expanded={!desktopSidebarCollapsed} aria-controls="chat-sidebar" onClick={() => setDesktopSidebarCollapsed((value) => !value)} className="hidden transition-all active:translate-x-0.5 active:translate-y-0.5 xl:inline-flex" style={{ backgroundColor: "var(--btn-new-bg)", color: "var(--btn-new-text)", borderColor: "var(--border-color)", boxShadow: "3px 3px 0px 0px rgba(var(--shadow-color), 1)" }}>{desktopSidebarCollapsed ? <PanelLeftOpen aria-hidden="true" className="h-5 w-5" /> : <PanelLeftClose aria-hidden="true" className="h-5 w-5" />}</Button>
+                <Button type="button" size="icon" aria-label={desktopSidebarCollapsed ? "展开对话导航" : "收起对话导航"} aria-expanded={!desktopSidebarCollapsed} aria-controls="chat-sidebar" onClick={() => setDesktopSidebarCollapsed((value) => !value)} className="hidden h-9 w-9 shrink-0 transition-all active:translate-x-0.5 active:translate-y-0.5 lg:inline-flex lg:any-pointer-coarse:h-10 lg:any-pointer-coarse:w-10" style={{ backgroundColor: "var(--btn-new-bg)", color: "var(--btn-new-text)", borderColor: "var(--border-color)", boxShadow: "3px 3px 0px 0px rgba(var(--shadow-color), 1)" }}>{desktopSidebarCollapsed ? <PanelLeftOpen aria-hidden="true" className="h-5 w-5" /> : <PanelLeftClose aria-hidden="true" className="h-5 w-5" />}</Button>
 
                 <button
                   type="button"
@@ -922,7 +932,10 @@ export default function Home() {
                 type="button"
                 onClick={handleNewConversation}
                 disabled={isLoading}
-                className="h-auto min-h-11 shrink-0 gap-1 px-2 xl:hidden xl:any-pointer-coarse:inline-flex"
+                className={cn(
+                  "h-10 shrink-0 gap-1 px-2.5 text-xs md:h-9 md:any-pointer-coarse:h-10",
+                  desktopSidebarCollapsed ? "inline-flex" : "inline-flex lg:hidden",
+                )}
                 style={{
                   backgroundColor: "var(--btn-new-bg)",
                   color: "var(--btn-new-text)",
@@ -934,11 +947,28 @@ export default function Home() {
               </Button>
               <button
                 type="button"
+                data-burst={favoriteBurst || undefined}
                 onClick={() => {
-                  if (currentSession) history.toggleFavorite(currentSession.id);
+                  if (!currentSession) return;
+                  const nextIsFavorite = !currentSession.isFavorite;
+                  history.toggleFavorite(currentSession.id);
+                  if (favoriteBurstTimerRef.current) {
+                    window.clearTimeout(favoriteBurstTimerRef.current);
+                    favoriteBurstTimerRef.current = null;
+                  }
+                  if (nextIsFavorite) {
+                    setFavoriteBurst(false);
+                    requestAnimationFrame(() => setFavoriteBurst(true));
+                    favoriteBurstTimerRef.current = window.setTimeout(() => {
+                      setFavoriteBurst(false);
+                      favoriteBurstTimerRef.current = null;
+                    }, 600);
+                  } else {
+                    setFavoriteBurst(false);
+                  }
                 }}
                 disabled={favoriteButtonDisabled}
-                className="inline-flex min-h-11 min-w-11 shrink-0 items-center justify-center gap-1.5 rounded-lg border-2 px-2.5 py-1.5 text-xs font-black transition-all hover:-translate-y-0.5 focus-visible:outline-2 focus-visible:outline-offset-2 active:translate-x-0.5 active:translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-35 xl:min-h-0 xl:min-w-0 xl:any-pointer-coarse:min-h-11 xl:any-pointer-coarse:min-w-11"
+                className="favorite-btn relative inline-flex h-10 min-w-10 shrink-0 items-center justify-center overflow-visible rounded-lg border-2 px-2 py-1.5 text-xs font-black transition-[transform,background-color,color,box-shadow] hover:-translate-y-0.5 focus-visible:outline-2 focus-visible:outline-offset-2 active:translate-x-0.5 active:translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-35 md:h-9 md:min-w-9 md:any-pointer-coarse:h-10 md:any-pointer-coarse:min-w-10"
                 style={{
                   backgroundColor: currentSession?.isFavorite
                     ? "var(--qp-2)"
@@ -960,13 +990,27 @@ export default function Home() {
                         : "收藏当前对话"
                 }
               >
-                <Star
-                  aria-hidden="true"
-                  className="h-4 w-4"
-                  fill={currentSession?.isFavorite ? "currentColor" : "none"}
-                />
-                <span className="hidden xl:inline xl:any-pointer-coarse:hidden">
-                  {currentSession?.isFavorite ? "已收藏" : "收藏"}
+                <span className="relative inline-flex shrink-0 items-center justify-center">
+                  <Star
+                    aria-hidden="true"
+                    className="favorite-star-icon h-4 w-4"
+                    fill={currentSession?.isFavorite ? "currentColor" : "none"}
+                  />
+                  {favoriteBurst ? (
+                    <span className="favorite-sparkles" aria-hidden="true">
+                      <span />
+                      <span />
+                      <span />
+                      <span />
+                      <span />
+                      <span />
+                    </span>
+                  ) : null}
+                </span>
+                <span className="favorite-label-wrap">
+                  <span className="pr-1">
+                    {currentSession?.isFavorite ? "已收藏" : "收藏"}
+                  </span>
                 </span>
               </button>
             </div>
@@ -978,7 +1022,7 @@ export default function Home() {
           style={{ backgroundColor: "var(--card-content-bg)" }}
         >
           {messages.length === 0 && (
-            <div className="h-full flex flex-col items-center justify-center text-center space-y-5 px-2">
+            <div className="flex min-h-full flex-col items-center justify-center space-y-5 px-2 py-4 text-center">
               {(() => {
                 const PersonaIcon = currentPersona.icon;
                 return (
@@ -1466,22 +1510,18 @@ export default function Home() {
                   onPaste={handlePaste}
                   onKeyDown={handleKeyDown}
                   maxLength={MAX_INPUT_LENGTH}
-                  placeholder={
-                    pendingImages.length > 0
-                      ? "添加说明，或直接发送图片…"
-                      : opening.placeholder ?? "今天想聊点啥？"
-                  }
+                  placeholder={inputPlaceholder}
                 />
                 {inputValue.length === 0 ? (
                   <span
                     aria-hidden="true"
                     className={cn(
-                      "pointer-events-none absolute left-3.5 right-3.5 truncate text-base leading-6 md:hidden",
+                      "chat-input pointer-events-none absolute left-3.5 right-3.5 truncate font-medium md:hidden",
                       pendingImages.length > 0 ? "top-2" : "top-3",
                     )}
                     style={{ color: "var(--input-placeholder)" }}
                   >
-                    {pendingImages.length > 0 ? "添加说明…" : opening.inputHint}
+                    {inputPlaceholder}
                   </span>
                 ) : null}
               </div>
@@ -1672,6 +1712,38 @@ export default function Home() {
         onOpenChange={setPersonaSwitcherOpen}
         onPersonaChange={handlePersonaSelect}
       />
+      <div
+        className="phone-landscape-guard"
+        role="dialog"
+        aria-modal="true"
+        aria-label="请竖屏使用聊聊机"
+      >
+        <div
+          className="flex max-w-xs flex-col items-center gap-3 rounded-2xl border-4 px-6 py-5 text-center"
+          style={{
+            backgroundColor: "var(--card-bg)",
+            borderColor: "var(--border-color)",
+            color: "var(--foreground)",
+            boxShadow: "6px 6px 0px 0px rgba(var(--shadow-color), 1)",
+          }}
+        >
+          <span
+            className="grid h-12 w-12 place-items-center rounded-xl border-2"
+            style={{
+              backgroundColor: "var(--header-bg)",
+              borderColor: "var(--border-color)",
+              color: "var(--header-text)",
+              boxShadow: "3px 3px 0px 0px rgba(var(--shadow-color), 1)",
+            }}
+          >
+            <Smartphone aria-hidden="true" className="h-6 w-6" />
+          </span>
+          <p className="text-base font-black">请竖屏使用聊聊机</p>
+          <p className="text-xs font-bold opacity-75">
+            把手机竖过来，对话和输入更顺手
+          </p>
+        </div>
+      </div>
     </main>
   );
 }

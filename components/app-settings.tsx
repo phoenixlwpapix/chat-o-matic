@@ -244,7 +244,7 @@ export function AppSettings({
           }}
         >
           <header
-            className="flex items-center justify-between gap-3 border-b-2 px-4 py-3 md:px-6"
+            className="flex items-center justify-between gap-3 border-b-2 px-4 pb-3 pt-[max(0.75rem,env(safe-area-inset-top))] md:px-6 md:py-3"
             style={{
               borderColor: "var(--border-color)",
               backgroundColor: "var(--header-bg)",
