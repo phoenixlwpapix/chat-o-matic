@@ -476,16 +476,6 @@ body {
   100% { transform: translate(-11px, 9px) rotate(-18deg); }
 }
 
-@keyframes status-think-breathe {
-  0%, 100% { transform: scale(0.92); opacity: 0.72; }
-  50% { transform: scale(1.08); opacity: 1; }
-}
-
-@keyframes status-dot-hop {
-  0%, 60%, 100% { transform: translateY(0); opacity: 0.35; }
-  30% { transform: translateY(-3px); opacity: 1; }
-}
-
 .status-icon-search svg {
   animation: status-search-sweep 1.45s ease-in-out infinite;
 }
@@ -500,32 +490,53 @@ body {
   transform: rotate(-35deg);
 }
 
-.status-icon-thinking svg {
-  animation: status-think-breathe 1.25s ease-in-out infinite;
+@keyframes status-trailing-orbit {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
 }
 
-.status-dots {
-  display: inline-flex;
-  gap: 3px;
+.status-trailing-dots {
+  position: relative;
+  display: inline-block;
+  width: 1.25rem;
+  height: 1.25rem;
+  flex-shrink: 0;
 }
 
-.status-dots > span {
+.status-trailing-dots > span {
+  position: absolute;
+  inset: 0;
+  animation: status-trailing-orbit 1.5s ease-in-out infinite;
+  will-change: transform;
+}
+
+.status-trailing-dots > span::before {
+  position: absolute;
+  top: 0;
+  left: 50%;
   width: 4px;
   height: 4px;
+  margin-left: -2px;
   border-radius: 999px;
+  content: "";
   background: currentColor;
-  animation: status-dot-hop 1.05s ease-in-out infinite;
 }
 
-.status-dots > span:nth-child(2) { animation-delay: 120ms; }
-.status-dots > span:nth-child(3) { animation-delay: 240ms; }
+.status-trailing-dots > span:nth-child(1) { animation-delay: 0s; opacity: 1; }
+.status-trailing-dots > span:nth-child(2) { animation-delay: 0.1s; opacity: 0.72; }
+.status-trailing-dots > span:nth-child(3) { animation-delay: 0.2s; opacity: 0.52; }
+.status-trailing-dots > span:nth-child(4) { animation-delay: 0.3s; opacity: 0.34; }
+.status-trailing-dots > span:nth-child(5) { animation-delay: 0.4s; opacity: 0.18; }
 
 @media (prefers-reduced-motion: reduce) {
   .status-icon-search svg,
-  .status-icon-thinking svg,
-  .status-dots > span {
+  .status-trailing-dots > span {
     animation: none;
   }
+  .status-trailing-dots > span:nth-child(2) { transform: rotate(-28deg); }
+  .status-trailing-dots > span:nth-child(3) { transform: rotate(-56deg); }
+  .status-trailing-dots > span:nth-child(4) { transform: rotate(-84deg); }
+  .status-trailing-dots > span:nth-child(5) { transform: rotate(-112deg); }
 }
 
 /* Mouse users reveal active-row actions on hover or action-button focus.

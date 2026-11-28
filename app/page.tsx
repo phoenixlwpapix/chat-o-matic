@@ -20,6 +20,7 @@ import { DefaultChatTransport, type UIMessage } from "ai";
 import { MAX_INPUT_LENGTH } from "@/lib/constants";
 import {
   Send,
+  Square,
   Copy,
   Check,
   User as UserIcon,
@@ -29,7 +30,9 @@ import {
   Mic,
   MicOff,
   Search,
-  BrainCircuit,
+  Globe2,
+  Radio,
+  WifiOff,
   AlertTriangle,
   PanelLeftOpen,
   PanelLeftClose,
@@ -66,7 +69,11 @@ import { MAX_FAVORITE_SESSIONS } from "@/lib/chat-history";
 import { CHAT_FONTS } from "@/lib/chat-typography";
 import { isNextQuizPrompt, parseQuizCard, readQuizAnswers, type QuizAnswer } from "@/lib/quizzes";
 import { getResponseActionContext, getResponseActions, getMoreResponseActions, isSubstantiveReply, isQuizGroupContext } from "@/lib/response-actions";
-import type { SearchMode } from "@/lib/search-modes";
+import {
+  getSearchMode,
+  SEARCH_MODE_IDS,
+  type SearchMode,
+} from "@/lib/search-modes";
 import type { ReplyLanguage } from "@/lib/reply-languages";
 import { getLocalizedOpening } from "@/lib/persona-localization";
 import { getClientChatErrorMessage } from "@/lib/chat-errors";
@@ -125,6 +132,12 @@ const getSpeechSupportSnapshot = () =>
   "SpeechRecognition" in window || "webkitSpeechRecognition" in window;
 const getServerSpeechSupportSnapshot = () => false;
 const ChatAdventure = dynamic(() => import("@/components/chat-adventure").then((module) => module.ChatAdventure), { ssr: false });
+
+const SEARCH_MODE_ICONS = {
+  auto: Radio,
+  always: Globe2,
+  off: WifiOff,
+} as const;
 
 function getMessageText(parts: UIMessage["parts"]): string {
   return parts
@@ -199,6 +212,9 @@ export default function Home() {
   const currentPersona = getPersonaById(personaId);
   const opening = getLocalizedOpening(currentPersona, replyLanguage);
   const CurrentPersonaIcon = currentPersona.icon;
+  const currentSearchMode = getSearchMode(searchMode);
+  const CurrentSearchModeIcon = SEARCH_MODE_ICONS[searchMode];
+  const hasDraft = Boolean(inputValue.trim() || pendingImages.length > 0);
 
   // AI SDK 6 useChat - 默认连接到 /api/chat
   const { messages, sendMessage, regenerate, status, setMessages, stop } = useChat({
@@ -635,8 +651,20 @@ export default function Home() {
     scrollToBottom();
   }, [messages, apiError, scrollToBottom]);
 
+  const handleCycleSearchMode = useCallback(() => {
+    const currentIndex = SEARCH_MODE_IDS.indexOf(searchMode);
+    const nextMode = SEARCH_MODE_IDS[(currentIndex + 1) % SEARCH_MODE_IDS.length];
+    setSearchMode(nextMode);
+  }, [searchMode, setSearchMode]);
+
+  const handleStop = useCallback(() => {
+    setQuizStage(null);
+    void stop();
+  }, [stop]);
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    if (isLoading) return;
     // 允许只发图片或只发文字
     if (!inputValue.trim() && pendingImages.length === 0) return;
 
@@ -1050,7 +1078,10 @@ export default function Home() {
                 <div
                   role="img"
                   aria-label={message.role === "user" ? "用户头像" : "聊聊机头像"}
-                  className="flex h-7 w-7 shrink-0 items-center justify-center overflow-hidden rounded-full border-2 bg-cover bg-center md:h-8 md:w-8"
+                  className={cn(
+                    "flex h-7 w-7 shrink-0 items-center justify-center overflow-hidden rounded-full border-2 bg-cover bg-center md:h-8 md:w-8",
+                    message.role === "assistant" && "md:sticky md:top-2",
+                  )}
                   style={{
                     borderColor: "var(--border-color)",
                     backgroundColor:
@@ -1239,9 +1270,11 @@ export default function Home() {
                 <div className="mx-auto flex w-full max-w-[900px] justify-start">
                   <div className="flex items-center gap-2">
                     <div
+                      role="img"
+                      aria-label={isSearching ? "联网搜索图标" : "聊聊机头像"}
                       className={cn(
-                        "relative flex h-8 w-8 items-center justify-center overflow-hidden rounded-full border-2",
-                        isSearching ? "status-icon-search" : "status-icon-thinking",
+                        "relative flex h-7 w-7 shrink-0 items-center justify-center overflow-hidden rounded-full border-2 bg-cover bg-center md:h-8 md:w-8",
+                        isSearching && "status-icon-search",
                       )}
                       style={{
                         borderColor: "var(--border-color)",
@@ -1255,11 +1288,17 @@ export default function Home() {
                       {isSearching ? (
                         <Search className="relative z-10 h-4.5 w-4.5 text-white" />
                       ) : (
-                        <BrainCircuit className="relative z-10 h-4.5 w-4.5 text-white" />
+                        <Image
+                          src="/icon-192.png"
+                          alt=""
+                          width={32}
+                          height={32}
+                          className="h-full w-full object-cover"
+                        />
                       )}
                     </div>
                     <div
-                      className="px-4 py-2 rounded-lg border-2 rounded-tl-none"
+                      className="rounded-lg rounded-tl-none border-2 px-4 py-2"
                       style={{
                         borderColor: "var(--border-color)",
                         backgroundColor: isSearching
@@ -1269,13 +1308,17 @@ export default function Home() {
                           "4px 4px 0px 0px rgba(var(--shadow-color), 1)",
                       }}
                     >
-                      <span className="inline-flex items-center gap-2 text-base font-bold" role="status" aria-live="polite">
+                      <span className="inline-flex items-center gap-2.5 text-base font-bold" role="status" aria-live="polite">
+                        {!isSearching ? (
+                          <span className="status-trailing-dots" aria-hidden="true">
+                            <span />
+                            <span />
+                            <span />
+                            <span />
+                            <span />
+                          </span>
+                        ) : null}
                         {isSearching ? "联网搜索中" : "思考中"}
-                        <span className="status-dots" aria-hidden="true">
-                          <span />
-                          <span />
-                          <span />
-                        </span>
                       </span>
                     </div>
                   </div>
@@ -1340,10 +1383,10 @@ export default function Home() {
         </CardContent>
 
         <CardFooter
-          className="rounded-none border-t-2 p-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] md:rounded-b-lg md:p-4"
+          className="rounded-none border-t px-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-2.5 md:rounded-b-lg md:px-4 md:pb-4 md:pt-3"
           style={{
-            borderColor: "var(--border-color)",
-            backgroundColor: "var(--card-footer-bg)",
+            borderColor: "var(--fb-inactive-border)",
+            backgroundColor: "var(--card-content-bg)",
           }}
         >
           {/* 隐藏的文件输入 */}
@@ -1356,46 +1399,10 @@ export default function Home() {
             onChange={handleImageUpload}
           />
 
-          <div className="mx-auto flex w-full max-w-[900px] flex-col gap-2">
-            {/* 图片预览区域 */}
-            {pendingImages.length > 0 && (
-              <div className="flex gap-2 flex-wrap">
-                {pendingImages.map((src, index) => (
-                  <div key={src} className="relative group w-16 h-16">
-                    <Image
-                      src={src}
-                      alt={`待发送图片 ${index + 1}`}
-                      fill
-                      unoptimized
-                      className="object-cover rounded-lg border-2"
-                      style={{
-                        borderColor: "var(--border-color)",
-                        boxShadow:
-                          "2px 2px 0px 0px rgba(var(--shadow-color), 1)",
-                      }}
-                    />
-                    <button
-                      type="button"
-                      onClick={() => removePendingImage(index)}
-                      aria-label={`移除第 ${index + 1} 张图片`}
-                      className="absolute -right-2 -top-2 flex h-7 w-7 touch-manipulation items-center justify-center rounded-full border-2 transition-colors hover:opacity-80"
-                      style={{
-                        backgroundColor: "var(--hot-badge-bg)",
-                        borderColor: "var(--border-color)",
-                        boxShadow:
-                          "2px 2px 0px 0px rgba(var(--shadow-color), 1)",
-                      }}
-                    >
-                      <X aria-hidden="true" className="h-3.5 w-3.5 text-white" />
-                    </button>
-                  </div>
-                ))}
-              </div>
-            )}
-
-            {/* 输入表单 */}
+          <div className="mx-auto flex w-full max-w-[900px] flex-col">
+            {/* 双层一体输入表单 */}
             <form
-              className="flex w-full items-end gap-1.5 rounded-2xl border-[3px] p-1.5 transition-[box-shadow,transform] focus-within:ring-2 focus-within:ring-offset-2 md:gap-2"
+              className="flex w-full flex-col rounded-2xl border-2 transition-[box-shadow,border-color] focus-within:ring-2 focus-within:ring-offset-2"
               style={{
                 backgroundColor: "var(--input-bg)",
                 borderColor: "var(--input-border)",
@@ -1405,32 +1412,53 @@ export default function Home() {
               }}
               onSubmit={handleSubmit}
             >
-              {/* 图片上传按钮 */}
-              <Button
-                type="button"
-                size="icon"
-                variant="ghost"
-                onClick={() => fileInputRef.current?.click()}
-                aria-label="上传图片"
-                className="h-11 w-11 shrink-0 touch-manipulation rounded-xl border"
-                style={{
-                  backgroundColor: "var(--btn-image-bg)",
-                  color: "var(--btn-action-text)",
-                  borderColor: "var(--border-color)",
-                }}
-                disabled={isLoading || pendingImages.length >= 4}
-                title="上传图片（最多 4 张）"
-              >
-                <ImagePlus aria-hidden="true" className="h-5 w-5" />
-              </Button>
+              {/* 图片预览区（收纳在输入框内部顶部） */}
+              {pendingImages.length > 0 && (
+                <div className="flex flex-wrap gap-2 px-3 pt-3">
+                  {pendingImages.map((src, index) => (
+                    <div key={src} className="group relative h-14 w-14">
+                      <Image
+                        src={src}
+                        alt={`待发送图片 ${index + 1}`}
+                        fill
+                        unoptimized
+                        className="rounded-lg border-2 object-cover"
+                        style={{
+                          borderColor: "var(--border-color)",
+                          boxShadow:
+                            "2px 2px 0px 0px rgba(var(--shadow-color), 1)",
+                        }}
+                      />
+                      <button
+                        type="button"
+                        onClick={() => removePendingImage(index)}
+                        aria-label={`移除第 ${index + 1} 张图片`}
+                        className="absolute -right-1.5 -top-1.5 flex h-6 w-6 touch-manipulation items-center justify-center rounded-full border-2 transition-opacity hover:opacity-85"
+                        style={{
+                          backgroundColor: "var(--hot-badge-bg)",
+                          borderColor: "var(--border-color)",
+                          boxShadow:
+                            "1.5px 1.5px 0px 0px rgba(var(--shadow-color), 1)",
+                        }}
+                      >
+                        <X aria-hidden="true" className="h-3 w-3 text-white" />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
 
-              <div className="relative min-w-0 flex-1">
+              {/* 通栏文本输入区 */}
+              <div className="relative w-full min-w-0">
                 <textarea
                   ref={textareaRef}
                   aria-label="消息内容"
                   name="message"
                   autoComplete="off"
-                  className="chat-input block min-h-11 max-h-32 w-full resize-none overflow-y-auto border-0 bg-transparent px-2 py-2.5 pr-11 text-base font-medium leading-6 placeholder:text-transparent focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-50 md:placeholder:text-[var(--input-placeholder)]"
+                  className={cn(
+                    "chat-input block max-h-32 min-h-11 w-full resize-none overflow-y-auto border-0 bg-transparent px-3.5 pb-1.5 text-base font-medium leading-6 placeholder:text-transparent focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-50 md:placeholder:text-[var(--input-placeholder)]",
+                    pendingImages.length > 0 ? "pt-2" : "pt-3",
+                  )}
                   style={{ color: "var(--input-text)" }}
                   rows={1}
                   value={inputValue}
@@ -1447,77 +1475,191 @@ export default function Home() {
                 {inputValue.length === 0 ? (
                   <span
                     aria-hidden="true"
-                    className="pointer-events-none absolute left-2 right-11 top-2.5 truncate text-base leading-6 md:hidden"
+                    className={cn(
+                      "pointer-events-none absolute left-3.5 right-3.5 truncate text-base leading-6 md:hidden",
+                      pendingImages.length > 0 ? "top-2" : "top-3",
+                    )}
                     style={{ color: "var(--input-placeholder)" }}
                   >
                     {pendingImages.length > 0 ? "添加说明…" : opening.inputHint}
                   </span>
                 ) : null}
-                {inputValue.length >= MAX_INPUT_LENGTH * 0.8 ? (
-                  <span
-                    className="pointer-events-none absolute bottom-2.5 right-1 text-[10px] font-bold tabular-nums"
-                    style={{
-                      color:
-                        inputValue.length >= MAX_INPUT_LENGTH
-                          ? "var(--hot-badge-bg)"
-                          : "var(--fb-unclear-bg)",
-                    }}
-                  >
-                    {inputValue.length}/{MAX_INPUT_LENGTH}
-                  </span>
-                ) : null}
               </div>
 
-              {/* 语音输入按钮 */}
-              {isSpeechSupported && (
-                <Button
-                  type="button"
-                  size="icon"
-                  variant="ghost"
-                  onClick={toggleVoiceInput}
-                  aria-label={isListening ? "停止语音输入" : "开始语音输入"}
-                  className={cn(
-                    "h-11 w-11 shrink-0 touch-manipulation rounded-xl border transition-[background-color,transform]",
-                    isListening && "animate-pulse motion-reduce:animate-none",
+              {/* 底部工具栏：左侧辅助与联网切换，右侧语音与主操作 */}
+              <div className="flex items-center justify-between gap-2 px-2 pb-2 pt-1">
+                <div className="flex min-w-0 items-center gap-1">
+                  {/* 图片上传（次要降权） */}
+                  <button
+                    type="button"
+                    onClick={() => fileInputRef.current?.click()}
+                    aria-label="上传图片"
+                    disabled={isLoading || pendingImages.length >= 4}
+                    title={`上传图片（${pendingImages.length}/4）`}
+                    className="relative inline-flex h-10 w-10 shrink-0 touch-manipulation items-center justify-center rounded-[10px] transition-colors hover:bg-[var(--loading-bg)] focus-visible:outline-2 focus-visible:outline-offset-2 disabled:cursor-not-allowed disabled:opacity-40 md:h-9 md:w-9"
+                    style={{
+                      color:
+                        pendingImages.length > 0
+                          ? "var(--source-text)"
+                          : "var(--settings-option-muted)",
+                    }}
+                  >
+                    <ImagePlus aria-hidden="true" className="h-[18px] w-[18px]" />
+                    {pendingImages.length > 0 ? (
+                      <span
+                        aria-hidden="true"
+                        className="absolute -right-0.5 -top-0.5 flex h-4 min-w-4 items-center justify-center rounded-full border px-1 text-[10px] font-black leading-none"
+                        style={{
+                          backgroundColor: "var(--header-bg)",
+                          borderColor: "var(--border-color)",
+                          color: "var(--header-text)",
+                        }}
+                      >
+                        {pendingImages.length}
+                      </span>
+                    ) : null}
+                  </button>
+
+                  {/* 联网模式快捷切换胶囊 */}
+                  <button
+                    type="button"
+                    onClick={handleCycleSearchMode}
+                    disabled={isLoading}
+                    aria-label={`联网模式：${currentSearchMode.label}，点击切换`}
+                    title={`${currentSearchMode.label}：${currentSearchMode.description}（点击切换）`}
+                    className="inline-flex h-10 shrink-0 touch-manipulation items-center gap-1.5 rounded-[10px] border px-2.5 text-xs font-bold transition-colors hover:bg-[var(--loading-bg)] focus-visible:outline-2 focus-visible:outline-offset-2 disabled:cursor-not-allowed disabled:opacity-40 md:h-9"
+                    style={
+                      searchMode === "always"
+                        ? {
+                            backgroundColor: "var(--source-bg)",
+                            borderColor: "var(--source-border)",
+                            color: "var(--source-text)",
+                          }
+                        : searchMode === "auto"
+                          ? {
+                              backgroundColor: "transparent",
+                              borderColor: "var(--fb-inactive-border)",
+                              color: "var(--settings-option-muted)",
+                            }
+                          : {
+                              backgroundColor: "transparent",
+                              borderColor: "transparent",
+                              color: "var(--settings-option-muted)",
+                              opacity: 0.65,
+                            }
+                    }
+                  >
+                    <CurrentSearchModeIcon aria-hidden="true" className="h-3.5 w-3.5 shrink-0" />
+                    <span className="hidden sm:inline">{currentSearchMode.label}</span>
+                    <span className="sm:hidden">{currentSearchMode.shortLabel}</span>
+                  </button>
+                </div>
+
+                <div className="flex shrink-0 items-center gap-1.5">
+                  {/* 字数接近上限时才显示，不挤压输入文本 */}
+                  {inputValue.length >= MAX_INPUT_LENGTH * 0.8 ? (
+                    <span
+                      className="px-1 text-[11px] font-bold tabular-nums"
+                      style={{
+                        color:
+                          inputValue.length >= MAX_INPUT_LENGTH
+                            ? "var(--hot-badge-bg)"
+                            : "var(--fb-unclear-bg)",
+                      }}
+                    >
+                      {inputValue.length}/{MAX_INPUT_LENGTH}
+                    </span>
+                  ) : null}
+
+                  {/* 语音输入（未录音时降权，录音中亮起警示红） */}
+                  {isSpeechSupported && (
+                    <button
+                      type="button"
+                      onClick={toggleVoiceInput}
+                      aria-label={isListening ? "停止语音输入" : "开始语音输入"}
+                      disabled={isLoading}
+                      title={isListening ? "停止语音输入" : "语音输入"}
+                      className={cn(
+                        "inline-flex h-10 w-10 shrink-0 touch-manipulation items-center justify-center rounded-[10px] transition-all focus-visible:outline-2 focus-visible:outline-offset-2 disabled:cursor-not-allowed disabled:opacity-40 md:h-9 md:w-9",
+                        isListening
+                          ? "border-2 animate-pulse motion-reduce:animate-none"
+                          : "hover:bg-[var(--loading-bg)]",
+                      )}
+                      style={
+                        isListening
+                          ? {
+                              backgroundColor: "var(--hot-badge-bg)",
+                              borderColor: "var(--border-color)",
+                              color: "var(--hot-badge-text)",
+                              boxShadow:
+                                "2px 2px 0px 0px rgba(var(--shadow-color), 1)",
+                            }
+                          : {
+                              color: "var(--settings-option-muted)",
+                            }
+                      }
+                    >
+                      {isListening ? (
+                        <MicOff aria-hidden="true" className="h-[18px] w-[18px]" />
+                      ) : (
+                        <Mic aria-hidden="true" className="h-[18px] w-[18px]" />
+                      )}
+                    </button>
                   )}
-                  style={{
-                    backgroundColor: isListening
-                      ? "var(--hot-badge-bg)"
-                      : "var(--btn-voice-bg)",
-                    color: "var(--btn-action-text)",
-                    borderColor: "var(--border-color)",
-                  }}
-                  disabled={isLoading}
-                  title={isListening ? "停止语音输入" : "语音输入"}
-                >
-                  {isListening ? (
-                    <MicOff aria-hidden="true" className="h-5 w-5" />
+
+                  {/* 主操作：生成中显示停止，空闲时显示发送 */}
+                  {isLoading ? (
+                    <button
+                      type="button"
+                      onClick={handleStop}
+                      aria-label="停止生成"
+                      title="停止生成"
+                      className="inline-flex h-10 w-10 shrink-0 touch-manipulation items-center justify-center rounded-[10px] border-2 transition-all hover:-translate-y-0.5 active:translate-x-[2px] active:translate-y-[2px] active:shadow-none focus-visible:outline-2 focus-visible:outline-offset-2 md:h-9 md:w-9"
+                      style={{
+                        backgroundColor: "var(--hot-badge-bg)",
+                        color: "var(--hot-badge-text)",
+                        borderColor: "var(--border-color)",
+                        boxShadow:
+                          "2px 2px 0px 0px rgba(var(--shadow-color), 1)",
+                      }}
+                    >
+                      <Square aria-hidden="true" className="h-3.5 w-3.5 fill-current" />
+                    </button>
                   ) : (
-                    <Mic aria-hidden="true" className="h-5 w-5" />
+                    <button
+                      type="submit"
+                      aria-label="发送消息"
+                      title="发送消息（Enter）"
+                      disabled={!hasDraft}
+                      className={cn(
+                        "inline-flex h-10 w-10 shrink-0 touch-manipulation items-center justify-center rounded-[10px] border-2 transition-all focus-visible:outline-2 focus-visible:outline-offset-2 md:h-9 md:w-9",
+                        hasDraft
+                          ? "hover:-translate-y-0.5 active:translate-x-[2px] active:translate-y-[2px] active:shadow-none"
+                          : "cursor-not-allowed opacity-45",
+                      )}
+                      style={
+                        hasDraft
+                          ? {
+                              backgroundColor: "var(--btn-send-bg)",
+                              color: "var(--btn-action-text)",
+                              borderColor: "var(--border-color)",
+                              boxShadow:
+                                "2px 2px 0px 0px rgba(var(--shadow-color), 1)",
+                            }
+                          : {
+                              backgroundColor: "var(--loading-bg)",
+                              color: "var(--settings-option-muted)",
+                              borderColor: "transparent",
+                              boxShadow: "none",
+                            }
+                      }
+                    >
+                      <Send aria-hidden="true" className="h-4 w-4" />
+                    </button>
                   )}
-                </Button>
-              )}
-
-              <Button
-                type="submit"
-                size="icon"
-                variant="ghost"
-                aria-label="发送消息"
-                className="h-11 w-11 shrink-0 touch-manipulation rounded-xl border"
-                style={{
-                  backgroundColor: "var(--btn-send-bg)",
-                  color: "var(--btn-action-text)",
-                  borderColor: "var(--border-color)",
-                }}
-                disabled={
-                  isLoading ||
-                  (!inputValue.trim() && pendingImages.length === 0)
-                }
-              >
-                <Send aria-hidden="true" className="h-5 w-5" />
-              </Button>
+                </div>
+              </div>
             </form>
-
           </div>
         </CardFooter>
       </Card>
